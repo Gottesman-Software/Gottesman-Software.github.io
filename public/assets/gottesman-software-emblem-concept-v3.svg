@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200" role="img" aria-labelledby="title desc">
+  <title id="title">Gottesman Software emblem concept 3</title>
+  <desc id="desc">A minimal emblem reading psi ket GS, with a cyan to green central divider and no wordmark.</desc>
+  <defs>
+    <linearGradient id="gsAxis" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <filter id="softInk" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="1200" fill="none"/>
+  <g filter="url(#softInk)">
+    <text x="188" y="677" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="360" font-weight="600" letter-spacing="-20">ψ</text>
+    <rect x="558" y="358" width="20" height="440" rx="10" fill="url(#gsAxis)"/>
+    <circle cx="568" cy="358" r="12" fill="#22D3EE"/>
+    <circle cx="568" cy="798" r="12" fill="#10B981"/>
+    <text x="614" y="661" fill="#111827" font-family="Georgia, 'Times New Roman', serif" font-size="222" font-weight="600" letter-spacing="-8">GS⟩</text>
+  </g>
+</svg>
