@@ -11,6 +11,7 @@ https://gottesman-software.github.io/
 ## Development
 
 ```bash
+cd site
 npm install
 npm run dev
 ```
@@ -18,7 +19,8 @@ npm run dev
 ## Build
 
 ```bash
+cd site
 npm run build
 ```
 
-The build output is written to `dist/` and deployed by GitHub Actions.
+The Vite source lives in `site/`. The repository root contains the current static build so GitHub Pages can serve the site even when Pages is configured to publish from the `main` branch root.
