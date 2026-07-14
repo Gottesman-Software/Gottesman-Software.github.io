@@ -2987,31 +2987,48 @@ h3 {
   text-transform: uppercase;
 }
 
-.team-scholar-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
+.team-profile-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-top: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0 12px;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 12px;
-  font-weight: 800;
-  text-decoration: none;
 }
 
-.team-scholar-link svg {
-  width: 16px;
-  height: 16px;
+.team-profile-link {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #111827;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.team-profile-link svg {
+  width: 18px;
+  height: 18px;
   fill: currentColor;
 }
 
-.team-scholar-link:hover {
+.team-profile-link span {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.team-profile-link:hover {
   border-color: var(--cyan);
-  background: rgba(34, 211, 238, 0.14);
-  color: var(--white);
+  background: var(--cyan);
+  color: #020307;
+  transform: translateY(-1px);
 }
 
 .team-person-copy p:not(.team-role) {

@@ -243,14 +243,14 @@ const pageItems = [
 const navItems = [{ label: "Home", path: "/" }, ...pageItems];
 
 const socialLinks = [
-  { label: "X", icon: "x", href: "https://x.com/DennisWayogh" },
+  { label: "X", icon: "x", href: "/404.html" },
   {
     label: "LinkedIn",
     icon: "linkedin",
-    href: "https://www.linkedin.com/in/dennis-wayo-765a38b1/",
+    href: "/404.html",
   },
-  { label: "GitHub", icon: "github", href: "https://github.com/DennisWayo" },
-  { label: "Medium", icon: "medium", href: "https://medium.com/@iwayoden" },
+  { label: "GitHub", icon: "github", href: "https://github.com/Gottesman-Software" },
+  { label: "Medium", icon: "medium", href: "/404.html" },
 ];
 
 const socialIconPaths = {
@@ -1123,6 +1123,7 @@ const teamLeadership = [
     tone: "tone-cyan",
     image: "/assets/team/dennis-wayo.jpeg",
     imageAlt: "Dennis Wayo portrait",
+    github: "https://github.com/DennisWayo",
     scholar: "https://scholar.google.com/citations?hl=en&user=YCXIi1wAAAAJ&view_op=list_works&sortby=pubdate",
     bio:
       "Leads the research direction, technical boundaries, public technical claims, and the transition from prototype software to institutional development.",
@@ -1234,6 +1235,15 @@ const openResearchRoles = [
       "Develop a thesis-scale project connected to SchroSIM, LiDMaS+, Photon-QDrivers, or lab-facing validation protocols.",
     artifact: "Expected artifact: a thesis module with scripts, tests, examples, and paper-facing figures or tables.",
     evidence: ["reproducible workflows", "paper artifacts", "software ownership"],
+  },
+  {
+    title: "Undergraduate Researcher",
+    track: "Training and reproducibility",
+    status: "Planned role",
+    copy:
+      "Build skill through reproducible examples, tests, documentation, plots, notebooks, and small simulator or decoder tasks before taking larger ownership.",
+    artifact: "Expected artifact: a reproducible example, test suite, notebook, documentation page, or small benchmark task.",
+    evidence: ["tests and examples", "notebooks", "documentation"],
   },
   {
     title: "Research Software Fellow",
@@ -2692,17 +2702,31 @@ function TeamPage() {
               <div className="team-person-copy">
                 <h3>{member.name}</h3>
                 <p className="team-role">{member.role}</p>
-                {member.scholar && (
-                  <a
-                    className="team-scholar-link"
-                    href={member.scholar}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`${member.name} Google Scholar profile`}
-                  >
-                    <SocialIcon icon="scholar" />
-                    <span>Google Scholar</span>
-                  </a>
+                {(member.github || member.scholar) && (
+                  <div className="team-profile-links" aria-label={`${member.name} profile links`}>
+                    {member.github && (
+                      <a
+                        className="team-profile-link"
+                        href={member.github}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`${member.name} GitHub profile`}
+                      >
+                        <SocialIcon icon="github" />
+                      </a>
+                    )}
+                    {member.scholar && (
+                      <a
+                        className="team-profile-link is-scholar"
+                        href={member.scholar}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`${member.name} Google Scholar profile`}
+                      >
+                        <span aria-hidden="true">G</span>
+                      </a>
+                    )}
+                  </div>
                 )}
                 <p>{member.bio}</p>
               </div>
@@ -2971,17 +2995,21 @@ function Footer({ route, onNavigate }) {
               <p>&copy; 2026 Gottesman Software Research Group.</p>
               <p className="footer-legal">Terms / Privacy Policy</p>
               <div className="footer-socials" aria-label="Social media links">
-                {socialLinks.map((item) => (
-                  <a
-                    href={item.href}
-                    key={item.label}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={item.label}
-                  >
-                    <SocialIcon icon={item.icon} />
-                  </a>
-                ))}
+                {socialLinks.map((item) => {
+                  const isExternal = item.href.startsWith("http");
+
+                  return (
+                    <a
+                      href={item.href}
+                      key={item.label}
+                      target={isExternal ? "_blank" : undefined}
+                      rel={isExternal ? "noreferrer" : undefined}
+                      aria-label={item.label}
+                    >
+                      <SocialIcon icon={item.icon} />
+                    </a>
+                  );
+                })}
               </div>
             </div>
           </div>
