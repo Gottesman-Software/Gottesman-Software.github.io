@@ -64,11 +64,11 @@ img {
 }
 
 .brand img {
-  width: 136px;
-  height: 76px;
+  width: 154px;
+  height: 88px;
   border: 1px solid var(--line);
   background: var(--white);
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .brand-wordmark {
@@ -1305,7 +1305,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 22px;
-  min-height: 88px;
+  min-height: 104px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
   background: rgba(15, 23, 26, 0.96);
   padding: 12px clamp(18px, 4vw, 54px);
@@ -1316,8 +1316,8 @@ h3 {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: 118px;
-  height: 56px;
+  width: 148px;
+  height: 72px;
   overflow: hidden;
   background: var(--white);
   color: #05070b;
@@ -1707,13 +1707,13 @@ h3 {
   position: relative;
   display: grid;
   gap: 0;
-  min-height: calc(100vh - 88px);
+  min-height: calc(100vh - 104px);
   background: #030509;
   padding: 0;
 }
 
 .studio-app-frame-shell {
-  min-height: calc(100vh - 88px);
+  min-height: calc(100vh - 104px);
   overflow: hidden;
   border: 0;
   background: #05070b;
@@ -1722,7 +1722,7 @@ h3 {
 .studio-app-frame {
   display: block;
   width: 100%;
-  height: max(780px, calc(100vh - 88px));
+  height: max(780px, calc(100vh - 104px));
   border: 0;
   background: #05070b;
 }
@@ -5030,13 +5030,13 @@ h3 {
     align-items: center;
     overflow-x: auto;
     justify-content: flex-start;
-    min-height: 76px;
+    min-height: 92px;
     padding: 10px 12px;
   }
 
   .studio-rail-mark {
-    width: 108px;
-    height: 42px;
+    width: 132px;
+    height: 62px;
   }
 
   .studio-rail-mark img {
@@ -5132,20 +5132,20 @@ h3 {
   }
 
   .studio-app-route {
-    min-height: calc(100vh - 76px);
+    min-height: calc(100vh - 92px);
     padding: 0;
   }
 
   .studio-app-frame-shell {
-    min-height: calc(100vh - 76px);
+    min-height: calc(100vh - 92px);
   }
 
   .studio-app-frame {
-    height: max(720px, calc(100vh - 76px));
+    height: max(720px, calc(100vh - 92px));
   }
 
   .studio-live-badge {
-    top: 88px;
+    top: 104px;
     right: 14px;
     padding: 8px 10px;
   }
@@ -5181,8 +5181,8 @@ h3 {
   }
 
   .brand img {
-    width: 118px;
-    height: 66px;
+    width: 132px;
+    height: 76px;
   }
 
   .nav-links {
