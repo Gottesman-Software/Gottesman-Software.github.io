@@ -1,0 +1,38 @@
+{
+  "name": "gottesman-lidmas-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "VITE_BASE_PATH=/studio/lidmas-app/ VITE_DATA_MODE=mock VITE_PUBLIC_DEMO=1 vite --host 127.0.0.1 --port 5173 --strictPort",
+    "dev:standalone": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && vite build",
+    "build:studio": "npm run typecheck && VITE_BASE_PATH=/studio/lidmas-app/ VITE_DATA_MODE=mock VITE_PUBLIC_DEMO=1 vite build --outDir ../../public/studio/lidmas-app --emptyOutDir",
+    "preview": "vite preview --host 127.0.0.1 --port 4173"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.59.20",
+    "lucide-react": "^1.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.72.1",
+    "react-router-dom": "^6.30.1",
+    "recharts": "^3.8.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.5.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "postcss": "^8.5.10",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

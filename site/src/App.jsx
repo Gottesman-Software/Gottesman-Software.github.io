@@ -185,6 +185,81 @@ const softwareHeroCode = [
   ],
 ];
 
+const studioHeroCode = [
+  [{ type: "comment", text: "# gottesman_studio.py" }],
+  [
+    { type: "keyword", text: "from" },
+    { text: " " },
+    { type: "module", text: "studio" },
+    { text: " " },
+    { type: "keyword", text: "import" },
+    { text: " " },
+    { type: "class", text: "PhotonicStudy" },
+    { text: ", " },
+    { type: "class", text: "EvidenceBundle" },
+  ],
+  [],
+  [
+    { type: "variable", text: "study" },
+    { text: " = " },
+    { type: "class", text: "PhotonicStudy" },
+    { text: "." },
+    { type: "function", text: "from_schrosim" },
+    { text: "(" },
+    { type: "string", text: '"gkp-memory"' },
+    { text: ")" },
+  ],
+  [
+    { type: "variable", text: "layout" },
+    { text: " = " },
+    { type: "variable", text: "study" },
+    { text: "." },
+    { type: "function", text: "export_layout" },
+    { text: "(" },
+    { type: "property", text: "target" },
+    { text: "=" },
+    { type: "string", text: '"partner-foundry"' },
+    { text: ")" },
+  ],
+  [
+    { type: "variable", text: "decoder" },
+    { text: " = " },
+    { type: "variable", text: "study" },
+    { text: "." },
+    { type: "function", text: "replay_decoder" },
+    { text: "(" },
+    { type: "property", text: "tool" },
+    { text: "=" },
+    { type: "string", text: '"lidmas+"' },
+    { text: ")" },
+  ],
+  [
+    { type: "variable", text: "bench" },
+    { text: " = " },
+    { type: "variable", text: "study" },
+    { text: "." },
+    { type: "function", text: "prepare_fixture" },
+    { text: "(" },
+    { type: "property", text: "mode" },
+    { text: "=" },
+    { type: "string", text: '"loopback"' },
+    { text: ")" },
+  ],
+  [],
+  [
+    { type: "class", text: "EvidenceBundle" },
+    { text: "." },
+    { type: "function", text: "package" },
+    { text: "(" },
+    { type: "variable", text: "layout" },
+    { text: ", " },
+    { type: "variable", text: "decoder" },
+    { text: ", " },
+    { type: "variable", text: "bench" },
+    { text: ")" },
+  ],
+];
+
 const pageItems = [
   {
     label: "Software",
@@ -194,6 +269,16 @@ const pageItems = [
     copy:
       "SchroSIM, LiDMaS+, and Photon-QDrivers provide coordinated capabilities for circuit modeling, decoder validation, and lab-oriented execution.",
     heroCode: softwareHeroCode,
+    heroPosition: "right center",
+  },
+  {
+    label: "Studio",
+    path: "/studio",
+    eyebrow: "Gottesman Studio",
+    title: "Online access for photonic circuit studies.",
+    copy:
+      "A public Studio surface for designing SchroSIM studies, replaying LiDMaS+ decoder evidence, and preparing Photon-QDrivers loopback workflows before lab or partner-fabrication work.",
+    heroCode: studioHeroCode,
     heroPosition: "right center",
   },
   {
@@ -242,6 +327,63 @@ const pageItems = [
 
 const navItems = [{ label: "Home", path: "/" }, ...pageItems];
 
+const siteOrigin = "https://gottesman-software.github.io";
+const enableLidmasLiveRoute =
+  import.meta.env.VITE_ENABLE_LIDMAS_LIVE_ROUTE === "1" ||
+  import.meta.env.VITE_ENABLE_LIDMAS_LIVE_ROUTE === "true";
+const lidmasLiveOrigin = import.meta.env.VITE_LIDMAS_LIVE_ORIGIN || "http://127.0.0.1:5173";
+const lidmasLiveDefaultRoute =
+  import.meta.env.VITE_LIDMAS_LIVE_DEFAULT_ROUTE ||
+  "/decoder/scientific?provider=9f9a3630-d32f-4f5a-bf8d-b9f93fe3a002";
+
+const routeMeta = {
+  "/": {
+    title: "Gottesman Software | Open-source photonic quantum research software",
+    description:
+      "Gottesman Software builds open-source research software for designing, decoding, and driving fault-tolerant photonic quantum computing experiments.",
+  },
+  "/software": {
+    title: "Software | SchroSIM, LiDMaS+, Photon-QDrivers",
+    description:
+      "Explore the Gottesman Software stack for photonic circuit simulation, decoder validation, and lab-facing execution boundaries.",
+  },
+  "/studio": {
+    title: "Gottesman Studio | Online photonic circuit and decoder workbenches",
+    description:
+      "Gottesman Studio brings SchroSIM Designer, LiDMaS+ Decoder Workbench, and Photon-QDrivers Console into one public online hub.",
+  },
+  "/studio/lidmas": {
+    title: "LiDMaS+ Decoder Workbench | Gottesman Studio",
+    description:
+      "Run the public LiDMaS+ decoder workbench inside Gottesman Studio with mock data, replayable examples, and benchmark evidence views.",
+  },
+  "/studio/lidmas-live": {
+    title: "LiDMaS+ Live API Workbench | Gottesman Studio",
+    description:
+      "Run the local authenticated LiDMaS+ workbench inside Gottesman Studio against a private backend API.",
+  },
+  "/lab": {
+    title: "Prototype Lab | Gottesman Software",
+    description:
+      "Prototype pathways for photonic circuit studies, lab-ready electronics, Red Pitaya validation, and partner-lab evidence packages.",
+  },
+  "/research": {
+    title: "Research | Gottesman Software",
+    description:
+      "Research foundations for photonic circuit simulation, quantum error correction, GKP studies, decoder evidence, and reproducible software.",
+  },
+  "/team": {
+    title: "Team | Gottesman Software Research Group",
+    description:
+      "Leadership, research roles, recruiting tracks, and collaboration standards for the Gottesman Software research group.",
+  },
+  "/support": {
+    title: "Support | Gottesman Software",
+    description:
+      "Funding, collaboration, proposal, and support pathways for reproducible photonic quantum research software.",
+  },
+};
+
 const socialLinks = [
   { label: "X", icon: "x", href: "/404.html" },
   {
@@ -269,9 +411,9 @@ const footerLinkGroups = [
   {
     title: "Research Facilities",
     links: [
+      { label: "Gottesman Studio", path: "/studio" },
       { label: "Prototype Lab", path: "/lab" },
       { label: "Publications", path: "/research" },
-      { label: "Software Suite", path: "/software" },
     ],
   },
   {
@@ -388,6 +530,243 @@ const softwareShowcases = [
       { name: "Python", color: "#3572a5" },
       { name: "C++", color: "#f34b7d" },
     ],
+  },
+];
+
+const studioSurfaces = [
+  {
+    name: "SchroSIM Designer",
+    eyebrow: "Circuit design and simulation",
+    status: "Public preview",
+    image: "/assets/software/schrosim-ui-preview.gif",
+    imageAlt: "Animated SchroSIM Studio desktop interface preview",
+    copy:
+      "The first Studio surface exposes SchroSIM as an inspectable design environment for photonic circuit studies. The current public version links to the open Studio notes and desktop reference while the web-native designer is extracted.",
+    points: [
+      "Draw or inspect continuous-variable circuit studies",
+      "Keep backend policy, runtime assumptions, and validation limits visible",
+      "Export circuit studies into layout, decoder, and lab-prototype packages",
+    ],
+    primaryHref: "https://gottesman-software.github.io/SchroSIM/14-schrosim-studio/",
+    primaryLabel: "Open SchroSIM Studio notes",
+    repoHref: "https://github.com/Gottesman-Software/SchroSIM",
+  },
+  {
+    name: "LiDMaS+ Decoder Workbench",
+    eyebrow: "Decoder replay and benchmark evidence",
+    status: "Online UI path",
+    image: "/assets/software/lidmas-ui-active-development.png",
+    imageAlt: "LiDMaS+ UI preview",
+    copy:
+      "The decoder workbench is the public route for replayable examples, benchmark inspection, and result artifacts. It should stay focused on open examples, uploaded fixtures, and reproducible decoder runs.",
+    points: [
+      "Open example syndrome streams and decoder configurations",
+      "Inspect run provenance, seeds, warnings, and logical-error summaries",
+      "Compare benchmark artifacts before promoting claims into papers",
+    ],
+    primaryPath: "/studio/lidmas",
+    primaryLabel: "Open LiDMaS+ Workbench",
+    repoHref: "https://github.com/Gottesman-Software/lidmas_cpp",
+  },
+  {
+    name: "Photon-QDrivers Console",
+    eyebrow: "Simulator and loopback execution",
+    status: "Controlled public boundary",
+    image: "/assets/software/photon-qdrivers-execution-animation.svg",
+    imageAlt: "Photon-QDrivers execution boundary animation",
+    copy:
+      "The public console should expose simulator and loopback mode only. Real instruments and lab hardware belong behind authenticated, private controls when the software boundary is mature.",
+    points: [
+      "Validate PhotonicCircuit IR against backend capabilities",
+      "Run emulator or loopback jobs without touching real lab hardware",
+      "Package timing logs and result frames for partner-lab review",
+    ],
+    primaryPath: "/lab",
+    primaryLabel: "View lab boundary",
+    repoHref: "https://github.com/Gottesman-Software/photon-qdrivers",
+  },
+];
+
+const studioImplementationPlan = [
+  {
+    step: "01",
+    title: "Publish the hub",
+    copy:
+      "Use Gottesman Studio as the public entry point now, with links to SchroSIM notes, the LiDMaS+ online UI, Photon-QDrivers boundaries, and GitHub repositories.",
+  },
+  {
+    step: "02",
+    title: "Extract browser-safe cores",
+    copy:
+      "Keep SwiftUI desktop code as the reference interface, then extract browser-native circuit schema, examples, and validation logic into React components and WebAssembly where useful.",
+  },
+  {
+    step: "03",
+    title: "Run only public compute online",
+    copy:
+      "Use static demos, WebAssembly, Pyodide, or a small hosted API for simulations and decoder examples. Keep private credentials, lab instruments, and unreleased architecture out of the public site.",
+  },
+  {
+    step: "04",
+    title: "Package evidence",
+    copy:
+      "Let each Studio session produce an evidence bundle: circuit source, runtime policy, decoder settings, logs, figures, layout export notes, and clear claim labels.",
+  },
+];
+
+const studioExportPackages = [
+  "SchroSIM circuit source and PhotonicCircuit IR",
+  "foundry-oriented layout notes for partner fabrication",
+  "LiDMaS+ decoder replay bundle with seeds and warnings",
+  "Photon-QDrivers emulator or loopback timing record",
+  "prototype board, fixture, and validation notes for lab partners",
+];
+
+const studioRailItems = [
+  {
+    label: "Studio Home",
+    icon: "Gs",
+    href: "/studio",
+  },
+  {
+    label: "SchroSIM",
+    icon: "Sc",
+    href: "https://gottesman-software.github.io/SchroSIM/14-schrosim-studio/",
+  },
+  {
+    label: "LiDMaS+",
+    icon: "Ld",
+    href: "/studio/lidmas",
+  },
+  ...(enableLidmasLiveRoute
+    ? [
+        {
+          label: "LiDMaS Live",
+          icon: "Lv",
+          href: "/studio/lidmas-live",
+        },
+      ]
+    : []),
+  {
+    label: "QDrivers",
+    icon: "Qd",
+    href: "#qdrivers-coming-soon",
+  },
+  {
+    label: "Docs",
+    icon: "Dc",
+    href: "#studio-docs",
+  },
+  {
+    label: "Feedback",
+    icon: "Fb",
+    href: "mailto:dwayo3@gatech.edu?subject=Gottesman%20Studio%20feedback",
+  },
+];
+
+const lidmasTourSteps = [
+  {
+    title: "Open the scientific dashboard",
+    body: "Start on the main decoder dashboard. This is the overview for logical-error behavior, selected decoder, and current public demo state.",
+    route: "/decoder/scientific",
+  },
+  {
+    title: "Confirm public demo mode",
+    body: "Use the workbench in mock mode for public exploration. Live backend execution and credentials are intentionally outside this route.",
+    route: "/settings",
+  },
+  {
+    title: "Choose a decoder",
+    body: "Select MWPM, union-find, belief propagation, or neural-guided paths depending on the comparison you want to inspect.",
+    route: "/decoder/scientific",
+  },
+  {
+    title: "Load an example stream",
+    body: "Use the built-in examples to inspect syndrome-like data without uploading private lab records or connecting to hardware.",
+    route: "/runs",
+  },
+  {
+    title: "Inspect telemetry",
+    body: "Review runtime signals, warning rates, replay identity, and the measurements that explain how the decoder path behaved.",
+    route: "/decoder/telemetry",
+  },
+  {
+    title: "Run validation checks",
+    body: "Use validation views to compare expected behavior against replayed output before treating a result as evidence.",
+    route: "/decoder/validation",
+  },
+  {
+    title: "Read logs",
+    body: "Open logs when a run is confusing. Warnings, fallbacks, and rejected assumptions should be visible before results are trusted.",
+    route: "/decoder/logs",
+  },
+  {
+    title: "Compare providers",
+    body: "Provider views help separate simulated, replayed, and hardware-shaped data sources so the public claim boundary stays clear.",
+    route: "/providers",
+  },
+  {
+    title: "Check observability",
+    body: "Use observability to catch unhealthy states, stale replay data, or assumptions that should be fixed before sharing results.",
+    route: "/observability",
+  },
+  {
+    title: "Package the evidence",
+    body: "Finish by collecting decoder choice, run identity, settings, warnings, figures, and notes into a replayable artifact bundle.",
+    route: "/help",
+  },
+];
+
+const lidmasLiveTourSteps = [
+  {
+    title: "Open the live scientific dashboard",
+    body: "Start on the authenticated decoder dashboard. The route should show Live API mode and the selected backend provider.",
+    route: lidmasLiveDefaultRoute,
+  },
+  {
+    title: "Confirm backend health",
+    body: "The health query should reach the local backend at the configured API base before provider or run data is trusted.",
+    route: "/decoder/scientific",
+  },
+  {
+    title: "Verify the provider registry",
+    body: "Open Providers and confirm the backend list is rendered instead of mock fixtures: Ankaa, Cirq, IBM, PennyLane, Qiskit, and Xanadu.",
+    route: "/providers",
+  },
+  {
+    title: "Arm the system deliberately",
+    body: "Live API mode keeps run-facing panels in standby until the system is armed, so real backend calls remain intentional.",
+    route: "/settings",
+  },
+  {
+    title: "Inspect runs",
+    body: "Use Runs to confirm authenticated run metadata is loading from the backend and not the static public bundle.",
+    route: "/runs",
+  },
+  {
+    title: "Inspect telemetry",
+    body: "Telemetry should read backend run telemetry when a run is selected, while empty states remain clear when no run is active.",
+    route: "/decoder/telemetry",
+  },
+  {
+    title: "Check validation",
+    body: "Validation views should separate replay, benchmark, and live-provider evidence before a result is promoted.",
+    route: "/decoder/validation",
+  },
+  {
+    title: "Read API logs",
+    body: "Logs should summarize backend-derived provider, job, and run signals after the system is armed.",
+    route: "/decoder/logs",
+  },
+  {
+    title: "Review hardware API boundary",
+    body: "Hardware API remains a local authenticated surface for sessions, frames, and completion calls.",
+    route: "/hardware-api",
+  },
+  {
+    title: "Close the live loop",
+    body: "Finish by checking that authentication, provider data, and backend health all remain green before testing session creation.",
+    route: "/observability",
   },
 ];
 
@@ -1448,13 +1827,96 @@ const supportCollaborationModels = [
 ];
 
 const routePaths = new Set(navItems.map((item) => item.path));
+const validRoutePaths = new Set([
+  ...routePaths,
+  "/studio/lidmas",
+  ...(enableLidmasLiveRoute ? ["/studio/lidmas-live"] : []),
+]);
 const routeAliases = new Map([["/funders", "/support"]]);
 let activeSpringScrollFrame = 0;
 
 function currentRoute() {
   const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
   const canonicalPath = routeAliases.get(pathname) || pathname;
-  return routePaths.has(canonicalPath) ? canonicalPath : "/";
+  return validRoutePaths.has(canonicalPath) ? canonicalPath : "/";
+}
+
+function setMetaTag(attribute, key, content) {
+  let element = document.querySelector(`meta[${attribute}="${key}"]`);
+
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute(attribute, key);
+    document.head.appendChild(element);
+  }
+
+  element.setAttribute("content", content);
+}
+
+function updateDocumentMetadata(route) {
+  const meta = routeMeta[route] || routeMeta["/"];
+  const url = `${siteOrigin}${route === "/" ? "/" : route}`;
+  const image = `${siteOrigin}/assets/gottesman-software-emblem-v3-white-background.png`;
+
+  document.title = meta.title;
+  setMetaTag("name", "description", meta.description);
+  setMetaTag("name", "robots", "index, follow, max-image-preview:large");
+  setMetaTag("property", "og:type", "website");
+  setMetaTag("property", "og:site_name", "Gottesman Software");
+  setMetaTag("property", "og:title", meta.title);
+  setMetaTag("property", "og:description", meta.description);
+  setMetaTag("property", "og:url", url);
+  setMetaTag("property", "og:image", image);
+  setMetaTag("name", "twitter:card", "summary_large_image");
+  setMetaTag("name", "twitter:title", meta.title);
+  setMetaTag("name", "twitter:description", meta.description);
+  setMetaTag("name", "twitter:image", image);
+
+  let canonical = document.querySelector('link[rel="canonical"]');
+  if (!canonical) {
+    canonical = document.createElement("link");
+    canonical.setAttribute("rel", "canonical");
+    document.head.appendChild(canonical);
+  }
+  canonical.setAttribute("href", url);
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${siteOrigin}/#organization`,
+        name: "Gottesman Software Research Group",
+        url: siteOrigin,
+        sameAs: ["https://github.com/Gottesman-Software"],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${siteOrigin}/#website`,
+        name: "Gottesman Software",
+        url: siteOrigin,
+        publisher: { "@id": `${siteOrigin}/#organization` },
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${url}#webpage`,
+        url,
+        name: meta.title,
+        description: meta.description,
+        isPartOf: { "@id": `${siteOrigin}/#website` },
+        about: { "@id": `${siteOrigin}/#organization` },
+      },
+    ],
+  };
+
+  let script = document.querySelector("#gottesman-structured-data");
+  if (!script) {
+    script = document.createElement("script");
+    script.id = "gottesman-structured-data";
+    script.type = "application/ld+json";
+    document.head.appendChild(script);
+  }
+  script.textContent = JSON.stringify(structuredData);
 }
 
 function prefersReducedMotion() {
@@ -2045,6 +2507,262 @@ function SoftwarePage() {
       <SoftwareQuickStartFolder />
       <SoftwareCurrentState />
     </>
+  );
+}
+
+function StudioPrimaryAction({ surface, onNavigate }) {
+  if (surface.primaryPath) {
+    return (
+      <PageLink className="studio-primary-link" to={surface.primaryPath} onNavigate={onNavigate}>
+        {surface.primaryLabel}
+      </PageLink>
+    );
+  }
+
+  return (
+    <a className="studio-primary-link" href={surface.primaryHref} target="_blank" rel="noreferrer">
+      {surface.primaryLabel}
+    </a>
+  );
+}
+
+function StudioRailLink({ item, onNavigate, route }) {
+  const isExternal = item.href.startsWith("http");
+  const isMail = item.href.startsWith("mailto:");
+  const isInternalRoute = item.href.startsWith("/") && validRoutePaths.has(item.href);
+
+  if (isInternalRoute) {
+    return (
+      <PageLink
+        className={route === item.href ? "studio-rail-link active" : "studio-rail-link"}
+        to={item.href}
+        onNavigate={onNavigate}
+        aria-label={item.label}
+        aria-current={route === item.href ? "page" : undefined}
+      >
+        <span>{item.icon}</span>
+        <small>{item.label}</small>
+      </PageLink>
+    );
+  }
+
+  return (
+    <a
+      className="studio-rail-link"
+      href={item.href}
+      target={isExternal ? "_blank" : undefined}
+      rel={isExternal ? "noreferrer" : undefined}
+      aria-label={item.label}
+    >
+      <span>{item.icon}</span>
+      <small>{item.label}</small>
+      {isMail ? <em>mail</em> : null}
+    </a>
+  );
+}
+
+function StudioPage({ onNavigate, route }) {
+  const isLidmasWorkbench = route === "/studio/lidmas";
+  const isLidmasLiveWorkbench = route === "/studio/lidmas-live";
+
+  return (
+    <div className="studio-platform">
+      <header className="studio-rail" aria-label="Gottesman Studio navigation">
+        <PageLink className="studio-rail-mark" to="/" onNavigate={onNavigate} aria-label="Back to Gottesman Software home">
+          <img src="/assets/gottesman-studio-mark.svg" alt="" />
+        </PageLink>
+        <nav className="studio-rail-nav">
+          {studioRailItems.map((item) => (
+            <StudioRailLink item={item} key={item.label} onNavigate={onNavigate} route={route} />
+          ))}
+        </nav>
+        <PageLink className="studio-rail-back" to="/" onNavigate={onNavigate}>
+          <span>←</span>
+          <small>Home</small>
+        </PageLink>
+      </header>
+
+      <div className="studio-platform-main">
+        {isLidmasWorkbench || isLidmasLiveWorkbench ? (
+          <StudioEmbeddedWorkbench mode={isLidmasLiveWorkbench ? "live" : "public"} />
+        ) : (
+          <>
+            <section className="studio-platform-hero">
+          <div className="studio-platform-hero-bg" aria-hidden="true" />
+          <div className="studio-platform-hero-copy">
+            <p className="eyebrow cyan">Gottesman Studio</p>
+            <h1>Design, decode, and validate photonic quantum experiments.</h1>
+            <p>
+              Open access workbenches for SchroSIM circuit studies, LiDMaS+ decoder evidence,
+              and Photon-QDrivers simulator or loopback workflows.
+            </p>
+          </div>
+            </section>
+
+            <section className="studio-platform-start" aria-labelledby="studio-get-started">
+          <div className="studio-platform-heading">
+            <h2 id="studio-get-started">Get started</h2>
+            <p>
+              Start with the public tools that are available today. The platform will become more
+              interactive as the web-safe simulator, decoder, and loopback boundaries mature.
+            </p>
+          </div>
+          <div className="studio-platform-card-grid">
+            {studioSurfaces.map((surface, index) => (
+              <article
+                className={`studio-platform-card${surface.name.includes("QDrivers") ? " is-coming-soon" : ""}`}
+                id={surface.name.includes("QDrivers") ? "qdrivers-coming-soon" : undefined}
+                key={surface.name}
+              >
+                <div className="studio-platform-card-head">
+                  <span>{studioRailItems[index]?.icon || "GS"}</span>
+                  <p>{surface.eyebrow}</p>
+                </div>
+                <h3>{surface.name}</h3>
+                <p>{surface.copy}</p>
+                <ul>
+                  {surface.points.slice(0, 2).map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+                <div className="studio-platform-card-actions">
+                  <StudioPrimaryAction surface={surface} onNavigate={onNavigate} />
+                  <a href={surface.repoHref} target="_blank" rel="noreferrer">
+                    Repository
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+            </section>
+
+            <section className="studio-platform-workflow" id="studio-docs">
+          <div className="studio-platform-heading">
+            <p className="eyebrow cyan">Implementation Path</p>
+            <h2>Bring the desktop Studio online without exposing private architecture.</h2>
+          </div>
+          <div className="studio-platform-workflow-grid">
+            {studioImplementationPlan.map((item) => (
+              <article className="studio-platform-workflow-card" key={item.step}>
+                <span>{item.step}</span>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+              </article>
+            ))}
+          </div>
+            </section>
+
+            <section className="studio-platform-docs">
+          <article className="studio-doc-card">
+            <p className="eyebrow">Docs</p>
+            <h2>Read the public documentation and repositories.</h2>
+            <div className="studio-doc-links">
+              <a href="https://gottesman-software.github.io/SchroSIM/" target="_blank" rel="noreferrer">
+                SchroSIM docs
+              </a>
+              <a href="https://gottesman-software.github.io/lidmas_cpp/" target="_blank" rel="noreferrer">
+                LiDMaS+ docs
+              </a>
+              <a href="https://github.com/Gottesman-Software/photon-qdrivers" target="_blank" rel="noreferrer">
+                Photon-QDrivers
+              </a>
+            </div>
+          </article>
+          <article className="studio-doc-card is-feedback">
+            <p className="eyebrow">Feedback</p>
+            <h2>Send Studio feedback or request a demo workflow.</h2>
+            <a href="mailto:dwayo3@gatech.edu?subject=Gottesman%20Studio%20feedback">
+              Send feedback
+            </a>
+          </article>
+            </section>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function appendQueryParam(route, key, value) {
+  const separator = route.includes("?") ? "&" : "?";
+  return `${route}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
+function StudioEmbeddedWorkbench({ mode = "public" }) {
+  const isLive = mode === "live";
+  const [tourOpen, setTourOpen] = React.useState(false);
+  const [activeStep, setActiveStep] = React.useState(0);
+  const tourSteps = isLive ? lidmasLiveTourSteps : lidmasTourSteps;
+  const currentStep = tourSteps[activeStep];
+  const defaultRoute = isLive ? lidmasLiveDefaultRoute : "/decoder/scientific";
+  const iframeRoute = tourOpen ? currentStep.route : defaultRoute;
+  const iframeSrc = isLive
+    ? `${lidmasLiveOrigin}${appendQueryParam(iframeRoute, "data", "api")}`
+    : `/studio/lidmas-app/index.html?data=mock#${iframeRoute}`;
+
+  function startTour() {
+    setActiveStep(0);
+    setTourOpen(true);
+  }
+
+  function nextTourStep() {
+    if (activeStep < tourSteps.length - 1) {
+      setActiveStep(activeStep + 1);
+      return;
+    }
+    setTourOpen(false);
+  }
+
+  function previousTourStep() {
+    setActiveStep(Math.max(activeStep - 1, 0));
+  }
+
+  return (
+    <section className="studio-app-route">
+      <div className="studio-app-frame-shell">
+        <iframe
+          className="studio-app-frame"
+          src={iframeSrc}
+          title="LiDMaS+ Decoder Workbench"
+        />
+      </div>
+      {isLive ? (
+        <div className="studio-live-badge" aria-label="Local live backend route">
+          <span>Live API</span>
+          <small>local only</small>
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="studio-tour-trigger"
+        onClick={startTour}
+        aria-label={isLive ? "Open LiDMaS+ live API tour" : "Open LiDMaS+ decoder tour"}
+      >
+        i
+      </button>
+      {tourOpen && (
+        <div className="studio-tour-panel" role="dialog" aria-modal="false" aria-labelledby="lidmas-tour-title">
+          <div className="studio-tour-progress">
+            <span>
+              {String(activeStep + 1).padStart(2, "0")} / {String(tourSteps.length).padStart(2, "0")}
+            </span>
+            <button type="button" onClick={() => setTourOpen(false)} aria-label="Close tour">
+              ×
+            </button>
+          </div>
+          <h2 id="lidmas-tour-title">{currentStep.title}</h2>
+          <p>{currentStep.body}</p>
+          <div className="studio-tour-actions">
+            <button type="button" onClick={previousTourStep} disabled={activeStep === 0}>
+              Back
+            </button>
+            <button type="button" onClick={nextTourStep}>
+              {activeStep === tourSteps.length - 1 ? "Finish" : "Next"}
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -3124,6 +3842,10 @@ function ScrollEnhancements({ route }) {
           ".quickstart-file-card",
           ".quickstart-code-window",
           ".software-maturity-card",
+          ".studio-system-panel",
+          ".studio-surface-card",
+          ".studio-plan-card",
+          ".studio-export-list article",
           ".stack-card",
           ".lab-workstream",
           ".lab-ladder-card",
@@ -3228,6 +3950,10 @@ function HomePage({ route, onNavigate }) {
 }
 
 function RoutedPage({ route, onNavigate }) {
+  if (route === "/studio" || route.startsWith("/studio/")) {
+    return <StudioPage onNavigate={onNavigate} route={route} />;
+  }
+
   const page = pageItems.find((item) => item.path === route);
 
   if (!page) {
@@ -3260,6 +3986,11 @@ function RoutedPage({ route, onNavigate }) {
 
 export default function App() {
   const [route, setRoute] = React.useState(currentRoute);
+  const isStudioRoute = route === "/studio" || route.startsWith("/studio/");
+
+  React.useEffect(() => {
+    updateDocumentMetadata(route);
+  }, [route]);
 
   React.useEffect(() => {
     function handlePopState() {
@@ -3271,7 +4002,7 @@ export default function App() {
   }, []);
 
   const navigate = React.useCallback((to) => {
-    const nextRoute = routePaths.has(to) ? to : "/";
+    const nextRoute = validRoutePaths.has(to) ? to : "/";
 
     if (window.location.pathname !== nextRoute) {
       window.history.pushState({}, "", nextRoute);
@@ -3283,13 +4014,13 @@ export default function App() {
 
   return (
     <>
-      <Header route={route} onNavigate={navigate} />
+      {!isStudioRoute && <Header route={route} onNavigate={navigate} />}
       <main>
         <RoutedPage route={route} onNavigate={navigate} />
       </main>
-      <Footer route={route} onNavigate={navigate} />
+      {!isStudioRoute && <Footer route={route} onNavigate={navigate} />}
       <ScrollEnhancements route={route} />
-      <CookieBanner />
+      {!isStudioRoute && <CookieBanner />}
     </>
   );
 }

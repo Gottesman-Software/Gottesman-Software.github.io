@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5174",
-    "build": "vite build && cp dist/index.html dist/404.html",
+    "dev:lidmas-live": "VITE_ENABLE_LIDMAS_LIVE_ROUTE=1 VITE_LIDMAS_LIVE_ORIGIN=http://127.0.0.1:5173 vite --host 127.0.0.1 --port 5174",
+    "build": "npm --prefix studio/lidmas run build:studio && vite build && node scripts/copy-spa-routes.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4174"
   },
   "dependencies": {
