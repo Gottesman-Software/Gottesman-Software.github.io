@@ -2569,7 +2569,7 @@ function StudioPage({ onNavigate, route }) {
     <div className="studio-platform">
       <header className="studio-rail" aria-label="Gottesman Studio navigation">
         <PageLink className="studio-rail-mark" to="/" onNavigate={onNavigate} aria-label="Back to Gottesman Software home">
-          <img src="/assets/gottesman-studio-mark.svg" alt="" />
+          <img src="/assets/gottesman-software-emblem-concept-v3.svg" alt="" />
         </PageLink>
         <nav className="studio-rail-nav">
           {studioRailItems.map((item) => (
