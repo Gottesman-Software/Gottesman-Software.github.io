@@ -541,28 +541,28 @@ const studioSurfaces = [
     image: "/assets/software/schrosim-ui-preview.gif",
     imageAlt: "Animated SchroSIM Studio desktop interface preview",
     copy:
-      "The first Studio surface exposes SchroSIM as an inspectable design environment for photonic circuit studies. The current public version links to the open Studio notes and desktop reference while the web-native designer is extracted.",
+      "Explore the SchroSIM design workflow for continuous-variable photonic circuits, including circuit structure, simulation assumptions, validation checks, and export-ready study records.",
     points: [
-      "Draw or inspect continuous-variable circuit studies",
-      "Keep backend policy, runtime assumptions, and validation limits visible",
+      "Inspect continuous-variable circuit studies",
+      "Review simulation assumptions and validation limits",
       "Export circuit studies into layout, decoder, and lab-prototype packages",
     ],
     primaryHref: "https://gottesman-software.github.io/SchroSIM/14-schrosim-studio/",
-    primaryLabel: "Open SchroSIM Studio notes",
+    primaryLabel: "Open SchroSIM guide",
     repoHref: "https://github.com/Gottesman-Software/SchroSIM",
   },
   {
     name: "LiDMaS+ Decoder Workbench",
     eyebrow: "Decoder replay and benchmark evidence",
-    status: "Online UI path",
+    status: "Online workbench",
     image: "/assets/software/lidmas-ui-active-development.png",
     imageAlt: "LiDMaS+ UI preview",
     copy:
-      "The decoder workbench is the public route for replayable examples, benchmark inspection, and result artifacts. It should stay focused on open examples, uploaded fixtures, and reproducible decoder runs.",
+      "Run decoder examples in the browser, inspect the settings behind each result, and compare replayable benchmark evidence without installing the full toolkit.",
     points: [
       "Open example syndrome streams and decoder configurations",
       "Inspect run provenance, seeds, warnings, and logical-error summaries",
-      "Compare benchmark artifacts before promoting claims into papers",
+      "Compare benchmark artifacts for research claims",
     ],
     primaryPath: "/studio/lidmas",
     primaryLabel: "Open LiDMaS+ Workbench",
@@ -571,18 +571,18 @@ const studioSurfaces = [
   {
     name: "Photon-QDrivers Console",
     eyebrow: "Simulator and loopback execution",
-    status: "Controlled public boundary",
+    status: "Coming soon",
     image: "/assets/software/photon-qdrivers-execution-animation.svg",
     imageAlt: "Photon-QDrivers execution boundary animation",
     copy:
-      "The public console should expose simulator and loopback mode only. Real instruments and lab hardware belong behind authenticated, private controls when the software boundary is mature.",
+      "Preview the route from validated photonic workloads to simulator and loopback tests before any partner-lab hardware is involved.",
     points: [
       "Validate PhotonicCircuit IR against backend capabilities",
-      "Run emulator or loopback jobs without touching real lab hardware",
+      "Run emulator or loopback jobs for early control checks",
       "Package timing logs and result frames for partner-lab review",
     ],
     primaryPath: "/lab",
-    primaryLabel: "View lab boundary",
+    primaryLabel: "View lab workflow",
     repoHref: "https://github.com/Gottesman-Software/photon-qdrivers",
   },
 ];
@@ -590,27 +590,27 @@ const studioSurfaces = [
 const studioImplementationPlan = [
   {
     step: "01",
-    title: "Publish the hub",
+    title: "Design the study",
     copy:
-      "Use Gottesman Studio as the public entry point now, with links to SchroSIM notes, the LiDMaS+ online UI, Photon-QDrivers boundaries, and GitHub repositories.",
+      "Begin with a photonic circuit study in SchroSIM and keep the circuit source, assumptions, and validation notes attached.",
   },
   {
     step: "02",
-    title: "Extract browser-safe cores",
+    title: "Replay decoder evidence",
     copy:
-      "Keep SwiftUI desktop code as the reference interface, then extract browser-native circuit schema, examples, and validation logic into React components and WebAssembly where useful.",
+      "Move examples and syndrome streams into LiDMaS+ so decoder choices, seeds, warnings, and logical-error summaries can be inspected.",
   },
   {
     step: "03",
-    title: "Run only public compute online",
+    title: "Check control paths",
     copy:
-      "Use static demos, WebAssembly, Pyodide, or a small hosted API for simulations and decoder examples. Keep private credentials, lab instruments, and unreleased architecture out of the public site.",
+      "Use simulator and loopback workflows to test software-controlled execution before promoting a study to partner-lab hardware.",
   },
   {
     step: "04",
-    title: "Package evidence",
+    title: "Package the result",
     copy:
-      "Let each Studio session produce an evidence bundle: circuit source, runtime policy, decoder settings, logs, figures, layout export notes, and clear claim labels.",
+      "Collect circuit files, runtime settings, decoder records, logs, figures, layout notes, and claim labels into a reviewable evidence package.",
   },
 ];
 
@@ -2603,8 +2603,8 @@ function StudioPage({ onNavigate, route }) {
           <div className="studio-platform-heading">
             <h2 id="studio-get-started">Get started</h2>
             <p>
-              Start with the public tools that are available today. The platform will become more
-              interactive as the web-safe simulator, decoder, and loopback boundaries mature.
+              Start with the public workbenches available today, then follow each result from
+              circuit design to decoder evidence and lab-ready validation notes.
             </p>
           </div>
           <div className="studio-platform-card-grid">
@@ -2638,8 +2638,8 @@ function StudioPage({ onNavigate, route }) {
 
             <section className="studio-platform-workflow" id="studio-docs">
           <div className="studio-platform-heading">
-            <p className="eyebrow cyan">Implementation Path</p>
-            <h2>Bring the desktop Studio online without exposing private architecture.</h2>
+            <p className="eyebrow cyan">Workflow</p>
+            <h2>Move from photonic circuit studies to reviewable evidence packages.</h2>
           </div>
           <div className="studio-platform-workflow-grid">
             {studioImplementationPlan.map((item) => (
