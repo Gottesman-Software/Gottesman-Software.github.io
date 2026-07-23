@@ -58,8 +58,12 @@ function parseMode(value: string | null | undefined): DataMode | null {
   return null;
 }
 
+function publicDemoForcesMock(): boolean {
+  return PUBLIC_DEMO_MODE && parseMode(import.meta.env.VITE_DATA_MODE) !== "api";
+}
+
 function getInitialMode(): DataMode {
-  if (PUBLIC_DEMO_MODE) {
+  if (publicDemoForcesMock()) {
     return "mock";
   }
 
@@ -144,7 +148,7 @@ export function DataModeProvider({ children }: PropsWithChildren) {
   const [neuralModelPath, setNeuralModelPathState] = useState<string>(getInitialNeuralModelPath);
 
   const setMode = (nextMode: DataMode) => {
-    const resolvedMode = PUBLIC_DEMO_MODE ? "mock" : nextMode;
+    const resolvedMode = publicDemoForcesMock() ? "mock" : nextMode;
     setModeState(resolvedMode);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_MODE_KEY, resolvedMode);
@@ -171,7 +175,7 @@ export function DataModeProvider({ children }: PropsWithChildren) {
   };
 
   const toggleMode = () => {
-    if (PUBLIC_DEMO_MODE) {
+    if (publicDemoForcesMock()) {
       setMode("mock");
       return;
     }
