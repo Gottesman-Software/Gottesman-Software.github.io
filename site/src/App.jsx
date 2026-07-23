@@ -355,7 +355,7 @@ const routeMeta = {
   "/studio/lidmas": {
     title: "LiDMaS+ Decoder Workbench | Gottesman Studio",
     description:
-      "Run the public LiDMaS+ decoder workbench inside Gottesman Studio with mock data, replayable examples, and benchmark evidence views.",
+      "Run the public LiDMaS+ decoder workbench inside Gottesman Studio with Render-backed replay examples and benchmark evidence views.",
   },
   "/studio/lidmas-live": {
     title: "LiDMaS+ Live API Workbench | Gottesman Studio",
@@ -672,7 +672,7 @@ const lidmasTourSteps = [
   },
   {
     title: "Confirm public demo mode",
-    body: "Use the workbench in mock mode for public exploration. Live backend execution and credentials are intentionally outside this route.",
+    body: "Use the public API mode for provider-safe replay examples. Credentials, real QPU execution, and lab hardware control are intentionally outside this route.",
     route: "/settings",
   },
   {
@@ -730,7 +730,7 @@ const lidmasLiveTourSteps = [
   },
   {
     title: "Verify the provider registry",
-    body: "Open Providers and confirm the backend list is rendered instead of mock fixtures: Ankaa, Cirq, IBM, PennyLane, Qiskit, and Xanadu.",
+    body: "Open Providers and confirm the backend list is rendered from the configured API rather than local fixtures.",
     route: "/providers",
   },
   {
@@ -2698,7 +2698,7 @@ function StudioEmbeddedWorkbench({ mode = "public" }) {
   const iframeRoute = tourOpen ? currentStep.route : defaultRoute;
   const iframeSrc = isLive
     ? `${lidmasLiveOrigin}${appendQueryParam(iframeRoute, "data", "api")}`
-    : `/studio/lidmas-app/index.html?data=mock#${iframeRoute}`;
+    : `/studio/lidmas-app/index.html?data=api#${iframeRoute}`;
 
   function startTour() {
     setActiveStep(0);
