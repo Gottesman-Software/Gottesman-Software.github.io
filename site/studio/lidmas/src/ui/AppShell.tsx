@@ -21,12 +21,9 @@ import {
   sessionUserDisplayName,
   type AuthSession,
 } from "../auth/session";
-import ankaaLogo from "../assets/partner-logos/ankaa.svg";
 import cirqLogo from "../assets/partner-logos/cirq.svg";
-import ibmLogo from "../assets/partner-logos/ibm.svg";
 import pennylaneLogo from "../assets/partner-logos/pennylane.svg";
 import qiskitLogo from "../assets/partner-logos/qiskit.svg";
-import xanaduLogo from "../assets/partner-logos/xanadu.png";
 
 const navSections = [
   {
@@ -52,15 +49,16 @@ const navSections = [
     className: "nav-section-divider",
     items: [
       { to: "/settings", label: "Settings", icon: Settings },
-      { to: "/hardware-api", label: "Hardware API", icon: Cable },
+      { to: "/hardware-api", label: "API Boundary", icon: Cable },
     ],
   },
 ];
 
-const hardwareDataSourceLogos = [
-  { label: "IBM", src: ibmLogo },
-  { label: "Xanadu", src: xanaduLogo },
-  { label: "Ankaa", src: ankaaLogo },
+const publicPipelineSteps = [
+  { label: "Circuit" },
+  { label: "Noise" },
+  { label: "Syndrome" },
+  { label: "Decoder" },
 ];
 
 const simulatorDataSourceLogos = [
@@ -225,20 +223,20 @@ export function AppShell({ children }: PropsWithChildren) {
 
         <div className="sidebar-data-source">
           <div className="sidebar-data-source-block">
-            <div className="nav-section-title">Hardware Data Source</div>
-            <div className="sidebar-data-source-marquee" aria-label="Hardware data sources">
+            <div className="nav-section-title">Public Pipeline</div>
+            <div className="sidebar-data-source-marquee" aria-label="Public simulator pipeline">
               <div className="sidebar-data-source-track">
                 <div className="sidebar-data-source-group">
-                  {hardwareDataSourceLogos.map((logo) => (
-                    <div key={`source-logo-${logo.label}`} className="sidebar-data-source-item" title={logo.label}>
-                      <img src={logo.src} alt={`${logo.label} logo`} />
+                  {publicPipelineSteps.map((step) => (
+                    <div key={`pipeline-step-${step.label}`} className="sidebar-data-source-item" title={step.label}>
+                      <span className="sidebar-data-source-label">{step.label}</span>
                     </div>
                   ))}
                 </div>
                 <div className="sidebar-data-source-group" aria-hidden="true">
-                  {hardwareDataSourceLogos.map((logo) => (
-                    <div key={`source-logo-repeat-${logo.label}`} className="sidebar-data-source-item">
-                      <img src={logo.src} alt="" />
+                  {publicPipelineSteps.map((step) => (
+                    <div key={`pipeline-step-repeat-${step.label}`} className="sidebar-data-source-item">
+                      <span className="sidebar-data-source-label">{step.label}</span>
                     </div>
                   ))}
                 </div>
@@ -247,7 +245,7 @@ export function AppShell({ children }: PropsWithChildren) {
           </div>
 
           <div className="sidebar-data-source-block">
-            <div className="nav-section-title">Simulator Data Source</div>
+            <div className="nav-section-title">Simulator Backends</div>
             <div className="sidebar-data-source-marquee sidebar-data-source-marquee-simulator" aria-label="Simulator data sources">
               <div className="sidebar-data-source-track">
                 <div className="sidebar-data-source-group">

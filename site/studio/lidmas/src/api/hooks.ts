@@ -27,8 +27,6 @@ import type {
   RunPaper04Response,
   Run,
   RunTelemetry,
-  SetIbmApiKeyRequest,
-  SetIbmApiKeyResponse,
   VendorCalibrationRefreshResponse,
   VendorCalibrationsCatalogResponse,
   StartIntegrationSessionRequest,
@@ -298,16 +296,6 @@ export function useSystemLogScan() {
   return useMutation({
     mutationFn: (payload: SystemLogScanRequest) =>
       apiFetch<SystemLogScanResponse>("/system/logscan", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-  });
-}
-
-export function useSetIbmApiKey() {
-  return useMutation({
-    mutationFn: (payload: SetIbmApiKeyRequest) =>
-      apiFetch<SetIbmApiKeyResponse>("/system/credentials/ibm", {
         method: "POST",
         body: JSON.stringify(payload),
       }),

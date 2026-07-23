@@ -76,7 +76,7 @@ export const gkpHealth: HealthResponse = {
 export const gkpProviderRuntime: GkpProviderRuntime[] = [
   {
     id: "2fb9d977-b44f-4907-8826-82f7953ac26a",
-    name: "Provider-01",
+    name: "PennyLane circuit simulator",
     status: "online",
     health: 96,
     jobs: 8,
@@ -84,12 +84,12 @@ export const gkpProviderRuntime: GkpProviderRuntime[] = [
     throughput: "450 ops/s",
     successRate: "98.2%",
     lastSeen: "2 min ago",
-    type: "Photonic GKP",
-    region: "eu-central-1",
+    type: "Simulated",
+    region: "public-demo",
   },
   {
     id: "93a9edc8-1e87-4af0-9f70-3bcf56261379",
-    name: "Provider-02",
+    name: "Qiskit Aer noise simulator",
     status: "online",
     health: 93,
     jobs: 6,
@@ -97,12 +97,12 @@ export const gkpProviderRuntime: GkpProviderRuntime[] = [
     throughput: "420 ops/s",
     successRate: "97.5%",
     lastSeen: "1 min ago",
-    type: "Superconducting",
-    region: "us-east-1",
+    type: "Simulated",
+    region: "public-demo",
   },
   {
     id: "e7fe27f7-4f0e-4992-95dc-a2f33cd9705f",
-    name: "Provider-03",
+    name: "Cirq syndrome simulator",
     status: "busy",
     health: 88,
     jobs: 12,
@@ -110,12 +110,12 @@ export const gkpProviderRuntime: GkpProviderRuntime[] = [
     throughput: "380 ops/s",
     successRate: "95.2%",
     lastSeen: "30 sec ago",
-    type: "Trapped Ion",
-    region: "us-west-2",
+    type: "Simulated",
+    region: "public-demo",
   },
   {
     id: "4afcd5b2-f17c-49c4-9f3e-a68e7c6cf75b",
-    name: "Provider-04",
+    name: "SchroSIM photonic CV simulator",
     status: "online",
     health: 95,
     jobs: 7,
@@ -132,31 +132,17 @@ export const gkpProviders: Provider[] = gkpProviderRuntime.map((provider) => ({
   id: provider.id,
   name: provider.name,
   status: provider.status === "offline" ? "offline" : provider.status === "busy" ? "degraded" : "ready",
-  kind:
-    provider.type.includes("Photonic")
-      ? "photonic"
-      : provider.type.includes("Trapped")
-        ? "trapped_ion"
-        : provider.type.includes("Superconducting")
-          ? "superconducting"
-          : "simulated",
-  hardware_kind:
-    provider.type.includes("Photonic")
-      ? "photonic"
-      : provider.type.includes("Trapped")
-        ? "trapped_ion"
-        : provider.type.includes("Superconducting")
-          ? "superconducting"
-          : "simulated",
+  kind: "simulated",
+  hardware_kind: "simulated",
   contact_email: `${provider.name.toLowerCase()}@${provider.region.replace(/\s+/g, "")}.lidmas.dev`,
   supported_formats: ["jsonl", "parquet", "csv"],
   supports_scientific: true,
   supports_benchmark: true,
   supports_replay: true,
-  supports_live: provider.type.includes("Superconducting"),
+  supports_live: false,
   last_seen: "2026-04-20T14:20:00Z",
-  readiness_note: "Fixture provider in mock mode",
-  notes: `Optimized for ${GKP_SCENARIO_NAME}`,
+  readiness_note: "Public simulator fixture. No credentials or hardware access.",
+  notes: "Construct circuit, inject noise, extract syndrome data, and run a decoder policy.",
   created_at: ISO_BASE,
   updated_at: "2026-04-20T14:20:00Z",
 }));
@@ -164,10 +150,10 @@ export const gkpProviders: Provider[] = gkpProviderRuntime.map((provider) => ({
 export const gkpJobRuntime: GkpJobRuntime[] = [
   {
     id: "#JOB-001",
-    name: "Syndrome Extraction",
+    name: "Circuit Construction",
     status: "Running",
     progress: 65,
-    provider: "Provider-01",
+    provider: "PennyLane",
     duration: "2.1s",
     runs: "24/50",
     successRate: "98.5%",
@@ -175,10 +161,10 @@ export const gkpJobRuntime: GkpJobRuntime[] = [
   },
   {
     id: "#JOB-002",
-    name: "Error Correction Round 1",
+    name: "Noise Injection",
     status: "Completed",
     progress: 100,
-    provider: "Provider-02",
+    provider: "Qiskit Aer",
     duration: "1.8s",
     runs: "50/50",
     successRate: "99.2%",
@@ -186,10 +172,10 @@ export const gkpJobRuntime: GkpJobRuntime[] = [
   },
   {
     id: "#JOB-003",
-    name: "Logical State Preparation",
+    name: "Syndrome Extraction",
     status: "Pending",
     progress: 0,
-    provider: "Provider-03",
+    provider: "Cirq",
     duration: "—",
     runs: "0/30",
     successRate: "—",
@@ -197,10 +183,10 @@ export const gkpJobRuntime: GkpJobRuntime[] = [
   },
   {
     id: "#JOB-004",
-    name: "Surface Code Decoder",
+    name: "Decoder Policy Run",
     status: "Completed",
     progress: 100,
-    provider: "Provider-04",
+    provider: "SchroSIM",
     duration: "3.2s",
     runs: "100/100",
     successRate: "97.8%",
@@ -208,10 +194,10 @@ export const gkpJobRuntime: GkpJobRuntime[] = [
   },
   {
     id: "#JOB-005",
-    name: "Tanner Code Processing",
+    name: "Policy Comparison",
     status: "Running",
     progress: 42,
-    provider: "Provider-01",
+    provider: "PennyLane",
     duration: "1.9s",
     runs: "21/50",
     successRate: "96.5%",

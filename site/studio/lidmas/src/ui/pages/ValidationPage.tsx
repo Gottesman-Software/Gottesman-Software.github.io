@@ -160,7 +160,7 @@ const targetEvidenceByCheckId: Record<string, TargetEvidence> = {
   per: {
     sourceType: "literature",
     basis: "Physical noise floor should remain in a regime compatible with active QEC benefit.",
-    rationale: "PER thresholds are anchored to literature guidance, then tuned per hardware generation and environment.",
+    rationale: "PER thresholds are anchored to literature guidance, then tuned per simulator backend and environment.",
     references: [{ label: "Fowler et al. (2012) Surface Codes", href: "https://arxiv.org/abs/1208.0928" }],
   },
   warning: {
@@ -597,7 +597,7 @@ export function ValidationPage() {
         current: `${summary.perPct.toFixed(3)}%`,
         target: `<= ${thresholds.perMax.toFixed(2)}%`,
         status: evaluateMax(summary.perPct, thresholds.perMax),
-        rationale: "Tracks hardware noise floor feeding the decoder.",
+        rationale: "Tracks simulator noise feeding the decoder.",
       },
       {
         id: "warning",
@@ -847,12 +847,12 @@ export function ValidationPage() {
     return [
       {
         id: "baseline",
-        title: "Baseline Regression By Hardware",
-        requirement: "Current run should not degrade against same-hardware baseline.",
+        title: "Baseline Regression By Backend",
+        requirement: "Current run should not degrade against the same-backend baseline.",
         status: baselineStatus,
         detail: baselineSummary
           ? `${regressionChecks.length} regression checks evaluated from ${baselineSummary.sampleCount} baseline run(s).`
-          : "Historical baseline not available yet for this hardware family.",
+          : "Historical baseline not available yet for this backend family.",
       },
       {
         id: "env-gates",
@@ -1176,7 +1176,7 @@ export function ValidationPage() {
             <div className="table-wrapper">
               <div className="section-title">Baseline Regression</div>
               <div className="panel-subtitle">
-                Compares selected run against historical baseline from the same hardware family.
+                Compares selected run against historical baseline from the same simulator backend.
               </div>
               {baselineSummary ? (
                 <>
@@ -1213,7 +1213,7 @@ export function ValidationPage() {
                   </table>
                 </>
               ) : (
-                <div className="empty-card">Not enough historical runs for hardware-family baseline yet.</div>
+                <div className="empty-card">Not enough historical runs for backend-family baseline yet.</div>
               )}
             </div>
           </div>

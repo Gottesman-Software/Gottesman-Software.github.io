@@ -25,8 +25,8 @@ const DEFAULT_FRAME_REQUEST: IngestHardwareFramesRequest = {
     {
       frame_index: 0,
       timestamp: "2026-04-21T10:20:30Z",
-      source: "ibm_live",
-      backend_name: "ibm_kingston",
+      source: "pennylane_surface_replay",
+      backend_name: "pennylane_default_qubit",
       warning_rate: 0.0193,
       noise_sample: {
         index: 0,
@@ -204,11 +204,11 @@ export function HardwareApiPage() {
   const runLookup = useMemo(() => new Map(runs.map((run) => [run.id, run])), [runs]);
 
   const [providerId, setProviderId] = useState("");
-  const [datasetLabel, setDatasetLabel] = useState("external_noise_stream");
+  const [datasetLabel, setDatasetLabel] = useState("pennylane_surface_d5_depolarizing_syndromes");
   const [decodersText, setDecodersText] = useState("mwpm,uf,bp");
-  const [sourceName, setSourceName] = useState("lab-qpu-rack-3");
-  const [sourceMode, setSourceMode] = useState<HardwareSourceMode>("live");
-  const [schemaVersion, setSchemaVersion] = useState("lidmas.hardware.v1");
+  const [sourceName, setSourceName] = useState("pennylane_surface_replay");
+  const [sourceMode, setSourceMode] = useState<HardwareSourceMode>("replay");
+  const [schemaVersion, setSchemaVersion] = useState("lidmas.boundary.v1");
   const [activeSessionId, setActiveSessionId] = useState("");
   const [framePayloadText, setFramePayloadText] = useState(`${JSON.stringify(DEFAULT_FRAME_REQUEST, null, 2)}\n`);
   const [framePayloadDirty, setFramePayloadDirty] = useState(false);
@@ -264,14 +264,14 @@ export function HardwareApiPage() {
   const createSessionPayload = useMemo(
     () => ({
       provider_id: providerId || "<provider_id>",
-      dataset_label: datasetLabel.trim() || "external_noise_stream",
+      dataset_label: datasetLabel.trim() || "pennylane_surface_d5_depolarizing_syndromes",
       decoders: decodersText
         .split(",")
         .map((decoder) => decoder.trim())
         .filter((decoder) => decoder.length > 0),
-      source_name: sourceName.trim() || "lab-qpu-rack-3",
+      source_name: sourceName.trim() || "pennylane_surface_replay",
       source_mode: sourceMode,
-      schema_version: schemaVersion.trim() || "lidmas.hardware.v1",
+      schema_version: schemaVersion.trim() || "lidmas.boundary.v1",
     }),
     [datasetLabel, decodersText, providerId, schemaVersion, sourceMode, sourceName],
   );
@@ -293,12 +293,12 @@ export function HardwareApiPage() {
 
   const onCreateSession = async () => {
     if (!apiEnabled) {
-      setActionMessage("System is off. Turn it on before creating hardware sessions.");
+      setActionMessage("System is off. Turn it on before checking boundary sessions.");
       setActionTone("warn");
       return;
     }
     if (!providerId) {
-      setActionMessage("Select a provider before creating a hardware session.");
+      setActionMessage("Select a simulator backend before checking this boundary.");
       setActionTone("warn");
       return;
     }
@@ -326,7 +326,7 @@ export function HardwareApiPage() {
       );
       setActionTone("good");
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Failed to create hardware session.";
+      const message = error instanceof ApiError ? error.message : "Boundary session creation is disabled in public mode.";
       setActionMessage(message);
       setActionTone("bad");
     }
@@ -339,7 +339,7 @@ export function HardwareApiPage() {
       return;
     }
     if (!selectedSession) {
-      setActionMessage("Select or create a hardware session first.");
+      setActionMessage("Select or create a boundary session first.");
       setActionTone("warn");
       return;
     }
@@ -371,7 +371,7 @@ export function HardwareApiPage() {
       return;
     }
     if (!selectedSession) {
-      setActionMessage("Select or create a hardware session first.");
+      setActionMessage("Select or create a boundary session first.");
       setActionTone("warn");
       return;
     }
@@ -391,8 +391,8 @@ export function HardwareApiPage() {
   return (
     <>
       <div className="header">
-        <h1>Hardware API</h1>
-        <p>Developer surface for ingesting hardware-derived telemetry into LiDMaS+.</p>
+        <h1>API Boundary</h1>
+        <p>Public view of the guarded boundary between simulator replay and future lab-control ingestion.</p>
       </div>
 
       <div className="trust-strip">
@@ -425,7 +425,7 @@ export function HardwareApiPage() {
 
       <div className="table-container">
         <div className="table-wrapper">
-          <div className="section-title">Create Hardware Session</div>
+        <div className="section-title">Create Boundary Session</div>
           <div className="panel-subtitle">
             Start a run-backed ingestion session, then stream normalized frames into the session.
           </div>
@@ -452,7 +452,7 @@ export function HardwareApiPage() {
                 className="form-input"
                 value={datasetLabel}
                 onChange={(event) => setDatasetLabel(event.target.value)}
-                placeholder="external_noise_stream"
+                placeholder="pennylane_surface_d5_depolarizing_syndromes"
               />
             </div>
             <div className="form-group">
@@ -461,7 +461,7 @@ export function HardwareApiPage() {
                 className="form-input"
                 value={sourceName}
                 onChange={(event) => setSourceName(event.target.value)}
-                placeholder="lab-qpu-rack-3"
+                placeholder="pennylane_surface_replay"
               />
             </div>
             <div className="form-group">
@@ -490,7 +490,7 @@ export function HardwareApiPage() {
                 className="form-input"
                 value={schemaVersion}
                 onChange={(event) => setSchemaVersion(event.target.value)}
-                placeholder="lidmas.hardware.v1"
+                placeholder="lidmas.boundary.v1"
               />
             </div>
           </div>
@@ -507,7 +507,7 @@ export function HardwareApiPage() {
         <div className="table-wrapper">
           <div className="section-title">Ingest Frames</div>
           <div className="panel-subtitle">
-            Payload expects IBM-adapter shape with <code>noise_sample</code>, <code>syndrome_samples</code>, and{" "}
+            Payload expects public simulator frames with <code>noise_sample</code>, <code>syndrome_samples</code>, and{" "}
             <code>decoder_interventions</code>.
           </div>
           <div className="hardware-api-editor">
@@ -554,7 +554,7 @@ export function HardwareApiPage() {
       <div className="table-container section-offset">
         <div className="table-wrapper">
           <div className="section-title">Sessions</div>
-          <div className="panel-subtitle">Hardware ingestion sessions and their linked runs.</div>
+          <div className="panel-subtitle">Boundary ingestion sessions and their linked simulator runs.</div>
           <table>
             <thead>
               <tr>
@@ -592,7 +592,7 @@ export function HardwareApiPage() {
               {sessions.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
-                    <span className="muted-inline">No hardware sessions yet.</span>
+                    <span className="muted-inline">No boundary sessions yet.</span>
                   </td>
                 </tr>
               ) : null}
@@ -605,7 +605,7 @@ export function HardwareApiPage() {
         <div className="table-wrapper">
           <div className="section-title">Schema & cURL</div>
           <div className="panel-subtitle">
-            Use these commands to connect an external hardware process to LiDMaS+ with the exact frame schema.
+            Public mode keeps these ingestion commands visible as schema documentation only; live lab control is disabled.
           </div>
           <div className="hardware-api-code-grid">
             <div>
@@ -642,14 +642,14 @@ export function HardwareApiPage() {
 
       {loading ? (
         <div className="empty-card">
-          <strong>Loading Hardware API</strong>
+          <strong>Loading API boundary</strong>
           <p>Fetching providers, schema, and session state.</p>
         </div>
       ) : null}
 
       {error ? (
         <div className="empty-card">
-          <strong>Hardware API unavailable</strong>
+          <strong>API boundary unavailable</strong>
           <p>Backend endpoints are unavailable or authorization is missing.</p>
         </div>
       ) : null}

@@ -1,6 +1,6 @@
-export type CalibrationHardwareTarget = "superconducting" | "trapped_ion" | "photonic";
-export type CalibrationProviderFamily = "xanadu" | "ankaa" | "ibm" | "pennylane" | "qiskit" | "cirq" | "unknown";
-export type CalibrationVendor = "ibm" | "ankaa" | "xanadu" | "ionq";
+export type CalibrationHardwareTarget = "superconducting" | "trapped_ion" | "photonic" | "simulated";
+export type CalibrationProviderFamily = "pennylane" | "qiskit" | "cirq" | "schrosim" | "unknown";
+export type CalibrationVendor = "pennylane" | "qiskit" | "cirq" | "schrosim" | "gottesman";
 
 export interface VendorCalibrationSnapshot {
   id: string;
@@ -15,105 +15,63 @@ export interface VendorCalibrationSnapshot {
 
 const SNAPSHOTS: VendorCalibrationSnapshot[] = [
   {
-    id: "ibm_kingston_2026q2",
-    label: "IBM Kingston (2026-Q2)",
-    vendor: "ibm",
-    hardwareTarget: "superconducting",
-    backend: "ibm_kingston",
+    id: "pennylane_surface_depolarizing_public",
+    label: "PennyLane surface-code depolarizing model",
+    vendor: "pennylane",
+    hardwareTarget: "simulated",
+    backend: "pennylane_default_qubit",
     capturedAt: "2026-04-21T10:20:30Z",
-    source: "ibm_live_metadata_probe",
+    source: "public_simulator_fixture",
     metrics: {
-      avg_1q_gate_error: 0.00092,
-      avg_2q_gate_error: 0.0116,
-      avg_readout_error: 0.0208,
-      avg_t1_us: 91.2,
-      avg_t2_us: 73.4,
-      zz_coupling_khz: 18.1,
+      physical_error_rate: 0.0112,
+      displacement_sigma: 0.18,
+      syndrome_trigger_rate: 0.21,
+      logical_error_rate: 0.0171,
     },
   },
   {
-    id: "ibm_torino_2026q1",
-    label: "IBM Torino (2026-Q1)",
-    vendor: "ibm",
-    hardwareTarget: "superconducting",
-    backend: "ibm_torino",
+    id: "qiskit_aer_phase_flip_public",
+    label: "Qiskit Aer phase-flip noise model",
+    vendor: "qiskit",
+    hardwareTarget: "simulated",
+    backend: "qiskit_aer",
     capturedAt: "2026-02-02T08:13:40Z",
-    source: "ibm_live_metadata_probe",
+    source: "public_simulator_fixture",
     metrics: {
-      avg_1q_gate_error: 0.00106,
-      avg_2q_gate_error: 0.0124,
-      avg_readout_error: 0.0237,
-      avg_t1_us: 84.7,
-      avg_t2_us: 66.9,
-      zz_coupling_khz: 20.4,
+      phase_flip_rate: 0.014,
+      readout_flip_rate: 0.009,
+      syndrome_trigger_rate: 0.18,
+      logical_error_rate: 0.015,
     },
   },
   {
-    id: "ankaa_r3_2026q2",
-    label: "Ankaa R3 Replay (2026-Q2)",
-    vendor: "ankaa",
-    hardwareTarget: "superconducting",
-    backend: "ankaa_r3_replay",
+    id: "cirq_repetition_bitflip_public",
+    label: "Cirq repetition-code bit-flip model",
+    vendor: "cirq",
+    hardwareTarget: "simulated",
+    backend: "cirq_simulator",
     capturedAt: "2026-04-08T12:04:00Z",
-    source: "ankaa_fixture_calibration",
+    source: "public_simulator_fixture",
     metrics: {
-      avg_1q_gate_error: 0.00118,
-      avg_2q_gate_error: 0.0141,
-      avg_readout_error: 0.0279,
-      avg_t1_us: 72.5,
-      avg_t2_us: 58.3,
-      zz_coupling_khz: 24.9,
+      bit_flip_rate: 0.0125,
+      measurement_error_rate: 0.007,
+      syndrome_trigger_rate: 0.16,
+      logical_error_rate: 0.018,
     },
   },
   {
-    id: "ionq_forte_2026q2",
-    label: "IonQ Forte (2026-Q2)",
-    vendor: "ionq",
-    hardwareTarget: "trapped_ion",
-    backend: "ionq_forte",
+    id: "schrosim_cv_loss_public",
+    label: "SchroSIM CV photonic loss model",
+    vendor: "schrosim",
+    hardwareTarget: "simulated",
+    backend: "schrosim_cv",
     capturedAt: "2026-03-18T15:06:00Z",
-    source: "pennylane_hardware_profile",
+    source: "public_simulator_fixture",
     metrics: {
-      avg_1q_gate_error: 0.00034,
-      avg_ms_gate_error: 0.0036,
-      avg_readout_error: 0.0122,
-      avg_coherence_ms: 710.0,
-      heating_quanta_per_ms: 0.083,
-      addressing_crosstalk: 0.018,
-    },
-  },
-  {
-    id: "xanadu_aurora_2026q2",
-    label: "Xanadu Aurora (2026-Q2)",
-    vendor: "xanadu",
-    hardwareTarget: "photonic",
-    backend: "xanadu_aurora",
-    capturedAt: "2026-04-09T11:20:00Z",
-    source: "xanadu_remote_slice_calibration",
-    metrics: {
-      photon_loss_rate: 0.047,
-      mode_mismatch: 0.019,
-      phase_drift_deg: 2.4,
-      detector_dark_count_rate: 0.0064,
-      homodyne_efficiency: 0.937,
-      non_gaussian_injection_failure: 0.031,
-    },
-  },
-  {
-    id: "xanadu_borealis_2026q1",
-    label: "Xanadu Borealis (2026-Q1)",
-    vendor: "xanadu",
-    hardwareTarget: "photonic",
-    backend: "xanadu_borealis",
-    capturedAt: "2026-01-26T14:40:00Z",
-    source: "xanadu_remote_slice_calibration",
-    metrics: {
-      photon_loss_rate: 0.053,
-      mode_mismatch: 0.024,
-      phase_drift_deg: 2.9,
-      detector_dark_count_rate: 0.0078,
-      homodyne_efficiency: 0.921,
-      non_gaussian_injection_failure: 0.038,
+      photon_loss_rate: 0.021,
+      displacement_sigma: 0.16,
+      syndrome_trigger_rate: 0.19,
+      logical_error_rate: 0.021,
     },
   },
 ];
@@ -122,25 +80,19 @@ function vendorsForContext(
   providerFamily: CalibrationProviderFamily,
   hardwareTarget: CalibrationHardwareTarget,
 ): CalibrationVendor[] {
-  if (hardwareTarget === "trapped_ion") {
-    return ["ionq"];
-  }
-  if (hardwareTarget === "photonic") {
-    return ["xanadu"];
-  }
-  if (providerFamily === "ibm") {
-    return ["ibm"];
-  }
-  if (providerFamily === "ankaa") {
-    return ["ankaa"];
-  }
-  if (providerFamily === "qiskit" || providerFamily === "cirq") {
-    return ["ibm", "ankaa"];
-  }
   if (providerFamily === "pennylane") {
-    return ["ibm", "ankaa"];
+    return ["pennylane"];
   }
-  return ["ibm", "ankaa"];
+  if (providerFamily === "qiskit") {
+    return ["qiskit"];
+  }
+  if (providerFamily === "cirq") {
+    return ["cirq"];
+  }
+  if (providerFamily === "schrosim" || hardwareTarget === "photonic") {
+    return ["schrosim"];
+  }
+  return ["pennylane", "qiskit", "cirq", "schrosim"];
 }
 
 export function calibrationSnapshotsForContext(
@@ -164,17 +116,8 @@ export function defaultCalibrationSnapshotId(
   if (options.length === 0) {
     return null;
   }
-  if (hardwareTarget === "photonic") {
-    return options.find((option) => option.id.includes("aurora"))?.id ?? options[0].id;
-  }
-  if (hardwareTarget === "trapped_ion") {
-    return options[0].id;
-  }
-  if (providerFamily === "qiskit" || providerFamily === "cirq" || providerFamily === "ibm") {
-    return options.find((option) => option.vendor === "ibm")?.id ?? options[0].id;
-  }
-  if (providerFamily === "ankaa") {
-    return options.find((option) => option.vendor === "ankaa")?.id ?? options[0].id;
+  if (providerFamily === "pennylane" || providerFamily === "qiskit" || providerFamily === "cirq" || providerFamily === "schrosim") {
+    return options.find((option) => option.vendor === providerFamily)?.id ?? options[0].id;
   }
   return options[0].id;
 }
@@ -188,14 +131,14 @@ export function findCalibrationSnapshotById(id: string): VendorCalibrationSnapsh
 }
 
 function parseVendor(value: unknown): CalibrationVendor | null {
-  if (value === "ibm" || value === "ankaa" || value === "xanadu" || value === "ionq") {
+  if (value === "pennylane" || value === "qiskit" || value === "cirq" || value === "schrosim" || value === "gottesman") {
     return value;
   }
   return null;
 }
 
 function parseHardwareTarget(value: unknown): CalibrationHardwareTarget | null {
-  if (value === "superconducting" || value === "trapped_ion" || value === "photonic") {
+  if (value === "superconducting" || value === "trapped_ion" || value === "photonic" || value === "simulated") {
     return value;
   }
   return null;

@@ -54,12 +54,12 @@ export function AddProviderModal({ onClose }: AddProviderModalProps) {
                   required
                 >
                   <option>Select a provider type...</option>
-                  <option>IBM Quantum</option>
-                  <option>AWS Braket</option>
-                  <option>Google Cirq</option>
-                  <option>IonQ</option>
-                  <option>Rigetti QPU</option>
-                  <option>Classical Simulator</option>
+                  <option>PennyLane Simulator</option>
+                  <option>Qiskit Aer Simulator</option>
+                  <option>Cirq Simulator</option>
+                  <option>SchroSIM Replay</option>
+                  <option>Decoder Fixture</option>
+                  <option>Private Boundary Adapter</option>
                 </select>
               </div>
 

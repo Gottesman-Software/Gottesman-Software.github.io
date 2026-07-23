@@ -647,7 +647,7 @@ export function EnhancedProvidersPage() {
     <>
       <div className="header">
         <h1>Providers</h1>
-        <p>Hardware provider registry and operational readiness for decoder workflows.</p>
+        <p>Simulator backend registry and operational readiness for public decoder workflows.</p>
       </div>
 
       <div className="trust-strip">
@@ -698,7 +698,7 @@ export function EnhancedProvidersPage() {
           </select>
         </div>
         <div className="filter-group">
-          <label>Hardware Kind</label>
+          <label>Backend Kind</label>
           <select
             className="select-field research-select"
             value={kindFilter}

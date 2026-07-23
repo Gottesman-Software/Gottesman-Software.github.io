@@ -30,12 +30,10 @@ type CircuitGate =
   | "measure";
 export type CircuitHardwareTarget = "superconducting" | "trapped_ion" | "photonic";
 export type CircuitProviderFamily =
-  | "xanadu"
-  | "ankaa"
-  | "ibm"
   | "pennylane"
   | "qiskit"
   | "cirq"
+  | "schrosim"
   | "unknown";
 
 export interface CircuitOperation {
@@ -584,7 +582,7 @@ const CIRCUIT_GATE_VALUES: CircuitGate[] = [
   "measure",
 ];
 const HARDWARE_TARGET_VALUES: CircuitHardwareTarget[] = ["superconducting", "trapped_ion", "photonic"];
-const PROVIDER_FAMILY_VALUES: CircuitProviderFamily[] = ["xanadu", "ankaa", "ibm", "pennylane", "qiskit", "cirq", "unknown"];
+const PROVIDER_FAMILY_VALUES: CircuitProviderFamily[] = ["pennylane", "qiskit", "cirq", "schrosim", "unknown"];
 const NOISE_PRESET_VALUES: CircuitNoisePreset[] = ["low", "medium", "high", "custom"];
 const PHOTONIC_DETECTOR_MODEL_VALUES: PhotonicDetectorModel[] = ["threshold", "pnr_approx"];
 const NOISE_CHANNEL_KEY_VALUES: CircuitNoiseChannelKey[] = [

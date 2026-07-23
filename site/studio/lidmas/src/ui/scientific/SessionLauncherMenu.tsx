@@ -62,7 +62,7 @@ export function SessionLauncherMenu({
     return null;
   }
 
-  const hardwareProviders = providerOptions.filter((provider) => provider.kind !== "simulated");
+  const boundaryProviders = providerOptions.filter((provider) => provider.kind !== "simulated");
   const simulatorProviders = providerOptions.filter((provider) => provider.kind === "simulated");
 
   return (
@@ -75,9 +75,9 @@ export function SessionLauncherMenu({
           onChange={(event) => onSelectProvider(event.target.value)}
         >
           {providerOptions.length === 0 ? <option value="">No providers available</option> : null}
-          {hardwareProviders.length > 0 ? (
-            <optgroup label="Hardware Data">
-              {hardwareProviders.map((provider) => (
+          {boundaryProviders.length > 0 ? (
+            <optgroup label="Private / Non-simulator Boundary">
+              {boundaryProviders.map((provider) => (
                 <option key={provider.id} value={provider.id}>
                   {provider.name} · {providerStatusLabel(provider.status)}
                 </option>

@@ -5476,14 +5476,6 @@ tbody tr:hover {
   object-fit: contain;
 }
 
-.auth-partner-logo.xanadu {
-  max-height: 36px;
-}
-
-.auth-partner-logo.ankaa {
-  max-height: 34px;
-}
-
 @keyframes auth-partners-scroll {
   from {
     transform: translateX(0);

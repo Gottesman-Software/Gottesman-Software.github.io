@@ -28,7 +28,6 @@ import {
   useProviders,
   useRunTelemetry,
   useRuns,
-  useSetIbmApiKey,
   useStopIntegrationSession,
 } from "../../api/hooks";
 import type {
@@ -72,7 +71,6 @@ import {
   type CircuitDesignDraft,
   type CircuitProviderFamily,
 } from "../scientific/StartCircuitDesignDialog";
-import { StartIbmApiKeyDialog } from "../scientific/StartIbmApiKeyDialog";
 import { StartReplaySessionDialog } from "../scientific/StartReplaySessionDialog";
 import {
   decoderRowMatchesActive,
@@ -273,8 +271,6 @@ interface LaunchSessionInput {
   datasetHint: string;
   circuitDesign?: CircuitDesignDraft;
   runSource?: Run | null;
-  ibmLiveSourceMode?: "metadata" | "qpu";
-  ibmInstance?: string;
 }
 
 interface ReplaySourceOption {
@@ -284,12 +280,9 @@ interface ReplaySourceOption {
   updatedAtLabel: string;
 }
 
-type ProviderFamily = "xanadu" | "ankaa" | "ibm" | "pennylane" | "qiskit" | "cirq" | "unknown";
+type ProviderFamily = "pennylane" | "qiskit" | "cirq" | "schrosim" | "unknown";
 
-function sessionModeFromAdapter(adapterId: IntegrationAdapterId): SessionLaunchMode {
-  if (adapterId === "ibm_superconducting_live") {
-    return "scientific";
-  }
+function sessionModeFromAdapter(_adapterId: IntegrationAdapterId): SessionLaunchMode {
   return "replay";
 }
 
@@ -305,58 +298,29 @@ function resolveProviderFamily(provider: Provider): ProviderFamily {
   if (identitySignal.includes("cirq")) {
     return "cirq";
   }
+  if (identitySignal.includes("schrosim")) {
+    return "schrosim";
+  }
   if (identitySignal.includes("pennylane")) {
     return "pennylane";
-  }
-  if (identitySignal.includes("xanadu")) {
-    return "xanadu";
-  }
-  if (identitySignal.includes("ankaa")) {
-    return "ankaa";
-  }
-  if (identitySignal.includes("ibm")) {
-    return "ibm";
   }
 
   const metadataSignal = [provider.readiness_note ?? "", provider.notes ?? ""]
     .join(" ")
     .trim()
     .toLowerCase();
-  if (metadataSignal.includes("xanadu")) {
-    return "xanadu";
-  }
-  if (metadataSignal.includes("ankaa")) {
-    return "ankaa";
-  }
-  if (metadataSignal.includes("ibm")) {
-    return "ibm";
-  }
-  if (provider.kind === "photonic") {
-    return "xanadu";
-  }
-  if (provider.kind === "superconducting") {
-    if (provider.supports_live) {
-      return "ibm";
-    }
-    if (provider.supports_replay) {
-      return "ankaa";
-    }
-    return "unknown";
+  if (metadataSignal.includes("schrosim")) {
+    return "schrosim";
   }
   return "unknown";
 }
 
 function familyRequiresNeuralModel(family: ProviderFamily): boolean {
-  return (
-    family === "xanadu" ||
-    family === "pennylane" ||
-    family === "qiskit" ||
-    family === "cirq"
-  );
+  return family === "pennylane" || family === "qiskit" || family === "cirq" || family === "schrosim";
 }
 
 function workflowForProviderFamily(family: ProviderFamily): string | undefined {
-  if (family === "pennylane" || family === "qiskit" || family === "cirq") {
+  if (family === "pennylane" || family === "qiskit" || family === "cirq" || family === "schrosim") {
     return "paper_04";
   }
   return undefined;
@@ -364,16 +328,16 @@ function workflowForProviderFamily(family: ProviderFamily): string | undefined {
 
 function adapterRequiresNeuralModel(adapterId: IntegrationAdapterId): boolean {
   return (
-    adapterId === "xanadu_gkp_remote_replay" ||
     adapterId === "pennylane_surface_replay" ||
     adapterId === "qiskit_surface_replay" ||
-    adapterId === "cirq_surface_replay"
+    adapterId === "cirq_surface_replay" ||
+    adapterId === "schrosim_photonic_replay"
   );
 }
 
 function supportsSoftwareCircuitDesign(provider: Provider): boolean {
   const family = resolveProviderFamily(provider);
-  return family === "pennylane" || family === "qiskit" || family === "cirq";
+  return family === "pennylane" || family === "qiskit" || family === "cirq" || family === "schrosim";
 }
 
 function providerReady(provider: Provider | null): boolean {
@@ -413,21 +377,8 @@ function scientificTransport(provider: Provider): "live" | "replay" | null {
   if (!provider.supports_scientific) {
     return null;
   }
-  const family = resolveProviderFamily(provider);
-  if (family === "ibm") {
-    if (provider.supports_live) {
-      return "live";
-    }
-    if (provider.supports_replay) {
-      return "replay";
-    }
-    return null;
-  }
   if (provider.supports_replay) {
     return "replay";
-  }
-  if (provider.supports_live) {
-    return "live";
   }
   return null;
 }
@@ -447,53 +398,7 @@ function buildQuickLaunchPlan(
     return null;
   }
 
-  if (family === "xanadu") {
-    if (!provider.supports_replay) {
-      return null;
-    }
-    const trimmedModelPath = neuralModelPath.trim();
-    return {
-      adapterId: "xanadu_gkp_remote_replay",
-      config: {
-        remote: "macstudio",
-        remote_input_root: "examples/results/hardware_integration/downloads/gkp/full",
-        neural_model_path: trimmedModelPath || undefined,
-      },
-    };
-  }
-
-  if (family === "ibm") {
-    if (mode === "replay") {
-      return null;
-    }
-    if (!provider.supports_live) {
-      return null;
-    }
-    return {
-      adapterId: "ibm_superconducting_live",
-      config: {
-        backend_name: "ibm_kingston",
-        poll_interval: 30,
-      },
-    };
-  }
-
-  if (family === "ankaa") {
-    if (mode !== "scientific" && mode !== "benchmark" && !provider.supports_replay) {
-      return null;
-    }
-    if ((mode === "scientific" || mode === "benchmark") && scientificMode !== "replay") {
-      return null;
-    }
-    return {
-      adapterId: "ankaa_superconducting_replay",
-      config: {
-        input_path: "hardware_integration/ankaa/superconducting/ankaa_fixture_example.json",
-      },
-    };
-  }
-
-  if (family === "pennylane" || family === "qiskit" || family === "cirq") {
+  if (family === "pennylane" || family === "qiskit" || family === "cirq" || family === "schrosim") {
     if (mode !== "scientific" && mode !== "benchmark" && !provider.supports_replay) {
       return null;
     }
@@ -506,7 +411,9 @@ function buildQuickLaunchPlan(
         ? "pennylane_surface_replay"
         : family === "qiskit"
           ? "qiskit_surface_replay"
-          : "cirq_surface_replay";
+          : family === "cirq"
+            ? "cirq_surface_replay"
+            : "schrosim_photonic_replay";
     return {
       adapterId,
       config: {
@@ -1018,12 +925,6 @@ export function DecoderDashboard() {
   const [pendingCircuitLaunch, setPendingCircuitLaunch] = useState<LaunchSessionInput | null>(null);
   const [benchmarkDialogOpen, setBenchmarkDialogOpen] = useState(false);
   const [replayDialogOpen, setReplayDialogOpen] = useState(false);
-  const [ibmApiKeyDialogOpen, setIbmApiKeyDialogOpen] = useState(false);
-  const [ibmApiKeyInput, setIbmApiKeyInput] = useState("");
-  const [ibmLiveSourceMode, setIbmLiveSourceMode] = useState<"metadata" | "qpu">("metadata");
-  const [ibmInstanceInput, setIbmInstanceInput] = useState("");
-  const [ibmApiKeyError, setIbmApiKeyError] = useState<string | null>(null);
-  const [pendingIbmLaunch, setPendingIbmLaunch] = useState<LaunchSessionInput | null>(null);
   const [benchmarkDecoders, setBenchmarkDecoders] = useState<DecoderKey[]>(() => DECODERS.map((decoder) => decoder.key));
   const [replaySourceRunId, setReplaySourceRunId] = useState<string>("");
   const [activeHomeSessionSnapshot, setActiveHomeSessionSnapshot] = useState<IntegrationSession | null>(null);
@@ -1093,7 +994,6 @@ export function DecoderDashboard() {
   const sessionsQuery = useIntegrationSessions({ enabled: apiEnabled, refetchInterval: 2_000 });
   const createRunMutation = useCreateRun();
   const createSessionMutation = useCreateIntegrationSession();
-  const setIbmApiKeyMutation = useSetIbmApiKey();
   const stopSessionMutation = useStopIntegrationSession();
 
   const healthDataRaw = isMock ? gkpHealth : healthQuery.data;
@@ -1142,8 +1042,7 @@ export function DecoderDashboard() {
     if (providerFilter !== "all") {
       return selectableProviders[0] ?? null;
     }
-    const preferred = selectableProviders.find((provider) => !provider.name.toLowerCase().includes("ibm"));
-    return preferred ?? selectableProviders[0] ?? null;
+    return selectableProviders[0] ?? null;
   }, [providerFilter, selectableProviders]);
   const launcherProviderOptions = useMemo(() => {
     if (selectableProviders.length === 0) {
@@ -2556,7 +2455,7 @@ export function DecoderDashboard() {
   const heroProviderLabel = activeRunProvider?.name ?? activeProviderName;
   const heroHardwareLabel = activeRunProvider
     ? providerKindLabel(activeRunProvider.kind)
-    : "Mixed Hardware Scope";
+    : "Mixed Simulator Scope";
   const activeRunShortId = activeRunId ? activeRunId.slice(0, 8).toUpperCase() : "None";
   const activeSessionShortId = activeIntegrationSession
     ? activeIntegrationSession.id.slice(0, 8).toUpperCase()
@@ -2625,7 +2524,7 @@ export function DecoderDashboard() {
               : !launchProvider.supports_scientific
                 ? "Scientific session unavailable — provider configured but scientific mode unsupported"
                 : scientificTransport(launchProvider) == null
-                  ? "Scientific session unavailable — provider configured but live mode unsupported"
+                  ? "Scientific session unavailable — provider configured but public replay mode unsupported"
                   : launchProviderFamily === "unknown"
                     ? "Scientific session unavailable — provider configured but adapter mapping missing"
                     : null;
@@ -2643,7 +2542,7 @@ export function DecoderDashboard() {
               : !launchProvider.supports_benchmark
                 ? "Benchmark unavailable — provider configured but benchmark mode unsupported"
                 : scientificTransport(launchProvider) == null
-                  ? "Benchmark unavailable — provider configured but live mode unsupported"
+                  ? "Benchmark unavailable — provider configured but public replay mode unsupported"
                   : launchProviderFamily === "unknown"
                     ? "Benchmark unavailable — provider configured but adapter mapping missing"
                     : null;
@@ -2698,30 +2597,6 @@ export function DecoderDashboard() {
     ? providerById.get(activeRun.provider_id)?.name ?? activeRun.provider_id
     : activeProviderName;
 
-  const queueIbmApiKeyLaunch = (input: LaunchSessionInput) => {
-    setPendingIbmLaunch(input);
-    setIbmApiKeyInput("");
-    setIbmLiveSourceMode(input.ibmLiveSourceMode ?? "metadata");
-    setIbmInstanceInput(input.ibmInstance ?? "");
-    setIbmApiKeyError(null);
-    setIbmApiKeyDialogOpen(true);
-    setSessionLauncherMenuOpen(false);
-    setBenchmarkDialogOpen(false);
-    setReplayDialogOpen(false);
-    setQuickLaunchTone("info");
-    setQuickLaunchMessage("Enter IBM API key to start IBM live session.");
-  };
-
-  const closeIbmApiKeyDialog = () => {
-    if (setIbmApiKeyMutation.isPending) {
-      return;
-    }
-    setIbmApiKeyDialogOpen(false);
-    setPendingIbmLaunch(null);
-    setIbmApiKeyInput("");
-    setIbmApiKeyError(null);
-  };
-
   const launchSession = async (input: LaunchSessionInput) => {
     if (systemOff) {
       setSystemOff(false);
@@ -2744,7 +2619,7 @@ export function DecoderDashboard() {
       const unsupportedMessage =
         input.mode === "replay"
           ? "Replay unavailable — provider configured but replay mode unsupported"
-          : "Session unavailable — provider configured but live mode unsupported";
+          : "Session unavailable — provider configured but public replay mode unsupported";
       markFailed(unsupportedMessage);
       setQuickLaunchTone("error");
       setQuickLaunchMessage(unsupportedMessage);
@@ -2823,15 +2698,6 @@ export function DecoderDashboard() {
           compare_decoders: input.mode === "benchmark" ? launchDecoders : undefined,
           skip_replay: input.mode === "replay" ? false : launchPlan.config.skip_replay,
           ...circuitConfig,
-          ...(launchPlan.adapterId === "ibm_superconducting_live"
-            ? {
-                ibm_live_source_mode: input.ibmLiveSourceMode ?? "metadata",
-                ibm_instance:
-                  input.ibmInstance && input.ibmInstance.trim().length > 0
-                    ? input.ibmInstance.trim()
-                    : undefined,
-              }
-            : {}),
         },
       });
       markRunning({ runId: run.id, sessionId: session.id, mode: input.mode });
@@ -2861,48 +2727,7 @@ export function DecoderDashboard() {
   };
 
   const launchSessionWithProviderPrompt = async (input: LaunchSessionInput) => {
-    const providerFamily = resolveProviderFamily(input.provider);
-    if (providerFamily === "ibm" && (input.mode === "scientific" || input.mode === "benchmark")) {
-      queueIbmApiKeyLaunch(input);
-      return;
-    }
     await launchSession(input);
-  };
-
-  const handleConfirmIbmApiKeyAndLaunch = async () => {
-    if (!pendingIbmLaunch) {
-      setIbmApiKeyDialogOpen(false);
-      return;
-    }
-    const trimmedKey = ibmApiKeyInput.trim();
-    if (!trimmedKey) {
-      const message = "IBM API key is required to start IBM live sessions.";
-      setIbmApiKeyError(message);
-      setQuickLaunchTone("error");
-      setQuickLaunchMessage(message);
-      return;
-    }
-    const trimmedInstance = ibmInstanceInput.trim();
-    try {
-      setIbmApiKeyError(null);
-      await setIbmApiKeyMutation.mutateAsync({ api_key: trimmedKey });
-      const queuedLaunch = {
-        ...pendingIbmLaunch,
-        ibmLiveSourceMode,
-        ibmInstance: trimmedInstance || undefined,
-      };
-      setPendingIbmLaunch(null);
-      setIbmApiKeyDialogOpen(false);
-      setIbmApiKeyInput("");
-      setQuickLaunchTone("info");
-      setQuickLaunchMessage("IBM API key stored. Starting session...");
-      await launchSession(queuedLaunch);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to store IBM API key.";
-      setIbmApiKeyError(message);
-      setQuickLaunchTone("error");
-      setQuickLaunchMessage(message);
-    }
   };
 
   const openCircuitDesignDialogForLaunch = (input: LaunchSessionInput) => {
@@ -3334,7 +3159,7 @@ export function DecoderDashboard() {
       <div className="workflow-section workflow-section-compact decoder-rail-status">
         <div className="section-title">Scientific Summary</div>
         <div className="panel-subtitle">
-          Logical correction view with hardware-derived evidence and exact denominators.
+          Circuit construction, noise injection, syndrome extraction, and decoder-policy evidence with exact denominators.
           <span className={`status-badge ${scientificExactnessClass} scientific-badge-inline`}>● {scientificExactnessLabel}</span>
           {sessionRunning && scientificState.state === "INGESTING" ? (
             <span className="status-badge status-running scientific-badge-inline">
@@ -3392,7 +3217,7 @@ export function DecoderDashboard() {
 
         <div className="trust-strip">
           <div className="trust-item">
-            <span>Hardware / Provider</span>
+            <span>Simulator / Backend</span>
             <strong>{heroHardwareLabel} · {heroProviderLabel}</strong>
           </div>
           <div className="trust-item">
@@ -3446,7 +3271,7 @@ export function DecoderDashboard() {
             >
               <option value="all">All Providers</option>
               {groupedProviderOptions.hardware.length > 0 ? (
-                <optgroup label="Hardware Data">
+                <optgroup label="Non-simulator Boundary">
                   {groupedProviderOptions.hardware.map((provider) => (
                     <option key={provider.id} value={provider.id}>
                       {provider.name}
@@ -3529,7 +3354,7 @@ export function DecoderDashboard() {
         </div>
 
         <div className="scope-meta">
-          Scope: {providerCount} providers, {jobsCount} jobs, {runsCount} runs. Active provider: {activeProviderName}.
+          Scope: {providerCount} simulator backends, {jobsCount} jobs, {runsCount} runs. Active backend: {activeProviderName}.
           {" "}Launch provider state: {providerOperationalStateText}.
           {showingHistoricalEvidenceRun ? (
             <span className="decoder-action-feedback decoder-action-feedback-info">
@@ -4606,25 +4431,6 @@ export function DecoderDashboard() {
         onClose={() => setReplayDialogOpen(false)}
         onStart={handleStartReplaySession}
         disabledReason={replaySessionUnavailableReason}
-      />
-      <StartIbmApiKeyDialog
-        open={ibmApiKeyDialogOpen}
-        pending={setIbmApiKeyMutation.isPending}
-        providerName={pendingIbmLaunch?.provider.name ?? "IBM"}
-        apiKey={ibmApiKeyInput}
-        ibmInstance={ibmInstanceInput}
-        sourceMode={ibmLiveSourceMode}
-        onApiKeyChange={(value) => {
-          setIbmApiKeyInput(value);
-          if (ibmApiKeyError) {
-            setIbmApiKeyError(null);
-          }
-        }}
-        onIbmInstanceChange={setIbmInstanceInput}
-        onSourceModeChange={setIbmLiveSourceMode}
-        onClose={closeIbmApiKeyDialog}
-        onStart={handleConfirmIbmApiKeyAndLaunch}
-        errorMessage={ibmApiKeyError}
       />
 
       {drilldown ? (

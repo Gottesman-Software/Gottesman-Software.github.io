@@ -892,7 +892,7 @@ export function TelemetryPage() {
           id: "per",
           level: summaryA.perPct > 2.2 ? "critical" : "warning",
           title: "Physical error-rate excursion",
-          detail: `PER is above the expected operating envelope for ${runA?.hardwareLabel ?? "current hardware"}.`,
+          detail: `PER is above the expected operating envelope for ${runA?.hardwareLabel ?? "current simulator"}.`,
           metric: `${summaryA.perPct.toFixed(3)}% PER`,
         });
       }
@@ -1045,7 +1045,7 @@ export function TelemetryPage() {
 
     const timeline = [
       `Run ${run.id.slice(0, 12)} status changed to ${run.status.toUpperCase()}.`,
-      `Hardware stream classified as ${run.hardwareLabel}.`,
+      `Simulator stream classified as ${run.hardwareLabel}.`,
       `PER ${rowSummary.perPct.toFixed(3)}%, LER ${rowSummary.logicalErrorRatePct.toFixed(3)}%.`,
       `Decoder latency p95 ${rowSummary.p95LatencyMs.toFixed(1)} ms, throughput ${rowSummary.throughputPerRound.toFixed(
         1,
@@ -1172,13 +1172,13 @@ export function TelemetryPage() {
           />
         </div>
         <div className="filter-group">
-          <label>Hardware</label>
+          <label>Simulator</label>
           <select
             className="select-field research-select"
             value={hardwareFilter}
             onChange={(event) => setFilterParam("hardware", event.target.value, "all")}
           >
-            <option value="all">All Hardware</option>
+            <option value="all">All Simulator Families</option>
             <option value="photonic">Photonic</option>
             <option value="superconducting">Superconducting</option>
             <option value="trapped_ion">Trapped Ion</option>
@@ -1311,7 +1311,7 @@ export function TelemetryPage() {
             <div className="panel-title">Metric Interpretation Panel</div>
             <div className="provider-compare-grid">
               <div className="provider-compare-card">
-                <div className="provider-compare-title">Auto-Detected Hardware Data Type</div>
+                <div className="provider-compare-title">Auto-Detected Simulator Family</div>
                 <div className="provider-compare-metric">{runA.hardwareLabel}</div>
                 <div className="provider-compare-metric">Provider: {runA.providerName}</div>
                 <div className="provider-compare-metric">Dataset: {runA.dataset}</div>
@@ -1725,7 +1725,7 @@ export function TelemetryPage() {
                     <th>Dataset</th>
                     <th>Status</th>
                     <th>Provider</th>
-                    <th>Hardware</th>
+                    <th>Simulator</th>
                     <th>PER</th>
                     <th>LER</th>
                     <th>Warning Rate</th>

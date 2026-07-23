@@ -10,15 +10,15 @@ import {
   saveAuthSession,
   type AuthSession,
 } from "../../auth/session";
-import ibmLogo from "../../assets/partner-logos/ibm.svg";
-import xanaduLogo from "../../assets/partner-logos/xanadu.png";
-import ankaaLogo from "../../assets/partner-logos/ankaa.svg";
+import cirqLogo from "../../assets/partner-logos/cirq.svg";
+import pennylaneLogo from "../../assets/partner-logos/pennylane.svg";
+import qiskitLogo from "../../assets/partner-logos/qiskit.svg";
 
 type AuthMode = "signin" | "signup";
 const AUTH_PARTNERS = [
-  { name: "IBM", src: ibmLogo, variant: "ibm" },
-  { name: "Xanadu", src: xanaduLogo, variant: "xanadu" },
-  { name: "Ankaa", src: ankaaLogo, variant: "ankaa" },
+  { name: "PennyLane", src: pennylaneLogo, variant: "pennylane" },
+  { name: "Cirq", src: cirqLogo, variant: "cirq" },
+  { name: "Qiskit", src: qiskitLogo, variant: "qiskit" },
 ] as const;
 const PUBLIC_DEMO_MODE =
   import.meta.env.VITE_PUBLIC_DEMO === "1" || import.meta.env.VITE_PUBLIC_DEMO === "true";
@@ -267,8 +267,8 @@ export function AccessGate({ children }: PropsWithChildren) {
                 </div>
               </form>
             </div>
-            <div className="auth-partner-marquee auth-partner-marquee-outside" aria-label="Hardware partners">
-              <div className="auth-partner-heading">Open Live and Replay Data Sourced from:</div>
+            <div className="auth-partner-marquee auth-partner-marquee-outside" aria-label="Simulator backends">
+              <div className="auth-partner-heading">Open simulator and replay workflows from:</div>
               <div className="auth-partner-track-wrap">
                 <div className="auth-partner-track">
                   {[...AUTH_PARTNERS, ...AUTH_PARTNERS].map((partner, index) => (

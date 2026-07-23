@@ -356,20 +356,16 @@ export interface HardwareApiSchemaResponse {
 }
 
 export type IntegrationProvider =
-  | "ibm"
-  | "ankaa"
-  | "xanadu"
   | "pennylane"
   | "qiskit"
-  | "cirq";
+  | "cirq"
+  | "schrosim";
 export type IntegrationMode = "live" | "replay_static";
 export type IntegrationAdapterId =
-  | "ibm_superconducting_live"
-  | "ankaa_superconducting_replay"
-  | "xanadu_gkp_remote_replay"
   | "pennylane_surface_replay"
   | "qiskit_surface_replay"
-  | "cirq_surface_replay";
+  | "cirq_surface_replay"
+  | "schrosim_photonic_replay";
 export type IntegrationSessionStatus = "starting" | "running" | "finished" | "failed" | "cancelled";
 export type IntegrationLogStream = "stdout" | "stderr" | "system";
 
@@ -380,9 +376,6 @@ export interface IntegrationSessionConfig {
   run_source?: string;
   compare_decoders?: string[];
   backend_name?: string;
-  ibm_live_source_mode?: "metadata" | "qpu";
-  ibm_instance?: string;
-  ibm_shots?: number;
   poll_interval?: number;
   max_polls?: number;
   input_path?: string;
@@ -521,16 +514,6 @@ export interface SystemLogScanResponse {
   findings: SystemLogScanFinding[];
   top_recommendations: string[];
   generated_at: string;
-}
-
-export interface SetIbmApiKeyRequest {
-  api_key: string;
-}
-
-export interface SetIbmApiKeyResponse {
-  stored: boolean;
-  message: string;
-  updated_at: string;
 }
 
 export interface VendorCalibrationSnapshot {

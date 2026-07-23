@@ -432,7 +432,7 @@ export function JobsPage() {
         <div className="table-wrapper">
           <div className="section-title">Workflow Stack</div>
           <div className="panel-subtitle">
-            Workflow protocols are orchestration layers. Providers remain hardware/simulator execution sources.
+            Workflow protocols are orchestration layers for circuit construction, simulator noise, syndrome extraction, and decoder policy runs.
           </div>
           <div className="runs-workflow-stack-grid">
             {workflowSummaries.map((entry) => {
@@ -714,7 +714,7 @@ export function JobsPage() {
       )}
 
       <div className="section-title section-offset">Adapter Sessions</div>
-      <div className="panel-subtitle">Operational session history for adapters and hardware replay workers.</div>
+      <div className="panel-subtitle">Operational session history for simulator and replay adapters.</div>
       {filteredSessions.length === 0 ? (
         <div className="scientific-muted-note">No adapter sessions in the current run scope.</div>
       ) : (
