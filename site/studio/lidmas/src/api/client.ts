@@ -4,6 +4,14 @@ const DEFAULT_BASE = "http://127.0.0.1:8080/api/v1";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_BASE;
 
+export const API_ORIGIN_URL = (() => {
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    return API_BASE_URL.replace(/\/api\/v1\/?$/, "");
+  }
+})();
+
 export interface ApiErrorPayload {
   error?: string;
 }
@@ -18,8 +26,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+export async function apiFetch<T>(path: string, init?: RequestInit, baseUrl = API_BASE_URL): Promise<T> {
+  const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
   const session = loadAuthSession();
   const headers = new Headers(init?.headers ?? undefined);
   headers.set("content-type", "application/json");

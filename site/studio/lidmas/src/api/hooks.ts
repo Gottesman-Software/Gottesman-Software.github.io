@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiFetch } from "./client";
+import { API_ORIGIN_URL, apiFetch } from "./client";
 import type {
   AuthSessionResponse,
   AuthSignInRequest,
@@ -55,7 +55,7 @@ interface RunTelemetryQueryHookOptions extends QueryHookOptions {
 export function useHealth(options?: HealthQueryHookOptions) {
   return useQuery({
     queryKey: ["health"],
-    queryFn: () => apiFetch<HealthResponse>("/health"),
+    queryFn: () => apiFetch<HealthResponse>("/health", undefined, API_ORIGIN_URL),
     refetchInterval: options?.refetchInterval ?? 5000,
     enabled: options?.enabled ?? true,
   });
