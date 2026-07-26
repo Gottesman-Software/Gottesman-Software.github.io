@@ -1,31 +1,31 @@
-import { useEffect, useState } from "react";
-
 interface TestConnectionModalProps {
   provider: any;
   onClose: () => void;
 }
 
 export function TestConnectionModal({ provider, onClose }: TestConnectionModalProps) {
-  const [tests, setTests] = useState([
-    { id: "auth", label: "Authentication", message: "Verifying API credentials...", status: "pending" },
-    { id: "network", label: "Network Connectivity", message: "Checking network latency...", status: "pending" },
-    { id: "qubits", label: "Qubit Availability", message: "Checking available qubits...", status: "pending" },
-    { id: "health", label: "Provider Health", message: "Provider is healthy - 98% uptime", status: "success" },
-  ]);
-
-  useEffect(() => {
-    const runTests = async () => {
-      for (let i = 0; i < tests.length - 1; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        setTests((prev) =>
-          prev.map((t, idx) =>
-            idx === i ? { ...t, status: idx === 0 ? "success" : Math.random() > 0.2 ? "success" : "failed" } : t
-          )
-        );
-      }
-    };
-    runTests();
-  }, []);
+  const tests = [
+    { id: "status", label: "Registry Status", message: provider.status ?? "unknown", status: "info" },
+    { id: "type", label: "Simulator Type", message: provider.type ?? "unknown", status: "info" },
+    {
+      id: "formats",
+      label: "Supported Formats",
+      message:
+        provider.supportedFormats && provider.supportedFormats.length > 0
+          ? provider.supportedFormats.join(", ")
+          : "none declared",
+      status: "info",
+    },
+    {
+      id: "capabilities",
+      label: "Declared Capabilities",
+      message:
+        provider.capabilities && provider.capabilities.length > 0
+          ? provider.capabilities.join(", ")
+          : "none declared",
+      status: "info",
+    },
+  ];
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -44,9 +44,7 @@ export function TestConnectionModal({ provider, onClose }: TestConnectionModalPr
             {tests.map((test) => (
               <div key={test.id} className="test-item">
                 <div className={`test-icon ${test.status}`}>
-                  {test.status === "pending" && "⟳"}
-                  {test.status === "success" && "✓"}
-                  {test.status === "failed" && "✗"}
+                  i
                 </div>
                 <div className="test-content">
                   <div className="test-label">{test.label}</div>
@@ -62,7 +60,7 @@ export function TestConnectionModal({ provider, onClose }: TestConnectionModalPr
             Close
           </button>
           <button className="btn btn-primary" disabled>
-            Testing...
+            Registry Only
           </button>
         </div>
       </div>

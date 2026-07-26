@@ -1,4 +1,12 @@
 import React from "react";
+import {
+  getAnalyticsConsent,
+  hasAnalyticsMeasurementId,
+  initializeAnalytics,
+  setAnalyticsConsent,
+  trackEvent,
+  trackPageView,
+} from "./analytics.js";
 
 const softwareHeroCode = [
   [{ type: "comment", text: "# software_stack.py" }],
@@ -788,7 +796,7 @@ const softwareResults = [
     points: [
       "Run scope records code family, decoder set, execution mode, hyperparameters, seed controls, input identity, and version identity.",
       "The example suite covers hybrid thresholds, Pauli thresholds, CV/GKP demos, decoder comparison, adaptive stopping, scaling fits, and failure-debug capture.",
-      "The paper-run tree now includes paper_01 through paper_05, including threshold estimation, native GKP, Xanadu replay, framework comparison, and hardware-in-the-loop syndrome extraction.",
+      "The public Studio path focuses on bounded simulator circuits, noise injection, syndrome extraction, decoder-policy comparison, and exact counter readout.",
     ],
   },
   {
@@ -1217,10 +1225,10 @@ const activeResearchTracks = [
     evidence: ["paper_01 workflows", "decoder trace bundles", "crossing summaries"],
   },
   {
-    name: "Hardware-to-decoder replay",
+    name: "Simulator-to-decoder replay",
     software: "LiDMaS+",
     question: "Can provider-style records be normalized into one decoder I/O contract?",
-    evidence: ["Xanadu fixture replay", "real-data slices", "quality metrics"],
+    evidence: ["syndrome fixtures", "provider-shaped records", "exact counter checks"],
   },
   {
     name: "Lab-control boundary",
@@ -1917,6 +1925,11 @@ function updateDocumentMetadata(route) {
     document.head.appendChild(script);
   }
   script.textContent = JSON.stringify(structuredData);
+}
+
+function trackRouteView(route) {
+  const meta = routeMeta[route] || routeMeta["/"];
+  trackPageView(route, meta.title);
 }
 
 function prefersReducedMotion() {
@@ -2701,6 +2714,9 @@ function StudioEmbeddedWorkbench({ mode = "public" }) {
     : `/studio/lidmas-app/index.html?data=api#${iframeRoute}`;
 
   function startTour() {
+    trackEvent("studio_tour_opened", {
+      workbench: isLive ? "lidmas_live" : "lidmas_public",
+    });
     setActiveStep(0);
     setTourOpen(true);
   }
@@ -3755,13 +3771,28 @@ function Footer({ route, onNavigate }) {
   );
 }
 
-function CookieBanner() {
-  const [choice, setChoice] = React.useState(() =>
-    window.localStorage.getItem("gottesman-cookie-choice"),
-  );
+function CookieBanner({ route }) {
+  const analyticsAvailable = hasAnalyticsMeasurementId();
+  const [choice, setChoice] = React.useState(() => {
+    const analyticsChoice = getAnalyticsConsent();
+    if (analyticsChoice !== "pending") {
+      return analyticsChoice;
+    }
+    if (!analyticsAvailable) {
+      return window.localStorage.getItem("gottesman-cookie-choice");
+    }
+    return null;
+  });
 
   function choose(nextChoice) {
     window.localStorage.setItem("gottesman-cookie-choice", nextChoice);
+    if (analyticsAvailable) {
+      setAnalyticsConsent(nextChoice);
+      if (nextChoice === "accepted") {
+        initializeAnalytics();
+        trackRouteView(route);
+      }
+    }
     setChoice(nextChoice);
   }
 
@@ -3772,15 +3803,16 @@ function CookieBanner() {
   return (
     <div className="cookie-banner" role="region" aria-label="Cookie notice">
       <p>
-        This site stores only your cookie preference in this browser. It does not require tracking
-        cookies for basic reading.
+        {analyticsAvailable
+          ? "This site can use optional Google Analytics to count page views and Studio interactions. Basic reading works without analytics."
+          : "This site stores only your cookie preference in this browser. It does not require tracking cookies for basic reading."}
       </p>
       <div>
         <button type="button" onClick={() => choose("declined")}>
           Dismiss
         </button>
         <button type="button" onClick={() => choose("accepted")}>
-          OK
+          {analyticsAvailable ? "Allow analytics" : "OK"}
         </button>
       </div>
     </div>
@@ -3990,6 +4022,7 @@ export default function App() {
 
   React.useEffect(() => {
     updateDocumentMetadata(route);
+    trackRouteView(route);
   }, [route]);
 
   React.useEffect(() => {
@@ -4003,6 +4036,9 @@ export default function App() {
 
   const navigate = React.useCallback((to) => {
     const nextRoute = validRoutePaths.has(to) ? to : "/";
+    trackEvent("site_navigation", {
+      destination: nextRoute,
+    });
 
     if (window.location.pathname !== nextRoute) {
       window.history.pushState({}, "", nextRoute);
@@ -4020,7 +4056,7 @@ export default function App() {
       </main>
       {!isStudioRoute && <Footer route={route} onNavigate={navigate} />}
       <ScrollEnhancements route={route} />
-      {!isStudioRoute && <CookieBanner />}
+      <CookieBanner route={route} />
     </>
   );
 }

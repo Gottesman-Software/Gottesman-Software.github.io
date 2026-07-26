@@ -1,18 +1,12 @@
-import type { ThemeId } from "../theme/themes";
+import { THEME_OPTIONS, type ThemeId } from "../theme/themes";
 
 export const SETTINGS_STORAGE_KEY = "lidmas.settings.v1";
 
-export type EnvironmentName = "production" | "staging" | "development";
 export type UiDensity = "comfortable" | "compact";
-export type EscalationPolicy = "pagerduty" | "slack" | "email";
-export type DigestCadence = "5m" | "15m" | "1h";
-export type ExportFormat = "json" | "csv" | "parquet";
-export type BackupSchedule = "hourly" | "daily" | "weekly";
-export type AuditTrailMode = "strict" | "standard" | "relaxed";
+export type ExportFormat = "json" | "csv";
 
 export interface AppSettings {
   systemName: string;
-  environment: EnvironmentName;
   uiThemeId: ThemeId;
   uiDensity: UiDensity;
   timezone: string;
@@ -20,39 +14,17 @@ export interface AppSettings {
   enableDebugLogs: boolean;
   autoSaveConfigurations: boolean;
 
-  maxCacheSizeGb: number;
   jobTimeoutSeconds: number;
-  providerAutoFailover: boolean;
   maxParallelRuns: number;
   retryBudget: number;
-  circuitBreakerEnabled: boolean;
-
-  emailNotifications: boolean;
-  slackNotifications: boolean;
-  pagerdutyEscalation: boolean;
-  escalationPolicy: EscalationPolicy;
-  digestCadence: DigestCadence;
-
-  twoFactorAuthentication: boolean;
-  sessionTimeoutMinutes: number;
-  ipAllowlist: string;
-  auditTrailMode: AuditTrailMode;
   dataMasking: boolean;
 
-  webhookEndpoint: string;
   defaultExportFormat: ExportFormat;
   artifactRetentionDays: number;
-  enableSso: boolean;
-
-  backupSchedule: BackupSchedule;
-  offsiteReplication: boolean;
-  backupRetentionDays: number;
-  encryptionAtRest: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   systemName: "LiDMaS+ Decoder",
-  environment: "production",
   uiThemeId: "dark-core",
   uiDensity: "comfortable",
   timezone: "UTC",
@@ -60,34 +32,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableDebugLogs: false,
   autoSaveConfigurations: true,
 
-  maxCacheSizeGb: 5,
-  jobTimeoutSeconds: 3600,
-  providerAutoFailover: true,
+  jobTimeoutSeconds: 1200,
   maxParallelRuns: 8,
-  retryBudget: 3,
-  circuitBreakerEnabled: true,
-
-  emailNotifications: true,
-  slackNotifications: true,
-  pagerdutyEscalation: true,
-  escalationPolicy: "pagerduty",
-  digestCadence: "15m",
-
-  twoFactorAuthentication: true,
-  sessionTimeoutMinutes: 30,
-  ipAllowlist: "",
-  auditTrailMode: "strict",
+  retryBudget: 1,
   dataMasking: true,
 
-  webhookEndpoint: "https://api.example.com/lidmas/webhook",
   defaultExportFormat: "json",
-  artifactRetentionDays: 30,
-  enableSso: false,
-
-  backupSchedule: "daily",
-  offsiteReplication: true,
-  backupRetentionDays: 90,
-  encryptionAtRest: true,
+  artifactRetentionDays: 14,
 };
 
 function toFiniteNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -106,34 +57,29 @@ function toBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
+function toThemeId(value: unknown): ThemeId {
+  if (typeof value === "string" && THEME_OPTIONS.some((option) => option.id === value)) {
+    return value as ThemeId;
+  }
+  return DEFAULT_SETTINGS.uiThemeId;
+}
+
 function normalizeSettings(input: Partial<AppSettings>): AppSettings {
   const base = { ...DEFAULT_SETTINGS, ...input };
   return {
-    ...base,
     systemName: toStringValue(base.systemName, DEFAULT_SETTINGS.systemName).trim() || DEFAULT_SETTINGS.systemName,
+    uiThemeId: toThemeId(base.uiThemeId),
+    uiDensity: base.uiDensity === "compact" ? "compact" : "comfortable",
     timezone: toStringValue(base.timezone, DEFAULT_SETTINGS.timezone).trim() || DEFAULT_SETTINGS.timezone,
     locale: toStringValue(base.locale, DEFAULT_SETTINGS.locale).trim() || DEFAULT_SETTINGS.locale,
-    ipAllowlist: toStringValue(base.ipAllowlist, DEFAULT_SETTINGS.ipAllowlist),
-    webhookEndpoint: toStringValue(base.webhookEndpoint, DEFAULT_SETTINGS.webhookEndpoint).trim() || DEFAULT_SETTINGS.webhookEndpoint,
-    maxCacheSizeGb: toFiniteNumber(base.maxCacheSizeGb, DEFAULT_SETTINGS.maxCacheSizeGb, 1, 256),
-    jobTimeoutSeconds: toFiniteNumber(base.jobTimeoutSeconds, DEFAULT_SETTINGS.jobTimeoutSeconds, 60, 86_400),
-    maxParallelRuns: toFiniteNumber(base.maxParallelRuns, DEFAULT_SETTINGS.maxParallelRuns, 1, 512),
-    retryBudget: toFiniteNumber(base.retryBudget, DEFAULT_SETTINGS.retryBudget, 0, 20),
-    sessionTimeoutMinutes: toFiniteNumber(base.sessionTimeoutMinutes, DEFAULT_SETTINGS.sessionTimeoutMinutes, 5, 480),
-    artifactRetentionDays: toFiniteNumber(base.artifactRetentionDays, DEFAULT_SETTINGS.artifactRetentionDays, 1, 3650),
-    backupRetentionDays: toFiniteNumber(base.backupRetentionDays, DEFAULT_SETTINGS.backupRetentionDays, 1, 3650),
+    jobTimeoutSeconds: toFiniteNumber(base.jobTimeoutSeconds, DEFAULT_SETTINGS.jobTimeoutSeconds, 60, 7200),
+    maxParallelRuns: toFiniteNumber(base.maxParallelRuns, DEFAULT_SETTINGS.maxParallelRuns, 1, 32),
+    retryBudget: toFiniteNumber(base.retryBudget, DEFAULT_SETTINGS.retryBudget, 0, 5),
+    defaultExportFormat: base.defaultExportFormat === "csv" ? "csv" : "json",
+    artifactRetentionDays: toFiniteNumber(base.artifactRetentionDays, DEFAULT_SETTINGS.artifactRetentionDays, 1, 90),
     autoSaveConfigurations: toBoolean(base.autoSaveConfigurations, DEFAULT_SETTINGS.autoSaveConfigurations),
     enableDebugLogs: toBoolean(base.enableDebugLogs, DEFAULT_SETTINGS.enableDebugLogs),
-    providerAutoFailover: toBoolean(base.providerAutoFailover, DEFAULT_SETTINGS.providerAutoFailover),
-    circuitBreakerEnabled: toBoolean(base.circuitBreakerEnabled, DEFAULT_SETTINGS.circuitBreakerEnabled),
-    emailNotifications: toBoolean(base.emailNotifications, DEFAULT_SETTINGS.emailNotifications),
-    slackNotifications: toBoolean(base.slackNotifications, DEFAULT_SETTINGS.slackNotifications),
-    pagerdutyEscalation: toBoolean(base.pagerdutyEscalation, DEFAULT_SETTINGS.pagerdutyEscalation),
-    twoFactorAuthentication: toBoolean(base.twoFactorAuthentication, DEFAULT_SETTINGS.twoFactorAuthentication),
     dataMasking: toBoolean(base.dataMasking, DEFAULT_SETTINGS.dataMasking),
-    enableSso: toBoolean(base.enableSso, DEFAULT_SETTINGS.enableSso),
-    offsiteReplication: toBoolean(base.offsiteReplication, DEFAULT_SETTINGS.offsiteReplication),
-    encryptionAtRest: toBoolean(base.encryptionAtRest, DEFAULT_SETTINGS.encryptionAtRest),
   };
 }
 

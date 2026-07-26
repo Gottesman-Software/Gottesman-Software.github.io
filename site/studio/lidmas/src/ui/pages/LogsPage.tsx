@@ -51,7 +51,7 @@ const TIME_WINDOW_MS: Record<TimeWindow, number | null> = {
 const SCAN_PROFILES: Record<ScanProfileKey, ScanProfile> = {
   standard: {
     label: "Standard",
-    description: "Balanced reliability scan for runtime, decoder quality, and operational stability.",
+    description: "Balanced reliability scan for runtime, decoder quality, and signal stability.",
     customRules: [
       {
         id: "frontend.standard.failover",
@@ -69,7 +69,7 @@ const SCAN_PROFILES: Record<ScanProfileKey, ScanProfile> = {
         severity: "medium",
         field: "message",
         tags: ["decoder", "quality"],
-        recommendation: "Compare residual trend to baseline and quarantine unstable decoder window.",
+        recommendation: "Compare residual values against the selected baseline before using the decoder result.",
       },
     ],
     suppressions: [{ pattern: "runtime snapshot received", field: "message" }],
@@ -104,7 +104,7 @@ const SCAN_PROFILES: Record<ScanProfileKey, ScanProfile> = {
         severity: "critical",
         field: "message",
         tags: ["security", "crypto"],
-        recommendation: "Treat as key leak incident and revoke material immediately.",
+        recommendation: "Treat as a security event and revoke material immediately.",
       },
     ],
     suppressions: [],
@@ -130,7 +130,7 @@ const SCAN_PROFILES: Record<ScanProfileKey, ScanProfile> = {
         severity: "medium",
         field: "message",
         tags: ["operations", "throughput"],
-        recommendation: "Scale workers or apply traffic shaping to keep queue within SLA.",
+        recommendation: "Reduce the run scope or wait for the queue to drain before comparing decoder results.",
       },
       {
         id: "frontend.availability.health_drop",
@@ -271,6 +271,13 @@ function mapRunLogLevel(status: Run["status"]): LogLevel {
   return "INFO";
 }
 
+function formatMetricPercent(value: number | null | undefined, digits = 3): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "n/a";
+  }
+  return `${(value * 100).toFixed(digits)}%`;
+}
+
 function buildEntry(id: string, timestamp: string, level: LogLevel, message: string, source: string, sortAt: number): ParsedLogEntry {
   return {
     id,
@@ -331,6 +338,7 @@ function deriveApiLogs(providers: Provider[], jobs: Job[], runs: Run[]): ParsedL
     const warningRate = run.metrics?.warning_rate;
     const warningRateText = typeof warningRate === "number" ? ` warning_rate=${warningRate.toFixed(3)}` : "";
     const runLevel = mapRunLogLevel(run.status);
+    const runTimestamp = timestampToMs(run.updated_at);
     entries.push(
       buildEntry(
         `api-${ordinal++}`,
@@ -338,9 +346,43 @@ function deriveApiLogs(providers: Provider[], jobs: Job[], runs: Run[]): ParsedL
         runLevel,
         `Run ${run.id.slice(0, 8)} ${run.status}: ${run.dataset_label}${warningRateText}`,
         "api/runs",
-        timestampToMs(run.updated_at),
+        runTimestamp,
       ),
     );
+
+    if (run.metrics?.scientific_validation_ready) {
+      entries.push(
+        buildEntry(
+          `api-${ordinal++}`,
+          formatLogTimestamp(run.updated_at),
+          "SUCCESS",
+          `Run ${run.id.slice(0, 8)} exact scientific counters ready: LER=${formatMetricPercent(
+            run.metrics.logical_error_rate,
+          )}, exact PER=${formatMetricPercent(run.metrics.physical_error_rate)}, decoder=${
+            run.metrics.best_decoder ?? "n/a"
+          }, qec=${run.metrics.best_encoder_state ?? "n/a"}`,
+          "api/runs/scientific",
+          runTimestamp,
+        ),
+      );
+    }
+
+    if (
+      typeof run.metrics?.request_line_count === "number" &&
+      typeof run.metrics?.response_line_count === "number" &&
+      run.metrics.request_line_count !== run.metrics.response_line_count
+    ) {
+      entries.push(
+        buildEntry(
+          `api-${ordinal++}`,
+          formatLogTimestamp(run.updated_at),
+          "WARN",
+          `Run ${run.id.slice(0, 8)} request/response mismatch: ${run.metrics.request_line_count}/${run.metrics.response_line_count}`,
+          "api/runs/exactness",
+          runTimestamp,
+        ),
+      );
+    }
 
     if (typeof warningRate === "number" && warningRate >= 0.2) {
       entries.push(
@@ -350,7 +392,7 @@ function deriveApiLogs(providers: Provider[], jobs: Job[], runs: Run[]): ParsedL
           "WARN",
           `Run ${run.id.slice(0, 8)} warning-rate threshold breached (${warningRate.toFixed(3)})`,
           "api/runs/anomaly",
-          timestampToMs(run.updated_at),
+          runTimestamp,
         ),
       );
     }
@@ -429,8 +471,8 @@ export function LogsPage() {
   const [maxFindings, setMaxFindings] = useState<number>(SCAN_PROFILES.standard.defaultMaxFindings);
   const [lastScanSampleSize, setLastScanSampleSize] = useState<number>(0);
 
-  const { isApi, isMock, systemOff, systemArmed } = useDataMode();
-  const apiEnabled = isApi && !systemOff && systemArmed;
+  const { isApi, isMock, systemOff } = useDataMode();
+  const apiEnabled = isApi && !systemOff;
   const deferredSearch = useDeferredValue(searchTerm.trim().toLowerCase());
 
   const providersQuery = useProviders({ enabled: apiEnabled });
@@ -456,7 +498,11 @@ export function LogsPage() {
     return () => window.clearInterval(timer);
   }, [apiEnabled, autoRefresh, jobsQuery, providersQuery, runsQuery]);
 
-  const apiLogs = systemOff ? [] : deriveApiLogs(providersQuery.data ?? [], jobsQuery.data ?? [], runsQuery.data ?? []);
+  const apiRuntimeScopeExists = (jobsQuery.data?.length ?? 0) > 0 || (runsQuery.data?.length ?? 0) > 0;
+  const apiLogs =
+    systemOff || !apiRuntimeScopeExists
+      ? []
+      : deriveApiLogs(providersQuery.data ?? [], jobsQuery.data ?? [], runsQuery.data ?? []);
   const mockLogs = deriveMockLogs();
   const allLogs: ParsedLogEntry[] = systemOff ? [] : isMock ? mockLogs : apiLogs;
 
@@ -485,8 +531,8 @@ export function LogsPage() {
     if (!autoScroll || !viewerRef.current) {
       return;
     }
-    viewerRef.current.scrollTop = viewerRef.current.scrollHeight;
-  }, [autoScroll, scopedLogs.length]);
+    viewerRef.current.scrollTop = sortOrder === "newest" ? 0 : viewerRef.current.scrollHeight;
+  }, [autoScroll, scopedLogs.length, sortOrder]);
 
   let errorCount = 0;
   let warnCount = 0;
@@ -598,7 +644,7 @@ export function LogsPage() {
     <>
       <div className="header">
         <h1>System Logs</h1>
-        <p>Research incident triage for decoder runtime, provider connectivity, and quality anomalies</p>
+        <p>Runtime signal review for decoder activity, provider connectivity, and quality anomalies</p>
       </div>
 
       <div className="logs-toolbar">
@@ -741,7 +787,7 @@ export function LogsPage() {
           <strong>
             INFO {infoCount} · OK {successCount}
           </strong>
-          <p>non-critical operational signals</p>
+          <p>non-critical runtime signals</p>
         </article>
         <article className="logs-kpi-card">
           <span>Hottest source</span>
@@ -754,9 +800,9 @@ export function LogsPage() {
           <p>most recent event age</p>
         </article>
         <article className={`logs-kpi-card logs-kpi-scan ${scanReport ? `logs-kpi-${verdictClass}` : ""}`}>
-          <span>Scan risk score</span>
-          <strong>{scanReport ? `${scanReport.summary.risk_score}/100` : "—"}</strong>
-          <p>{scanReport ? `verdict ${formatScanVerdict(scanReport.summary.verdict)}` : "run scan to evaluate risk"}</p>
+          <span>Scan verdict</span>
+          <strong>{scanReport ? formatScanVerdict(scanReport.summary.verdict) : "—"}</strong>
+          <p>{scanReport ? `${scanReport.summary.matched_entries} matched entries` : "run scan to inspect logs"}</p>
         </article>
       </div>
 
@@ -832,7 +878,7 @@ export function LogsPage() {
                   {finding.severity.toUpperCase()}
                 </span>
                 <span className="log-message">
-                  [{finding.rule_origin}] {finding.title} ({Math.round(finding.confidence * 100)}%) — {finding.message}
+                  [{finding.rule_origin}] {finding.title} — {finding.message}
                 </span>
                 <span className="log-source">{finding.rule_id}</span>
               </div>
@@ -866,7 +912,7 @@ export function LogsPage() {
       {noApiLogs ? (
         <div className="empty-card section-offset">
           <strong>No Live Logs Yet</strong>
-          <p>The backend is reachable, but there are currently no provider/job/run events to render.</p>
+          <p>The backend is reachable, but no job or run log events are in the current public scope.</p>
         </div>
       ) : null}
     </>

@@ -4,34 +4,29 @@ import { useProviders } from "../../api/hooks";
 import type { Provider } from "../../api/types";
 import { useDataMode } from "../../data/dataMode";
 import { gkpProviderRuntime } from "../../data/gkpFixtures";
-import { AddProviderModal } from "./modals/AddProviderModal";
-import { EditProviderModal } from "./modals/EditProviderModal";
-import { DeleteProviderModal } from "./modals/DeleteProviderModal";
-import { TestConnectionModal } from "./modals/TestConnectionModal";
 
-type ProviderModal = "add" | "edit" | "delete" | "test" | null;
 type ProviderStatus = "online" | "busy" | "offline";
 type ProviderStatusFilter = "all" | ProviderStatus;
 type ProviderKindFilter = "all" | Provider["kind"];
-type ProvidersRole = "viewer" | "operator" | "admin";
 
 interface ProviderRow {
   id: string;
   name: string;
   status: ProviderStatus;
-  health: number;
-  jobs: number;
-  latency: string;
-  latencyMs: number;
-  throughput: string;
-  throughputOps: number;
-  successRate: string;
-  successRatePct: number;
   lastSeen: string;
   lastSeenMinutes: number;
   type: string;
   kind: Provider["kind"];
+  simulationTarget: string;
   region: string;
+  supportedFormats: string[];
+  capabilities: string[];
+  publicBoundary: string;
+  readinessNote: string;
+  supportsScientific: boolean;
+  supportsBenchmark: boolean;
+  supportsReplay: boolean;
+  supportsLive: boolean;
   updatedAt: string | null;
 }
 
@@ -39,12 +34,10 @@ interface KpiCardModel {
   key: string;
   label: string;
   value: string;
-  trendText: string;
-  trendDelta: number;
-  trendUpGood: boolean;
+  detail: string;
 }
 
-interface WorkflowAlertItem {
+interface ProviderSignalItem {
   id: string;
   level: "critical" | "warning" | "info";
   title: string;
@@ -52,57 +45,9 @@ interface WorkflowAlertItem {
   metric: string;
 }
 
-interface AlertWorkflowState {
-  acknowledged: boolean;
-  owner: string;
-  notes: string;
-}
-
 interface ProviderDrilldownState {
   provider: ProviderRow;
   timeline: string[];
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function average(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function percentile(values: number[], p: number): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
-  return sorted[index];
-}
-
-function percentDelta(current: number, previous: number): number {
-  if (!Number.isFinite(current) || !Number.isFinite(previous)) {
-    return 0;
-  }
-  const baseline = Math.max(1e-9, Math.abs(previous));
-  return ((current - previous) / baseline) * 100;
-}
-
-function formatTrend(deltaPct: number): string {
-  const direction = deltaPct >= 0 ? "▲" : "▼";
-  return `${direction} ${Math.abs(deltaPct).toFixed(1)}%`;
-}
-
-function numericFromText(value: string): number {
-  const matched = value.match(/-?\d+(\.\d+)?/);
-  if (!matched) {
-    return 0;
-  }
-  const parsed = Number(matched[0]);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function parseLastSeenMinutes(value: string): number {
@@ -127,13 +72,6 @@ function parseLastSeenMinutes(value: string): number {
   return amount;
 }
 
-function parseRole(value: string | null): ProvidersRole {
-  if (value === "viewer" || value === "operator") {
-    return value;
-  }
-  return "admin";
-}
-
 function parseStatusFilter(value: string | null): ProviderStatusFilter {
   if (value === "online" || value === "busy" || value === "offline") {
     return value;
@@ -152,10 +90,6 @@ function parseKindFilter(value: string | null): ProviderKindFilter {
     return value;
   }
   return "all";
-}
-
-function parseBooleanFlag(value: string | null): boolean {
-  return value === "1" || value === "true" || value === "yes";
 }
 
 function formatAgo(isoText: string | null | undefined): string {
@@ -185,14 +119,6 @@ const fallbackRows: ProviderRow[] = gkpProviderRuntime.map((provider) => ({
   id: provider.id,
   name: provider.name,
   status: provider.status,
-  health: provider.health,
-  jobs: provider.jobs,
-  latency: provider.latency,
-  latencyMs: numericFromText(provider.latency),
-  throughput: provider.throughput,
-  throughputOps: numericFromText(provider.throughput),
-  successRate: provider.successRate,
-  successRatePct: numericFromText(provider.successRate),
   lastSeen: provider.lastSeen,
   lastSeenMinutes: parseLastSeenMinutes(provider.lastSeen),
   type: provider.type,
@@ -204,7 +130,16 @@ const fallbackRows: ProviderRow[] = gkpProviderRuntime.map((provider) => ({
         : provider.type.toLowerCase().includes("superconducting")
           ? "superconducting"
           : "simulated",
+  simulationTarget: provider.type,
   region: provider.region,
+  supportedFormats: ["mock-fixture"],
+  capabilities: ["scientific", "benchmark", "replay"],
+  publicBoundary: "Mock fixture; no public hardware control.",
+  readinessNote: "Mock fixture used only outside the public API build.",
+  supportsScientific: true,
+  supportsBenchmark: true,
+  supportsReplay: true,
+  supportsLive: false,
   updatedAt: null,
 }));
 
@@ -221,6 +156,23 @@ function mapProviderKind(kind: Provider["kind"]): string {
     default:
       return "Other";
   }
+}
+
+function mapSimulationTarget(provider: Provider): string {
+  const name = provider.name.toLowerCase();
+  if (name.includes("pennylane")) {
+    return "Photonic circuit construction";
+  }
+  if (name.includes("qiskit")) {
+    return "Qiskit Aer noise simulation";
+  }
+  if (name.includes("cirq")) {
+    return "Stabilizer syndrome simulation";
+  }
+  if (name.includes("schrosim")) {
+    return "Photonic CV / GKP simulation";
+  }
+  return mapProviderKind(provider.hardware_kind ?? provider.kind);
 }
 
 function mapProviderStatus(status: Provider["status"]): ProviderStatus {
@@ -244,26 +196,15 @@ function mapStatusTone(status: ProviderStatus): "status-healthy" | "status-warni
 }
 
 export function EnhancedProvidersPage() {
-  const { mode, isApi, isMock, systemOff, systemArmed } = useDataMode();
-  const apiEnabled = isApi && !systemOff && systemArmed;
+  const { mode, isApi, isMock, systemOff } = useDataMode();
+  const apiEnabled = isApi && !systemOff;
   const providersQuery = useProviders({ enabled: apiEnabled });
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeModal, setActiveModal] = useState<ProviderModal>(null);
-  const [selectedProvider, setSelectedProvider] = useState<ProviderRow | null>(null);
   const [drilldown, setDrilldown] = useState<ProviderDrilldownState | null>(null);
-  const [alertWorkflow, setAlertWorkflow] = useState<Record<string, AlertWorkflowState>>({});
 
   const searchQuery = searchParams.get("q") ?? "";
   const statusFilter = parseStatusFilter(searchParams.get("status"));
   const kindFilter = parseKindFilter(searchParams.get("kind"));
-  const regionFilter = searchParams.get("region") ?? "all";
-  const compareMode = parseBooleanFlag(searchParams.get("compare"));
-  const role = parseRole(searchParams.get("role"));
-  const providerAFilter = searchParams.get("providerA") ?? "auto";
-  const providerBFilter = searchParams.get("providerB") ?? "auto";
-
-  const canOperate = role !== "viewer";
-  const canDelete = role === "admin";
 
   const setFilterParam = (key: string, value: string, defaultValue: string) => {
     setSearchParams((currentParams) => {
@@ -279,35 +220,37 @@ export function EnhancedProvidersPage() {
 
   const apiRows: ProviderRow[] = useMemo(
     () =>
-      (providersQuery.data ?? []).map((provider, index) => {
+      (providersQuery.data ?? []).map((provider) => {
         const status = mapProviderStatus(provider.status);
-        const health =
-          status === "online" ? 96 - (index % 3) * 2 : status === "busy" ? 82 - (index % 4) * 3 : 28;
-        const latencyMs = status === "online" ? 39 + index * 3 : status === "busy" ? 56 + index * 4 : 95;
-        const throughputOps = status === "online" ? 420 + index * 22 : status === "busy" ? 280 + index * 16 : 0;
-        const successRatePct = Number(
-          (status === "online" ? 98.3 : status === "busy" ? 94.2 : 88.0).toFixed(1),
-        );
         const lastSeenStamp = provider.last_seen ?? provider.updated_at;
         const lastSeen = formatAgo(lastSeenStamp);
         const lastSeenMinutes = parseLastSeenMinutes(lastSeen);
+        const capabilities = [
+          provider.supports_scientific ? "scientific" : null,
+          provider.supports_benchmark ? "benchmark" : null,
+          provider.supports_replay ? "replay" : null,
+          provider.supports_live ? "live" : null,
+        ].filter((capability): capability is string => Boolean(capability));
         return {
           id: provider.id,
           name: provider.name,
           status,
-          health,
-          jobs: status === "offline" ? 0 : 1 + ((index * 3) % 10),
-          latency: `${latencyMs}ms`,
-          latencyMs,
-          throughput: `${throughputOps} ops/s`,
-          throughputOps,
-          successRate: `${successRatePct.toFixed(1)}%`,
-          successRatePct,
           lastSeen,
           lastSeenMinutes,
           type: mapProviderKind(provider.hardware_kind ?? provider.kind),
           kind: provider.kind,
+          simulationTarget: mapSimulationTarget(provider),
           region: provider.contact_email ? provider.contact_email.split("@")[1] : "global",
+          supportedFormats: provider.supported_formats,
+          capabilities,
+          publicBoundary: provider.supports_live
+            ? "Live control flag is private; public Studio uses simulator mode only."
+            : "Simulator-only public API; no credentials or lab hardware control.",
+          readinessNote: provider.readiness_note ?? provider.notes ?? "No readiness note provided.",
+          supportsScientific: provider.supports_scientific,
+          supportsBenchmark: provider.supports_benchmark,
+          supportsReplay: provider.supports_replay,
+          supportsLive: provider.supports_live,
           updatedAt: provider.updated_at,
         };
       }),
@@ -326,96 +269,54 @@ export function EnhancedProvidersPage() {
       if (kindFilter !== "all" && provider.kind !== kindFilter) {
         return false;
       }
-      if (regionFilter !== "all" && provider.region !== regionFilter) {
-        return false;
-      }
       return true;
     });
-  }, [kindFilter, providerRows, regionFilter, searchQuery, statusFilter]);
+  }, [kindFilter, providerRows, searchQuery, statusFilter]);
 
-  const regions = useMemo(() => {
-    return [...new Set(providerRows.map((provider) => provider.region))].sort((a, b) => a.localeCompare(b));
-  }, [providerRows]);
-
-  const providerById = useMemo(
-    () => new Map(providerRows.map((provider) => [provider.id, provider])),
-    [providerRows],
-  );
-
-  const activeProviders = filteredRows.filter((provider) => provider.status !== "offline").length;
+  const activeProviders = filteredRows.filter((provider) => provider.status === "online").length;
   const offlineProviders = filteredRows.filter((provider) => provider.status === "offline");
-  const avgHealth = average(filteredRows.map((provider) => provider.health));
-  const p95Latency = percentile(filteredRows.map((provider) => provider.latencyMs), 95);
-  const avgSuccess = average(filteredRows.map((provider) => provider.successRatePct));
-  const totalThroughput = filteredRows.reduce((sum, provider) => sum + provider.throughputOps, 0);
-  const totalJobs = filteredRows.reduce((sum, provider) => sum + provider.jobs, 0);
-  const latencyBreaches = filteredRows.filter((provider) => provider.latencyMs > 55);
-  const successBreaches = filteredRows.filter((provider) => provider.successRatePct < 97);
-  const healthBreaches = filteredRows.filter((provider) => provider.health < 90);
-  const capacityBreaches = filteredRows.filter((provider) => provider.jobs > 10);
-  const slaBreaches = filteredRows.filter(
-    (provider) =>
-      provider.status === "offline" ||
-      provider.latencyMs > 55 ||
-      provider.successRatePct < 97 ||
-      provider.health < 90,
-  );
-
-  const previousAvgHealth = clamp(avgHealth - 2.4, 0, 100);
-  const previousP95Latency = p95Latency + 6.5;
-  const previousAvgSuccess = clamp(avgSuccess - 1.2, 0, 100);
-  const previousThroughput = Math.max(1, totalThroughput * 0.94);
-  const previousActive = Math.max(1, activeProviders - 1);
-  const previousBreachCount = Math.max(0, slaBreaches.length + 2);
+  const degradedProviders = filteredRows.filter((provider) => provider.status === "busy");
+  const scientificProviders = filteredRows.filter((provider) => provider.supportsScientific).length;
+  const benchmarkProviders = filteredRows.filter((provider) => provider.supportsBenchmark).length;
+  const replayProviders = filteredRows.filter((provider) => provider.supportsReplay).length;
+  const liveProviders = filteredRows.filter((provider) => provider.supportsLive).length;
 
   const kpiCards: KpiCardModel[] = [
     {
       key: "providers",
-      label: "Active Providers",
-      value: `${activeProviders} / ${filteredRows.length}`,
-      trendText: formatTrend(percentDelta(activeProviders, previousActive)),
-      trendDelta: percentDelta(activeProviders, previousActive),
-      trendUpGood: true,
+      label: "Simulator Backends",
+      value: `${filteredRows.length}`,
+      detail: `${providerRows.length} total records from the selected source`,
     },
     {
-      key: "health",
-      label: "Average Health",
-      value: `${avgHealth.toFixed(1)}%`,
-      trendText: formatTrend(percentDelta(avgHealth, previousAvgHealth)),
-      trendDelta: percentDelta(avgHealth, previousAvgHealth),
-      trendUpGood: true,
+      key: "ready",
+      label: "Ready Simulators",
+      value: `${activeProviders}`,
+      detail: `${degradedProviders.length} degraded, ${offlineProviders.length} offline`,
     },
     {
-      key: "latency",
-      label: "P95 Latency",
-      value: `${p95Latency.toFixed(1)} ms`,
-      trendText: formatTrend(percentDelta(p95Latency, previousP95Latency)),
-      trendDelta: percentDelta(p95Latency, previousP95Latency),
-      trendUpGood: false,
+      key: "scientific",
+      label: "Scientific Sessions",
+      value: `${scientificProviders}`,
+      detail: "Circuit, noise, syndrome, decoder policy",
     },
     {
-      key: "success",
-      label: "Average Success Rate",
-      value: `${avgSuccess.toFixed(2)}%`,
-      trendText: formatTrend(percentDelta(avgSuccess, previousAvgSuccess)),
-      trendDelta: percentDelta(avgSuccess, previousAvgSuccess),
-      trendUpGood: true,
+      key: "benchmark",
+      label: "Benchmark Replay",
+      value: `${benchmarkProviders}`,
+      detail: "Public benchmark inspection",
     },
     {
-      key: "throughput",
-      label: "Total Throughput",
-      value: `${totalThroughput.toFixed(0)} ops/s`,
-      trendText: formatTrend(percentDelta(totalThroughput, previousThroughput)),
-      trendDelta: percentDelta(totalThroughput, previousThroughput),
-      trendUpGood: true,
+      key: "replay",
+      label: "Replay Sessions",
+      value: `${replayProviders}`,
+      detail: "Deterministic run replay",
     },
     {
-      key: "sla",
-      label: "SLA Breaches",
-      value: `${slaBreaches.length}`,
-      trendText: formatTrend(percentDelta(slaBreaches.length, previousBreachCount)),
-      trendDelta: percentDelta(slaBreaches.length, previousBreachCount),
-      trendUpGood: false,
+      key: "live",
+      label: "Private Live Flags",
+      value: `${liveProviders}`,
+      detail: "Not exposed as public hardware control",
     },
   ];
 
@@ -440,50 +341,16 @@ export function EnhancedProvidersPage() {
     return null;
   }, [filteredRows]);
 
-  const confidenceScore = clamp(
-    ((filteredRows.length - offlineProviders.length * 0.7) / Math.max(1, filteredRows.length)) * 100,
-    0,
-    99,
-  );
   const missingSignals: string[] = [];
   if (filteredRows.length === 0) {
-    missingSignals.push("provider-telemetry");
+    missingSignals.push("provider-records");
   }
   if (filteredRows.every((provider) => !provider.updatedAt)) {
     missingSignals.push("updated_at");
   }
-  if (slaBreaches.length > 0) {
-    missingSignals.push("sla-compliance");
-  }
 
-  const providerA = useMemo(() => {
-    if (filteredRows.length === 0) {
-      return null;
-    }
-    if (providerAFilter !== "auto") {
-      const found = providerById.get(providerAFilter);
-      if (found && filteredRows.some((provider) => provider.id === found.id)) {
-        return found;
-      }
-    }
-    return filteredRows[0];
-  }, [filteredRows, providerAFilter, providerById]);
-
-  const providerB = useMemo(() => {
-    if (filteredRows.length === 0) {
-      return null;
-    }
-    if (providerBFilter !== "auto") {
-      const found = providerById.get(providerBFilter);
-      if (found && (!providerA || found.id !== providerA.id) && filteredRows.some((provider) => provider.id === found.id)) {
-        return found;
-      }
-    }
-    return filteredRows.find((provider) => provider.id !== providerA?.id) ?? null;
-  }, [filteredRows, providerA, providerBFilter, providerById]);
-
-  const workflowAlerts = useMemo<WorkflowAlertItem[]>(() => {
-    const alerts: WorkflowAlertItem[] = [];
+  const providerSignals = useMemo<ProviderSignalItem[]>(() => {
+    const alerts: ProviderSignalItem[] = [];
     if (providersQuery.isError) {
       alerts.push({
         id: "api-error",
@@ -498,141 +365,87 @@ export function EnhancedProvidersPage() {
         id: "offline",
         level: "critical",
         title: "Offline providers detected",
-        detail: `${offlineProviders.length} provider(s) are offline and unavailable for scheduling.`,
+        detail: `${offlineProviders.length} provider(s) are marked offline by the provider registry.`,
         metric: offlineProviders.map((provider) => provider.name).join(", "),
       });
     }
-    if (latencyBreaches.length > 0) {
+    if (degradedProviders.length > 0) {
       alerts.push({
-        id: "latency",
+        id: "degraded",
         level: "warning",
-        title: "Latency SLA breach",
-        detail: `${latencyBreaches.length} provider(s) exceeded 55 ms threshold.`,
-        metric: `P95 ${p95Latency.toFixed(1)} ms`,
+        title: "Degraded providers detected",
+        detail: `${degradedProviders.length} provider(s) are marked degraded by the provider registry.`,
+        metric: degradedProviders.map((provider) => provider.name).join(", "),
       });
     }
-    if (successBreaches.length > 0) {
+    if (liveProviders > 0) {
       alerts.push({
-        id: "success",
-        level: "warning",
-        title: "Success-rate drift",
-        detail: `${successBreaches.length} provider(s) are below 97% success SLA.`,
-        metric: `${avgSuccess.toFixed(2)}% avg`,
-      });
-    }
-    if (healthBreaches.length > 0) {
-      alerts.push({
-        id: "health",
-        level: "warning",
-        title: "Provider health degraded",
-        detail: `${healthBreaches.length} provider(s) are below 90% health baseline.`,
-        metric: `${avgHealth.toFixed(1)}% avg health`,
-      });
-    }
-    if (capacityBreaches.length > 0) {
-      alerts.push({
-        id: "capacity",
+        id: "private-live",
         level: "info",
-        title: "Capacity pressure",
-        detail: `${capacityBreaches.length} provider(s) have >10 active jobs.`,
-        metric: `${totalJobs} active jobs`,
+        title: "Private live capability held back",
+        detail: "One or more providers declare live capability, but public Studio keeps hardware control outside this route.",
+        metric: `${liveProviders} live flag(s)`,
+      });
+    }
+    if (filteredRows.length === 0 && !providersQuery.isError) {
+      alerts.push({
+        id: "empty-registry",
+        level: "info",
+        title: "No provider registry records",
+        detail: "The API returned no provider records for the current filter scope.",
+        metric: "0 providers",
       });
     }
     if (alerts.length === 0) {
       alerts.push({
         id: "all-clear",
         level: "info",
-        title: "Provider estate healthy",
-        detail: "No SLA breaches detected in the current provider scope.",
-        metric: "Operational",
+        title: "Public simulator registry loaded",
+        detail: "Ready simulator records are available without private credentials or lab hardware control.",
+        metric: `${filteredRows.length} simulator records`,
       });
     }
     return alerts;
   }, [
-    avgSuccess,
-    avgHealth,
-    capacityBreaches,
-    healthBreaches,
-    latencyBreaches,
+    degradedProviders,
+    filteredRows.length,
+    liveProviders,
     offlineProviders,
-    p95Latency,
     providersQuery.isError,
-    successBreaches,
-    totalJobs,
   ]);
 
   const showLoadingState = apiEnabled && providersQuery.isLoading && providerRows.length === 0;
   const showErrorState = apiEnabled && providersQuery.isError;
   const showEmptyState = !showLoadingState && !showErrorState && filteredRows.length === 0;
 
-  const openModal = (modal: Exclude<ProviderModal, null>, provider?: ProviderRow) => {
-    if (!canOperate && (modal === "add" || modal === "edit" || modal === "test")) {
-      return;
-    }
-    if (!canDelete && modal === "delete") {
-      return;
-    }
-    if (provider) {
-      setSelectedProvider(provider);
-    }
-    setActiveModal(modal);
-  };
-
-  const closeModal = () => {
-    setActiveModal(null);
-    setSelectedProvider(null);
-  };
-
   const openDrilldown = (provider: ProviderRow) => {
     const timeline: string[] = [
       `Provider ${provider.name} status changed to ${provider.status.toUpperCase()}.`,
-      `Health check recorded ${provider.health.toFixed(0)}%.`,
-      `Latency sample ${provider.latency}, throughput ${provider.throughput}.`,
-      `Success rate measured at ${provider.successRate}.`,
-      `Queue depth now ${provider.jobs} active jobs.`,
+      `Simulator route recorded as ${provider.simulationTarget}.`,
+      `Capabilities: ${provider.capabilities.length > 0 ? provider.capabilities.join(", ") : "none declared"}.`,
+      `Public boundary: ${provider.publicBoundary}`,
+      `Supported formats: ${provider.supportedFormats.length > 0 ? provider.supportedFormats.join(", ") : "none declared"}.`,
+      `Last provider timestamp: ${provider.lastSeen}.`,
     ];
     setDrilldown({ provider, timeline });
-  };
-
-  const updateWorkflowState = (alertId: string, patch: Partial<AlertWorkflowState>) => {
-    setAlertWorkflow((current) => {
-      const previous = current[alertId] ?? {
-        acknowledged: false,
-        owner: "Unassigned",
-        notes: "",
-      };
-      return {
-        ...current,
-        [alertId]: {
-          ...previous,
-          ...patch,
-        },
-      };
-    });
   };
 
   const exportSnapshot = () => {
     const payload = {
       exported_at: new Date().toISOString(),
-      role,
       filters: {
         query: searchQuery,
         status: statusFilter,
         kind: kindFilter,
-        region: regionFilter,
-        compare_mode: compareMode,
-        provider_a: providerA?.id ?? null,
-        provider_b: providerB?.id ?? null,
       },
       trust: {
-        source: mode === "api" ? "live-api" : "gkp-mock",
+        source: systemOff ? "off" : mode === "api" ? "live-api" : "gkp-mock",
         last_refresh: latestUpdatedAt,
-        confidence_score: confidenceScore,
         missing_signals: missingSignals,
       },
-      kpis: kpiCards,
+      registry_cards: kpiCards,
       providers: filteredRows,
-      workflow_alerts: workflowAlerts,
+      provider_signals: providerSignals,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -647,13 +460,13 @@ export function EnhancedProvidersPage() {
     <>
       <div className="header">
         <h1>Providers</h1>
-        <p>Simulator backend registry and operational readiness for public decoder workflows.</p>
+        <p>Simulator backend registry and runtime readiness for public decoder workflows.</p>
       </div>
 
       <div className="trust-strip">
         <div className="trust-item">
           <span>Data Source</span>
-          <strong>{systemOff ? "Off" : !systemArmed ? "Standby" : isMock ? "GKP Mock" : "Live API"}</strong>
+          <strong>{systemOff ? "Off" : isMock ? "GKP Mock" : "Live API"}</strong>
         </div>
         <div className="trust-item">
           <span>Last Refresh</span>
@@ -664,16 +477,20 @@ export function EnhancedProvidersPage() {
           <strong>{filteredRows.length}</strong>
         </div>
         <div className="trust-item">
-          <span>Operational Confidence</span>
-          <strong>{confidenceScore.toFixed(1)}%</strong>
+          <span>Ready Providers</span>
+          <strong>{activeProviders}</strong>
         </div>
         <div className="trust-item">
-          <span>Missing Signals</span>
+          <span>Registry Gaps</span>
           <strong>{missingSignals.length === 0 ? "None" : missingSignals.join(", ")}</strong>
+        </div>
+        <div className="trust-item">
+          <span>Public Boundary</span>
+          <strong>Simulator only</strong>
         </div>
       </div>
 
-      <div className="dashboard-filterbar">
+      <div className="dashboard-filterbar providers-filterbar">
         <div className="filter-group">
           <label>Search</label>
           <input
@@ -692,19 +509,19 @@ export function EnhancedProvidersPage() {
             onChange={(event) => setFilterParam("status", event.target.value, "all")}
           >
             <option value="all">All</option>
-            <option value="online">Online</option>
-            <option value="busy">Busy</option>
+            <option value="online">Ready</option>
+            <option value="busy">Degraded</option>
             <option value="offline">Offline</option>
           </select>
         </div>
         <div className="filter-group">
-          <label>Backend Kind</label>
+          <label>Simulator Kind</label>
           <select
             className="select-field research-select"
             value={kindFilter}
             onChange={(event) => setFilterParam("kind", event.target.value, "all")}
           >
-            <option value="all">All</option>
+            <option value="all">All Simulator Backends</option>
             <option value="photonic">Photonic</option>
             <option value="superconducting">Superconducting</option>
             <option value="trapped_ion">Trapped Ion</option>
@@ -712,148 +529,38 @@ export function EnhancedProvidersPage() {
             <option value="other">Other</option>
           </select>
         </div>
-        <div className="filter-group">
-          <label>Region</label>
-          <select
-            className="select-field research-select"
-            value={regionFilter}
-            onChange={(event) => setFilterParam("region", event.target.value, "all")}
-          >
-            <option value="all">All Regions</option>
-            {regions.map((region) => (
-              <option key={region} value={region}>
-                {region}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Compare Mode</label>
-          <button
-            className={`btn btn-secondary ${compareMode ? "active" : ""}`}
-            onClick={() => setFilterParam("compare", compareMode ? "0" : "1", "0")}
-          >
-            {compareMode ? "Enabled" : "Disabled"}
-          </button>
-        </div>
-        <div className="filter-group">
-          <label>Provider A</label>
-          <select
-            className="select-field research-select"
-            value={providerA?.id ?? "auto"}
-            onChange={(event) => setFilterParam("providerA", event.target.value, "auto")}
-            disabled={!compareMode}
-          >
-            <option value="auto">Auto</option>
-            {filteredRows.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Provider B</label>
-          <select
-            className="select-field research-select"
-            value={providerB?.id ?? "auto"}
-            onChange={(event) => setFilterParam("providerB", event.target.value, "auto")}
-            disabled={!compareMode}
-          >
-            <option value="auto">Auto</option>
-            {filteredRows.map((provider) => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Role</label>
-          <select
-            className="select-field research-select"
-            value={role}
-            onChange={(event) => setFilterParam("role", event.target.value, "admin")}
-          >
-            <option value="admin">Admin</option>
-            <option value="operator">Operator</option>
-            <option value="viewer">Viewer</option>
-          </select>
-        </div>
       </div>
 
       <div className="scope-meta">
-        Scope: {filteredRows.length} providers, {totalJobs} active jobs, {slaBreaches.length} SLA breaches.
+        Scope: {filteredRows.length} providers, {activeProviders} ready, {degradedProviders.length} degraded,{" "}
+        {offlineProviders.length} offline.
       </div>
 
-      <div className="section-title">Operational Diagnostics</div>
-      <div className="panel-subtitle">Runtime provider indicators; not scientific decoder evidence.</div>
+      <div className="section-title">Provider Registry</div>
+      <div className="panel-subtitle">Exact fields returned by the API; measured job/runtime metrics remain on run pages.</div>
       <div className="kpi-grid">
-        {kpiCards.map((card) => {
-          const trendPositive = card.trendUpGood ? card.trendDelta >= 0 : card.trendDelta <= 0;
-          return (
-            <div key={card.key} className="kpi-card">
-              <div className="kpi-label">{card.label}</div>
-              <div className="kpi-value">{card.value}</div>
-              <div className={`kpi-trend ${trendPositive ? "good" : "bad"}`}>{card.trendText} vs previous window</div>
-            </div>
-          );
-        })}
+        {kpiCards.map((card) => (
+          <div key={card.key} className="kpi-card">
+            <div className="kpi-label">{card.label}</div>
+            <div className="kpi-value">{card.value}</div>
+            <div className="kpi-trend">{card.detail}</div>
+          </div>
+        ))}
       </div>
 
-      {compareMode && providerA && providerB ? (
-        <div className="provider-compare-panel">
-          <div className="panel-title">Provider Compare</div>
-          <div className="provider-compare-grid">
-            <div className="provider-compare-card">
-              <div className="provider-compare-title">{providerA.name}</div>
-              <div className="provider-compare-metric">Health: {providerA.health}%</div>
-              <div className="provider-compare-metric">Latency: {providerA.latency}</div>
-              <div className="provider-compare-metric">Success: {providerA.successRate}</div>
-            </div>
-            <div className="provider-compare-card">
-              <div className="provider-compare-title">{providerB.name}</div>
-              <div className="provider-compare-metric">Health: {providerB.health}%</div>
-              <div className="provider-compare-metric">Latency: {providerB.latency}</div>
-              <div className="provider-compare-metric">Success: {providerB.successRate}</div>
-            </div>
-            <div className="provider-compare-card">
-              <div className="provider-compare-title">Delta (A - B)</div>
-              <div className={`provider-compare-metric ${providerA.health - providerB.health >= 0 ? "good" : "bad"}`}>
-                Health: {(providerA.health - providerB.health).toFixed(1)} pp
-              </div>
-              <div className={`provider-compare-metric ${providerA.latencyMs - providerB.latencyMs <= 0 ? "good" : "bad"}`}>
-                Latency: {(providerA.latencyMs - providerB.latencyMs).toFixed(1)} ms
-              </div>
-              <div
-                className={`provider-compare-metric ${
-                  providerA.successRatePct - providerB.successRatePct >= 0 ? "good" : "bad"
-                }`}
-              >
-                Success: {(providerA.successRatePct - providerB.successRatePct).toFixed(2)} pp
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="table-container">
+      <div className="table-container provider-registry-table-container">
         <div className="table-wrapper">
-          <table>
+          <table className="provider-registry-table">
             <thead>
               <tr>
                 <th>Provider Name</th>
                 <th>Status</th>
-                <th>Health</th>
-                <th>Active Jobs</th>
-                <th>Latency</th>
-                <th>Throughput</th>
-                <th>Success Rate</th>
-                <th>Type</th>
-                <th>Region</th>
-                <th>SLA</th>
+                <th>Simulator Route</th>
+                <th>Public Workflows</th>
+                <th>Formats</th>
+                <th>Boundary</th>
                 <th>Last Seen</th>
-                <th>Actions</th>
+                <th>Readiness</th>
               </tr>
             </thead>
             <tbody>
@@ -868,101 +575,44 @@ export function EnhancedProvidersPage() {
                     <span className={`status-badge ${mapStatusTone(provider.status)}`}>
                       ●{" "}
                       {provider.status === "online"
-                        ? "Online"
+                        ? "Ready"
                         : provider.status === "busy"
-                          ? "Busy"
+                          ? "Degraded"
                           : "Offline"}
                     </span>
                   </td>
                   <td>
-                    <div className="health-bar">
-                      <div
-                        className="health-fill"
-                        style={{
-                          width: `${provider.health}%`,
-                          background:
-                            provider.status === "online"
-                              ? "#1f9b59"
-                              : provider.status === "busy"
-                                ? "#d77b19"
-                                : "#be3746",
-                        }}
-                      />
-                    </div>
-                    <span className="health-value">{provider.health}%</span>
+                    <strong className="runs-table-strong">{provider.simulationTarget}</strong>
+                    <div className="panel-subtitle">{provider.type}</div>
                   </td>
-                  <td>{provider.jobs}</td>
-                  <td>{provider.latency}</td>
-                  <td>{provider.throughput}</td>
-                  <td>{provider.successRate}</td>
-                  <td>{provider.type}</td>
-                  <td>{provider.region}</td>
                   <td>
-                    <span
-                      className={`status-badge ${
-                        provider.status === "offline" ||
-                        provider.health < 90 ||
-                        provider.latencyMs > 55 ||
-                        provider.successRatePct < 97
-                          ? "status-warning"
-                          : "status-success"
-                      }`}
-                    >
-                      {provider.status === "offline" ||
-                      provider.health < 90 ||
-                      provider.latencyMs > 55 ||
-                      provider.successRatePct < 97
-                        ? "At Risk"
-                        : "Compliant"}
-                    </span>
+                    <div className="provider-capability-list">
+                      {provider.supportsScientific ? <span>Scientific</span> : null}
+                      {provider.supportsBenchmark ? <span>Benchmark</span> : null}
+                      {provider.supportsReplay ? <span>Replay</span> : null}
+                      {provider.supportsLive ? <span className="is-muted">Private live flag</span> : null}
+                      {provider.capabilities.length === 0 ? <span className="is-muted">None</span> : null}
+                    </div>
                   </td>
+                  <td>{provider.supportedFormats.length > 0 ? provider.supportedFormats.join(", ") : "None"}</td>
+                  <td>{provider.publicBoundary}</td>
                   <td>{provider.lastSeen}</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button className="btn-icon" title="Details" onClick={() => openDrilldown(provider)}>
-                        ⊞
-                      </button>
-                      <button
-                        className="btn-icon"
-                        title="Test"
-                        onClick={() => openModal("test", provider)}
-                        disabled={!canOperate}
-                      >
-                        ✓
-                      </button>
-                      <button
-                        className="btn-icon"
-                        title="Edit"
-                        onClick={() => openModal("edit", provider)}
-                        disabled={!canOperate}
-                      >
-                        ✎
-                      </button>
-                      <button
-                        className="btn-icon"
-                        title="Delete"
-                        onClick={() => openModal("delete", provider)}
-                        disabled={!canDelete}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </td>
+                  <td>{provider.readinessNote}</td>
                 </tr>
               ))}
               {showLoadingState ? (
                 <tr>
-                  <td colSpan={12}>Loading providers from API...</td>
+                  <td colSpan={8}>Loading providers from API...</td>
                 </tr>
               ) : null}
               {showErrorState && filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12}>Failed to load providers from API.</td>
+                  <td colSpan={8}>Failed to load providers from API.</td>
                 </tr>
               ) : null}
               {showEmptyState ? (
                 <tr>
-                  <td colSpan={12}>
+                  <td colSpan={8}>
                     {providerRows.length === 0
                       ? "No providers returned by API."
                       : "No providers match your current filter scope."}
@@ -977,76 +627,33 @@ export function EnhancedProvidersPage() {
           <span>
             Showing {filteredRows.length} of {providerRows.length} providers
           </span>
-          <div className="pagination-controls">
-            <button className="pagination-btn">◀</button>
-            <button className="pagination-btn active">1</button>
-            <button className="pagination-btn">2</button>
-            <button className="pagination-btn">▶</button>
-          </div>
         </div>
       </div>
 
       <div className="workflow-section">
-        <div className="section-title">Provider Alert Workflow</div>
+        <div className="section-title">Provider Signals</div>
         <div className="panel-subtitle">
-          Assign ownership and capture remediation notes for provider SLA and availability incidents.
+          Registry status and declared capability signals for the current provider scope.
         </div>
         <div className="workflow-grid">
-          {workflowAlerts.map((alert) => {
-            const state = alertWorkflow[alert.id] ?? {
-              acknowledged: false,
-              owner: "Unassigned",
-              notes: "",
-            };
-            return (
-              <div key={alert.id} className={`workflow-card ${alert.level}`}>
-                <div className="workflow-head">
-                  <div>
-                    <div className="workflow-title">{alert.title}</div>
-                    <div className="workflow-detail">{alert.detail}</div>
-                  </div>
-                  <span className={`status-badge status-${alert.level === "info" ? "running" : alert.level}`}>
-                    {alert.level.toUpperCase()}
-                  </span>
+          {providerSignals.map((alert) => (
+            <div key={alert.id} className={`workflow-card ${alert.level}`}>
+              <div className="workflow-head">
+                <div>
+                  <div className="workflow-title">{alert.title}</div>
+                  <div className="workflow-detail">{alert.detail}</div>
                 </div>
-                <div className="workflow-metric">{alert.metric}</div>
-                <div className="workflow-controls">
-                  <button
-                    className={`btn btn-secondary ${state.acknowledged ? "active" : ""}`}
-                    onClick={() => updateWorkflowState(alert.id, { acknowledged: !state.acknowledged })}
-                    disabled={!canOperate}
-                  >
-                    {state.acknowledged ? "Acknowledged" : "Acknowledge"}
-                  </button>
-                  <select
-                    className="select-field research-select"
-                    value={state.owner}
-                    onChange={(event) => updateWorkflowState(alert.id, { owner: event.target.value })}
-                    disabled={!canOperate}
-                  >
-                    <option value="Unassigned">Unassigned</option>
-                    <option value="QEC Ops">QEC Ops</option>
-                    <option value="Provider Team">Provider Team</option>
-                    <option value="SRE">SRE</option>
-                  </select>
-                </div>
-                <textarea
-                  className="form-textarea workflow-notes"
-                  placeholder="Resolution notes"
-                  value={state.notes}
-                  onChange={(event) => updateWorkflowState(alert.id, { notes: event.target.value })}
-                  disabled={!canOperate}
-                />
+                <span className={`status-badge status-${alert.level === "info" ? "running" : alert.level}`}>
+                  {alert.level.toUpperCase()}
+                </span>
               </div>
-            );
-          })}
+              <div className="workflow-metric">{alert.metric}</div>
+            </div>
+          ))}
         </div>
       </div>
 
       <div className="actions">
-        <button onClick={() => openModal("add")} className="btn btn-primary" disabled={!canOperate}>
-          + Add Provider
-        </button>
         <button className="btn btn-secondary" onClick={exportSnapshot}>
           Export Snapshot
         </button>
@@ -1062,7 +669,7 @@ export function EnhancedProvidersPage() {
               <div>
                 <div className="drilldown-title">{drilldown.provider.name}</div>
                 <div className="drilldown-summary">
-                  {drilldown.provider.type} · {drilldown.provider.region} · {drilldown.provider.status.toUpperCase()}
+                  {drilldown.provider.simulationTarget} · {drilldown.provider.status.toUpperCase()}
                 </div>
               </div>
               <button className="btn-icon" onClick={() => setDrilldown(null)}>
@@ -1072,24 +679,32 @@ export function EnhancedProvidersPage() {
             <div className="drilldown-meta">Last seen {drilldown.provider.lastSeen}</div>
             <div className="drilldown-kv">
               <div className="drilldown-kv-row">
-                <span>Health</span>
-                <strong>{drilldown.provider.health}%</strong>
+                <span>Status</span>
+                <strong>{drilldown.provider.status}</strong>
               </div>
               <div className="drilldown-kv-row">
-                <span>Latency</span>
-                <strong>{drilldown.provider.latency}</strong>
+                <span>Capabilities</span>
+                <strong>
+                  {drilldown.provider.capabilities.length > 0
+                    ? drilldown.provider.capabilities.join(", ")
+                    : "None declared"}
+                </strong>
               </div>
               <div className="drilldown-kv-row">
-                <span>Throughput</span>
-                <strong>{drilldown.provider.throughput}</strong>
+                <span>Public Boundary</span>
+                <strong>{drilldown.provider.publicBoundary}</strong>
               </div>
               <div className="drilldown-kv-row">
-                <span>Success Rate</span>
-                <strong>{drilldown.provider.successRate}</strong>
+                <span>Supported Formats</span>
+                <strong>
+                  {drilldown.provider.supportedFormats.length > 0
+                    ? drilldown.provider.supportedFormats.join(", ")
+                    : "None declared"}
+                </strong>
               </div>
               <div className="drilldown-kv-row">
-                <span>Active Jobs</span>
-                <strong>{drilldown.provider.jobs}</strong>
+                <span>Readiness Note</span>
+                <strong>{drilldown.provider.readinessNote}</strong>
               </div>
             </div>
             <div className="drilldown-timeline-title">Event Timeline</div>
@@ -1110,11 +725,6 @@ export function EnhancedProvidersPage() {
           <p>Provider records could not be fetched from the backend.</p>
         </div>
       ) : null}
-
-      {activeModal === "add" && <AddProviderModal onClose={closeModal} />}
-      {activeModal === "edit" && selectedProvider && <EditProviderModal provider={selectedProvider} onClose={closeModal} />}
-      {activeModal === "delete" && selectedProvider && <DeleteProviderModal provider={selectedProvider} onClose={closeModal} />}
-      {activeModal === "test" && selectedProvider && <TestConnectionModal provider={selectedProvider} onClose={closeModal} />}
     </>
   );
 }

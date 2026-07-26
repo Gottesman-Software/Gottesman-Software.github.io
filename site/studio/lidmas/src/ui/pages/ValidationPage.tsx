@@ -6,6 +6,7 @@ import type { ProviderKind, Run, RunTelemetry } from "../../api/types";
 import { useDataMode } from "../../data/dataMode";
 import { useSessionControl } from "../../data/sessionControl";
 import { gkpProviders, gkpRunTelemetry, gkpRuns } from "../../data/gkpFixtures";
+import { PUBLIC_DECODER_KEYS, parseDecoderKey } from "../../data/decoders";
 import { ScientificCompletenessPanel } from "../scientific/ScientificCompletenessPanel";
 import { ScientificEmptyState } from "../scientific/ScientificEmptyState";
 import { ScientificIntegrityAlert } from "../scientific/ScientificIntegrityAlert";
@@ -31,8 +32,6 @@ interface ValidationSummary {
   warningRatePct: number;
   triggerRatePct: number;
   logicalErrorRatePct: number;
-  logicalRiskPct: number;
-  p95LatencyMs: number;
   decoderGapPct: number;
   coveragePct: number;
   requestCount: number;
@@ -55,9 +54,7 @@ interface KpiCardModel {
   key: string;
   label: string;
   value: string;
-  trendText: string;
-  trendDelta: number;
-  trendUpGood: boolean;
+  detail: string;
 }
 
 interface StrictnessProfile {
@@ -65,17 +62,13 @@ interface StrictnessProfile {
   warningMax: number;
   triggerMax: number;
   logicalErrorMax: number;
-  latencyMax: number;
   decoderGapMax: number;
   coverageMin: number;
-  riskMax: number;
 }
 
 interface BaselineSummary {
   perPct: number;
   warningRatePct: number;
-  p95LatencyMs: number;
-  logicalRiskPct: number;
   sampleCount: number;
 }
 
@@ -105,6 +98,14 @@ interface PolicyItem {
   detail: string;
 }
 
+interface ValidationRecommendation {
+  id: string;
+  title: string;
+  severity: "fail" | "warn";
+  evidence: string;
+  action: string;
+}
+
 interface EvidenceReference {
   label: string;
   href: string;
@@ -123,30 +124,24 @@ const strictnessProfiles: Record<ValidationStrictness, StrictnessProfile> = {
     warningMax: 32,
     triggerMax: 48,
     logicalErrorMax: 14,
-    latencyMax: 130,
     decoderGapMax: 95,
     coverageMin: 90,
-    riskMax: 30,
   },
   balanced: {
     perMax: 1.8,
     warningMax: 25,
     triggerMax: 38,
     logicalErrorMax: 10,
-    latencyMax: 105,
     decoderGapMax: 70,
     coverageMin: 97,
-    riskMax: 22,
   },
   strict: {
     perMax: 1.2,
     warningMax: 18,
     triggerMax: 28,
     logicalErrorMax: 7,
-    latencyMax: 85,
     decoderGapMax: 50,
     coverageMin: 99,
-    riskMax: 16,
   },
 };
 
@@ -165,7 +160,7 @@ const targetEvidenceByCheckId: Record<string, TargetEvidence> = {
   },
   warning: {
     sourceType: "calibrated",
-    basis: "Warning-rate envelope is learned from baseline operational runs.",
+    basis: "Warning-rate envelope is learned from baseline runtime runs.",
     rationale: "Warnings are implementation-specific; limits are calibrated from local historical behavior.",
     references: [],
   },
@@ -181,22 +176,10 @@ const targetEvidenceByCheckId: Record<string, TargetEvidence> = {
     rationale: "Logical-error constraints are set from code-performance literature then tuned for runtime deployment.",
     references: [{ label: "Fowler et al. (2012) Surface Codes", href: "https://arxiv.org/abs/1208.0928" }],
   },
-  latency: {
-    sourceType: "calibrated",
-    basis: "Decode latency must fit real-time correction/control-loop budgets.",
-    rationale: "Latency budgets are deployment-specific and tuned from runtime SLOs and controller limits.",
-    references: [{ label: "Google Quantum AI (2023) Surface-Code Scaling", href: "https://arxiv.org/abs/2211.09116" }],
-  },
   consistency: {
     sourceType: "policy",
     basis: "Decoder disagreement should stay bounded under identical fault streams.",
-    rationale: "Cross-decoder gap is an operational reliability gate rather than a universal constant.",
-    references: [],
-  },
-  risk: {
-    sourceType: "policy",
-    basis: "Composite release-risk index from PER, warning rate, and syndrome activity.",
-    rationale: "Risk index is an internal promotion rule for release decisions.",
+    rationale: "Cross-decoder gap is a runtime reliability gate rather than a universal constant.",
     references: [],
   },
 };
@@ -212,26 +195,12 @@ function average(values: number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
-function percentile(values: number[], p: number): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
-  return sorted[index];
-}
-
 function percentDelta(current: number, previous: number): number {
   if (!Number.isFinite(current) || !Number.isFinite(previous)) {
     return 0;
   }
   const baseline = Math.max(1e-9, Math.abs(previous));
   return ((current - previous) / baseline) * 100;
-}
-
-function formatTrend(deltaPct: number): string {
-  const direction = deltaPct >= 0 ? "▲" : "▼";
-  return `${direction} ${Math.abs(deltaPct).toFixed(1)}%`;
 }
 
 function formatAgo(isoText: string | null | undefined): string {
@@ -340,7 +309,7 @@ function targetEvidenceSourceLabel(sourceType: TargetEvidence["sourceType"]): st
   if (sourceType === "calibrated") {
     return "Baseline Calibration";
   }
-  return "Operational Policy";
+  return "Runtime Policy";
 }
 
 function providerKindLabel(kind: ProviderKind): string {
@@ -370,7 +339,10 @@ function normalizeProviderName(name: string): string {
 function summarizeTelemetry(telemetry: RunTelemetry, run: Run | null): ValidationSummary {
   const noiseSamples = telemetry.noise_samples ?? [];
   const syndromeSamples = telemetry.syndrome_samples ?? [];
-  const interventions = telemetry.decoder_interventions ?? [];
+  const interventions = (telemetry.decoder_interventions ?? []).filter((intervention) => {
+    const decoderKey = parseDecoderKey(intervention.decoder);
+    return decoderKey != null && PUBLIC_DECODER_KEYS.includes(decoderKey);
+  });
 
   const perPct = average(noiseSamples.map((sample) => sample.physical_error_rate)) * 100;
   const warningRatePct = clamp((telemetry.warning_rate ?? perPct / 100) * 100, 0, 100);
@@ -379,7 +351,16 @@ function summarizeTelemetry(telemetry: RunTelemetry, run: Run | null): Validatio
       ? (syndromeSamples.filter((sample) => sample.is_triggered).length / syndromeSamples.length) * 100
       : 0;
   const exactEntries = (telemetry.decoder_exact_metrics ?? [])
-    .filter((entry) => entry.trials > 0 && entry.logical_failures >= 0 && entry.logical_failures <= entry.trials)
+    .filter((entry) => {
+      const decoderKey = parseDecoderKey(entry.decoder);
+      return (
+        decoderKey != null &&
+        PUBLIC_DECODER_KEYS.includes(decoderKey) &&
+        entry.trials > 0 &&
+        entry.logical_failures >= 0 &&
+        entry.logical_failures <= entry.trials
+      );
+    })
     .sort(
       (left, right) =>
         left.logical_failures / left.trials - right.logical_failures / right.trials,
@@ -391,20 +372,6 @@ function summarizeTelemetry(telemetry: RunTelemetry, run: Run | null): Validatio
       : bestExactEntry
         ? clamp((bestExactEntry.logical_failures / bestExactEntry.trials) * 100, 0, 100)
         : 100;
-
-  const latencySamples = noiseSamples.map((sample, index) => {
-    const wave = Math.sin(index * 0.31) * 5 + Math.cos(index * 0.19) * 2.1;
-    return clamp(
-      16 +
-        sample.physical_error_rate * 2_200 +
-        sample.displacement_sigma * 160 +
-        sample.photon_loss_rate * 900 +
-        wave,
-      8,
-      320,
-    );
-  });
-  const p95LatencyMs = percentile(latencySamples, 95);
 
   const residualByDecoder = interventions.reduce(
     (acc, intervention) => {
@@ -421,8 +388,6 @@ function summarizeTelemetry(telemetry: RunTelemetry, run: Run | null): Validatio
   const bestResidual = averageResiduals.length > 0 ? Math.min(...averageResiduals) : 0;
   const worstResidual = averageResiduals.length > 0 ? Math.max(...averageResiduals) : 0;
   const decoderGapPct = bestResidual > 0 ? ((worstResidual - bestResidual) / bestResidual) * 100 : 0;
-
-  const logicalRiskPct = clamp(perPct * 0.45 + warningRatePct * 0.3 + triggerRatePct * 0.25, 0, 100);
 
   const expectedSyndromePoints = Math.max(1, telemetry.rounds * telemetry.stabilizer_count);
   const coveragePct = clamp((syndromeSamples.length / expectedSyndromePoints) * 100, 0, 180);
@@ -446,8 +411,6 @@ function summarizeTelemetry(telemetry: RunTelemetry, run: Run | null): Validatio
     warningRatePct: Number(warningRatePct.toFixed(3)),
     triggerRatePct: Number(triggerRatePct.toFixed(3)),
     logicalErrorRatePct: Number(logicalErrorRatePct.toFixed(3)),
-    logicalRiskPct: Number(logicalRiskPct.toFixed(3)),
-    p95LatencyMs: Number(p95LatencyMs.toFixed(2)),
     decoderGapPct: Number(clamp(decoderGapPct, 0, 500).toFixed(3)),
     coveragePct: Number(coveragePct.toFixed(2)),
     requestCount: telemetry.request_count,
@@ -458,9 +421,97 @@ function summarizeTelemetry(telemetry: RunTelemetry, run: Run | null): Validatio
   };
 }
 
+function recommendationForCheck(check: ValidationCheck): ValidationRecommendation {
+  const severity = check.status === "fail" ? "fail" : "warn";
+  if (check.id === "coverage") {
+    return {
+      id: `check-${check.id}`,
+      title: "Increase validation coverage before accepting this run",
+      severity,
+      evidence: `${check.label}: ${check.current} against target ${check.target}.`,
+      action:
+        "Repeat the run with complete syndrome capture, then confirm noise samples, syndrome stream, decoder interventions, and exact logical-error counters are all present.",
+    };
+  }
+  if (check.id === "per") {
+    return {
+      id: `check-${check.id}`,
+      title: "Reduce the physical-noise profile and rerun the same circuit",
+      severity,
+      evidence: `${check.label}: ${check.current} against target ${check.target}.`,
+      action:
+        "Lower the selected noise injection, check architecture-specific calibration, and compare the rerun against this run before treating the decoder result as stable.",
+    };
+  }
+  if (check.id === "warning") {
+    return {
+      id: `check-${check.id}`,
+      title: "Inspect warning sources before promotion",
+      severity,
+      evidence: `${check.label}: ${check.current} against target ${check.target}.`,
+      action:
+        "Open Logs for the selected run, identify parser or runtime warning sources, then rerun after removing non-scientific warning causes.",
+    };
+  }
+  if (check.id === "trigger") {
+    return {
+      id: `check-${check.id}`,
+      title: "Review syndrome-trigger density and code-distance choice",
+      severity,
+      evidence: `${check.label}: ${check.current} against target ${check.target}.`,
+      action:
+        "Inspect the syndrome map, reduce the injected noise or loss model, or test a larger code distance, then rerun and compare trigger density against the same gate.",
+    };
+  }
+  if (check.id === "logical-error") {
+    return {
+      id: `check-${check.id}`,
+      title: "Improve logical reliability before accepting the decoder result",
+      severity,
+      evidence: `${check.label}: ${check.current} against target ${check.target}.`,
+      action:
+        "Compare MWPM, BP, and Union-Find exact counters, increase shots or code distance if needed, and rerun the circuit with the best-performing decoder policy.",
+    };
+  }
+  return {
+    id: `check-${check.id}`,
+    title: "Investigate decoder disagreement under the same syndrome stream",
+    severity,
+    evidence: `${check.label}: ${check.current} against target ${check.target}.`,
+    action:
+      "Confirm all decoder policies consumed the same syndrome stream, then compare residual weights and correction volumes before accepting the ranking.",
+  };
+}
+
+function recommendationForRegression(check: RegressionCheck): ValidationRecommendation {
+  const severity = check.status === "fail" ? "fail" : "warn";
+  return {
+    id: `regression-${check.id}`,
+    title: `${check.label} needs baseline review`,
+    severity,
+    evidence: `Current ${check.current}, baseline ${check.baseline}, delta ${check.delta}.`,
+    action:
+      check.id === "per"
+        ? "Compare this run with the same-backend baseline, then rerun with the same circuit and a controlled noise profile before updating public evidence."
+        : "Inspect warning logs against the baseline run set, remove runtime or parser warning sources, and rerun before promotion.",
+  };
+}
+
+function recommendationForDrift(signal: DriftSignal): ValidationRecommendation {
+  const severity = signal.status === "fail" ? "fail" : "warn";
+  return {
+    id: `drift-${signal.id}`,
+    title: `${signal.label} changed across the selected window`,
+    severity,
+    evidence: `Current ${signal.current}, previous ${signal.previous}, delta ${signal.delta}.`,
+    action:
+      "Compare the current and previous-window runs, then repeat the selected circuit if the drift is not explained by an intentional noise, simulator, or decoder-policy change.",
+  };
+}
+
 export function ValidationPage() {
-  const { isApi, isMock, systemOff, systemArmed, activeDecoder } = useDataMode();
-  const apiEnabled = isApi && !systemOff && systemArmed;
+  const { isApi, isMock, systemOff, activeDecoder } = useDataMode();
+  const apiEnabled = isApi && !systemOff;
   const {
     state: { activeRunId: sessionRunId },
   } = useSessionControl();
@@ -571,10 +622,8 @@ export function ValidationPage() {
       warningMax: base.warningMax * factor,
       triggerMax: base.triggerMax * factor,
       logicalErrorMax: base.logicalErrorMax * factor,
-      latencyMax: base.latencyMax * factor,
       decoderGapMax: base.decoderGapMax * factor,
       coverageMin: clamp(base.coverageMin / factor, 0, 100),
-      riskMax: base.riskMax * factor,
     };
   }, [environment, strictness]);
 
@@ -593,7 +642,7 @@ export function ValidationPage() {
       },
       {
         id: "per",
-        label: "Physical Error Rate (PER)",
+        label: "Average Telemetry PER",
         current: `${summary.perPct.toFixed(3)}%`,
         target: `<= ${thresholds.perMax.toFixed(2)}%`,
         status: evaluateMax(summary.perPct, thresholds.perMax),
@@ -624,14 +673,6 @@ export function ValidationPage() {
         rationale: "Tracks residual post-decoding failure pressure at logical level.",
       },
       {
-        id: "latency",
-        label: "P95 Decode Latency",
-        current: `${summary.p95LatencyMs.toFixed(1)} ms`,
-        target: `<= ${thresholds.latencyMax.toFixed(1)} ms`,
-        status: evaluateMax(summary.p95LatencyMs, thresholds.latencyMax),
-        rationale: "Protects real-time correction and control-loop latency budgets.",
-      },
-      {
         id: "consistency",
         label: "Decoder Consistency Gap",
         current: `${summary.decoderGapPct.toFixed(1)}%`,
@@ -639,47 +680,30 @@ export function ValidationPage() {
         status: evaluateMax(summary.decoderGapPct, thresholds.decoderGapMax),
         rationale: "Flags disagreement across decoders under the same fault stream.",
       },
-      {
-        id: "risk",
-        label: "Logical Risk Index",
-        current: `${summary.logicalRiskPct.toFixed(2)}%`,
-        target: `<= ${thresholds.riskMax.toFixed(1)}%`,
-        status: evaluateMax(summary.logicalRiskPct, thresholds.riskMax),
-        rationale: "Composite risk signal from PER, warnings, and syndrome activity.",
-      },
     ];
-  }, [summary, thresholds.coverageMin, thresholds.decoderGapMax, thresholds.latencyMax, thresholds.logicalErrorMax, thresholds.perMax, thresholds.riskMax, thresholds.triggerMax, thresholds.warningMax]);
+  }, [summary, thresholds.coverageMin, thresholds.decoderGapMax, thresholds.logicalErrorMax, thresholds.perMax, thresholds.triggerMax, thresholds.warningMax]);
 
   const baselineSummary = useMemo<BaselineSummary | null>(() => {
     if (!selectedRun) {
       return null;
     }
     const candidates = runOptions.filter(
-      (run) => run.id !== selectedRun.id && run.providerKind === selectedRun.providerKind && run.raw.metrics,
+      (run) =>
+        run.id !== selectedRun.id &&
+        run.providerKind === selectedRun.providerKind &&
+        run.raw.metrics?.physical_error_rate != null &&
+        run.raw.metrics?.warning_rate != null,
     );
     if (candidates.length === 0) {
       return null;
     }
 
-    const warningSeries = candidates.map((run) => (run.raw.metrics?.warning_rate ?? 0.16) * 100);
-    const perSeries = warningSeries.map((warningRate) => clamp(warningRate * 0.78, 0.05, 30));
-    const latencySeries = candidates.map(
-      (run) =>
-        48 +
-        (run.raw.metrics?.avg_flip_count != null ? run.raw.metrics.avg_flip_count * 9 : 28) +
-        (run.raw.metrics?.warning_rate ?? 0.16) * 60,
-    );
-    const riskSeries = candidates.map((run) => {
-      const warningRate = (run.raw.metrics?.warning_rate ?? 0.16) * 100;
-      const satisfaction = (run.raw.metrics?.syndrome_satisfaction_rate ?? 0.88) * 100;
-      return clamp(warningRate * 0.65 + (100 - satisfaction) * 0.35, 0, 100);
-    });
+    const warningSeries = candidates.map((run) => (run.raw.metrics?.warning_rate ?? 0) * 100);
+    const perSeries = candidates.map((run) => (run.raw.metrics?.physical_error_rate ?? 0) * 100);
 
     return {
       perPct: Number(average(perSeries).toFixed(3)),
       warningRatePct: Number(average(warningSeries).toFixed(3)),
-      p95LatencyMs: Number(average(latencySeries).toFixed(2)),
-      logicalRiskPct: Number(average(riskSeries).toFixed(3)),
       sampleCount: candidates.length,
     };
   }, [runOptions, selectedRun]);
@@ -713,22 +737,6 @@ export function ValidationPage() {
         unit: "%",
         digits: 2,
       },
-      {
-        id: "latency",
-        label: "Latency Regression",
-        current: summary.p95LatencyMs,
-        baseline: baselineSummary.p95LatencyMs,
-        unit: " ms",
-        digits: 1,
-      },
-      {
-        id: "risk",
-        label: "Logical-Risk Regression",
-        current: summary.logicalRiskPct,
-        baseline: baselineSummary.logicalRiskPct,
-        unit: "%",
-        digits: 2,
-      },
     ];
 
     return metrics.map((metric) => {
@@ -758,11 +766,15 @@ export function ValidationPage() {
     });
 
     const averageWarningRate = (runs: RunOption[]) => {
-      const samples = runs.map((run) => (run.raw.metrics?.warning_rate ?? 0.16) * 100);
+      const samples = runs
+        .filter((run) => run.raw.metrics?.warning_rate != null)
+        .map((run) => (run.raw.metrics?.warning_rate ?? 0) * 100);
       return samples.length > 0 ? average(samples) : 0;
     };
     const averageSatisfaction = (runs: RunOption[]) => {
-      const samples = runs.map((run) => (run.raw.metrics?.syndrome_satisfaction_rate ?? 0.88) * 100);
+      const samples = runs
+        .filter((run) => run.raw.metrics?.syndrome_satisfaction_rate != null)
+        .map((run) => (run.raw.metrics?.syndrome_satisfaction_rate ?? 0) * 100);
       return samples.length > 0 ? average(samples) : 0;
     };
     const failureRate = (runs: RunOption[]) => {
@@ -773,15 +785,27 @@ export function ValidationPage() {
       return (failed / runs.length) * 100;
     };
 
-    const currentWarning = averageWarningRate(currentWindowRuns);
-    const previousWarning =
-      previousWindowRuns.length > 0 ? averageWarningRate(previousWindowRuns) : currentWarning;
+    const currentWarningRuns = currentWindowRuns.filter((run) => run.raw.metrics?.warning_rate != null);
+    const previousWarningRuns = previousWindowRuns.filter((run) => run.raw.metrics?.warning_rate != null);
+    const currentSatisfactionRuns = currentWindowRuns.filter((run) => run.raw.metrics?.syndrome_satisfaction_rate != null);
+    const previousSatisfactionRuns = previousWindowRuns.filter((run) => run.raw.metrics?.syndrome_satisfaction_rate != null);
+
+    if (
+      currentWarningRuns.length === 0 ||
+      previousWarningRuns.length === 0 ||
+      currentSatisfactionRuns.length === 0 ||
+      previousSatisfactionRuns.length === 0
+    ) {
+      return [];
+    }
+
+    const currentWarning = averageWarningRate(currentWarningRuns);
+    const previousWarning = averageWarningRate(previousWarningRuns);
     const currentFailure = failureRate(currentWindowRuns);
     const previousFailure =
       previousWindowRuns.length > 0 ? failureRate(previousWindowRuns) : currentFailure;
-    const currentSatisfaction = averageSatisfaction(currentWindowRuns);
-    const previousSatisfaction =
-      previousWindowRuns.length > 0 ? averageSatisfaction(previousWindowRuns) : currentSatisfaction;
+    const currentSatisfaction = averageSatisfaction(currentSatisfactionRuns);
+    const previousSatisfaction = averageSatisfaction(previousSatisfactionRuns);
 
     const warningDelta = percentDelta(currentWarning, Math.max(0.01, previousWarning));
     const failureDelta = percentDelta(currentFailure, Math.max(0.01, previousFailure));
@@ -837,11 +861,14 @@ export function ValidationPage() {
           : "pass";
     const gateStatus: PolicyItem["status"] =
       failedCheckCount > 0 ? "fail" : warnCheckCount > 0 ? "warn" : checks.length > 0 ? "pass" : "warn";
-    const driftStatus: PolicyItem["status"] = driftSignals.some((signal) => signal.status === "fail")
-      ? "fail"
-      : driftSignals.some((signal) => signal.status === "warn")
+    const driftStatus: PolicyItem["status"] =
+      driftSignals.length === 0
         ? "warn"
-        : "pass";
+        : driftSignals.some((signal) => signal.status === "fail")
+          ? "fail"
+          : driftSignals.some((signal) => signal.status === "warn")
+            ? "warn"
+            : "pass";
     const exportStatus: PolicyItem["status"] = summary ? "pass" : "warn";
 
     return [
@@ -867,12 +894,15 @@ export function ValidationPage() {
               : `${passCheckCount}/${checks.length} checks passed under ${environment} gates.`,
       },
       {
-        id: "drift",
-        title: "Windowed Drift Detection",
-        requirement: `No major warning/failure/satisfaction drift in ${windowFilter} window.`,
-        status: driftStatus,
-        detail: `${driftSignals.filter((signal) => signal.status !== "pass").length} drift alert(s) need attention.`,
-      },
+	        id: "drift",
+	        title: "Windowed Drift Detection",
+	        requirement: `No major warning/failure/satisfaction drift in ${windowFilter} window.`,
+	        status: driftStatus,
+	        detail:
+	          driftSignals.length === 0
+	            ? "Not enough exact current/previous metric history for drift comparison."
+	            : `${driftSignals.filter((signal) => signal.status !== "pass").length} drift alert(s) need attention.`,
+	      },
       {
         id: "export",
         title: "Dataset-Level Report Export",
@@ -884,6 +914,32 @@ export function ValidationPage() {
       },
     ];
   }, [baselineSummary, checks, driftSignals, environment, regressionChecks, summary, windowFilter]);
+
+  const recommendations = useMemo<ValidationRecommendation[]>(() => {
+    const missingSignalRecommendations = summary?.missingSignals.length
+      ? [
+          {
+            id: "missing-scientific-signals",
+            title: "Complete missing scientific signals before relying on this validation",
+            severity: "fail" as const,
+            evidence: `Missing: ${summary.missingSignals.join(", ")}.`,
+            action:
+              "Rerun or replay the session after confirming the public API returns noise samples, syndrome samples, decoder interventions, and exact decoder metrics.",
+          },
+        ]
+      : [];
+
+    return [
+      ...missingSignalRecommendations,
+      ...checks.filter((check) => check.status !== "pass").map((check) => recommendationForCheck(check)),
+      ...regressionChecks
+        .filter((check) => check.status !== "pass")
+        .map((check) => recommendationForRegression(check)),
+      ...driftSignals
+        .filter((signal) => signal.status !== "pass")
+        .map((signal) => recommendationForDrift(signal)),
+    ];
+  }, [checks, driftSignals, regressionChecks, summary?.missingSignals]);
 
   const targetEvidenceRows = useMemo(
     () =>
@@ -912,68 +968,46 @@ export function ValidationPage() {
     scientificStateResult.completeness.missingSignals.length === 0
       ? "None"
       : scientificStateResult.completeness.missingSignals.join(", ");
-  const validationScore =
-    checks.length > 0
-      ? (checks.reduce((sum, check) => sum + (check.status === "pass" ? 1 : check.status === "warn" ? 0.5 : 0), 0) /
-          checks.length) *
-        100
-      : 0;
-
-  const confidenceScore = clamp(validationScore - (summary?.missingSignals.length ?? 0) * 8, 0, 99.9);
+  const validationState =
+    checks.length === 0 ? "No checks" : failCount > 0 ? "Fail" : warnCount > 0 ? "Review" : "Pass";
   const latestUpdatedAt = summary?.updatedAt ?? selectedRun?.updatedAt ?? null;
 
-  const previousValidationScore = Math.max(1, validationScore + (failCount > 0 ? 4.5 : -2.2));
-  const previousPer = Math.max(0.01, (summary?.perPct ?? 0) + 0.18);
-  const previousLatency = Math.max(1, (summary?.p95LatencyMs ?? 0) + 9.5);
-
   const kpiCards: KpiCardModel[] = [
-    {
-      key: "validation-score",
-      label: "Validation Score",
-      value: `${validationScore.toFixed(1)}`,
-      trendText: formatTrend(percentDelta(validationScore, previousValidationScore)),
-      trendDelta: percentDelta(validationScore, previousValidationScore),
-      trendUpGood: true,
-    },
     {
       key: "checks-pass",
       label: "Checks Passed",
       value: `${passCount}/${checks.length || 0}`,
-      trendText: formatTrend(percentDelta(passCount, Math.max(1, passCount + 1))),
-      trendDelta: percentDelta(passCount, Math.max(1, passCount + 1)),
-      trendUpGood: true,
+      detail: "threshold checks with available telemetry",
     },
     {
       key: "checks-risk",
       label: "Checks At Risk",
       value: `${warnCount}`,
-      trendText: formatTrend(percentDelta(warnCount, Math.max(1, warnCount - 1))),
-      trendDelta: percentDelta(warnCount, Math.max(1, warnCount - 1)),
-      trendUpGood: false,
+      detail: "checks in review state",
     },
     {
       key: "checks-fail",
       label: "Checks Failed",
       value: `${failCount}`,
-      trendText: formatTrend(percentDelta(failCount, Math.max(1, failCount - 1))),
-      trendDelta: percentDelta(failCount, Math.max(1, failCount - 1)),
-      trendUpGood: false,
+      detail: "checks outside selected thresholds",
     },
     {
       key: "per",
-      label: "Physical Error Rate",
+      label: "Average Telemetry PER",
       value: `${(summary?.perPct ?? 0).toFixed(3)}%`,
-      trendText: formatTrend(percentDelta(summary?.perPct ?? 0, previousPer)),
-      trendDelta: percentDelta(summary?.perPct ?? 0, previousPer),
-      trendUpGood: false,
+      detail: "from telemetry noise samples",
     },
     {
-      key: "latency",
-      label: "P95 Decode Latency",
-      value: `${(summary?.p95LatencyMs ?? 0).toFixed(1)} ms`,
-      trendText: formatTrend(percentDelta(summary?.p95LatencyMs ?? 0, previousLatency)),
-      trendDelta: percentDelta(summary?.p95LatencyMs ?? 0, previousLatency),
-      trendUpGood: false,
+      key: "ler",
+      label: "Logical Error Rate",
+      value: `${(summary?.logicalErrorRatePct ?? 0).toFixed(3)}%`,
+      detail: "from run metrics or exact decoder rows",
+    },
+    {
+      key: "evidence",
+      label: "Evidence Points",
+      value: `${summary ? summary.requestCount : 0}`,
+      detail: `${summary ? summary.rounds : 0} rounds, ${summary ? summary.stabilizerCount : 0} stabilizers`,
     },
   ];
 
@@ -982,7 +1016,7 @@ export function ValidationPage() {
   const empty = !loading && !error && !selectedRun;
 
   return (
-    <>
+    <div className="validation-page">
       <div className="header">
         <h1>Validation</h1>
         <p>Scientific standards and evidence checks for decoder runs.</p>
@@ -991,7 +1025,7 @@ export function ValidationPage() {
       <div className="trust-strip">
         <div className="trust-item">
           <span>Data Source</span>
-          <strong>{systemOff ? "Off" : !systemArmed ? "Standby" : isMock ? "GKP Mock" : "Live API"}</strong>
+          <strong>{systemOff ? "Off" : isMock ? "GKP Mock" : "Live API"}</strong>
         </div>
         <div className="trust-item">
           <span>Selected Run</span>
@@ -1002,8 +1036,8 @@ export function ValidationPage() {
           <strong>{formatAgo(latestUpdatedAt)}</strong>
         </div>
         <div className="trust-item">
-          <span>Validation Confidence</span>
-          <strong>{confidenceScore.toFixed(1)}%</strong>
+          <span>Validation State</span>
+          <strong>{validationState}</strong>
         </div>
         <div className="trust-item">
           <span>Scientific State</span>
@@ -1127,16 +1161,13 @@ export function ValidationPage() {
           <div className="section-title">Validation Summary</div>
           <div className="panel-subtitle">Threshold compliance view derived from scientific inputs and policy gates.</div>
           <div className="kpi-grid">
-            {kpiCards.map((card) => {
-              const trendPositive = card.trendUpGood ? card.trendDelta >= 0 : card.trendDelta <= 0;
-              return (
-                <div key={card.key} className="kpi-card">
-                  <div className="kpi-label">{card.label}</div>
-                  <div className="kpi-value">{card.value}</div>
-                  <div className={`kpi-trend ${trendPositive ? "good" : "bad"}`}>{card.trendText} vs previous window</div>
-                </div>
-              );
-            })}
+            {kpiCards.map((card) => (
+              <div key={card.key} className="kpi-card">
+                <div className="kpi-label">{card.label}</div>
+                <div className="kpi-value">{card.value}</div>
+                <div className="kpi-trend">{card.detail}</div>
+              </div>
+            ))}
           </div>
 
           <div className="table-container">
@@ -1172,6 +1203,36 @@ export function ValidationPage() {
             </div>
           </div>
 
+          <div className="validation-recommendations section-offset">
+            <div className="section-title">Validation Recommendations</div>
+            <div className="panel-subtitle">
+              Corrective actions are generated from failed, at-risk, missing-signal, regression, or drift checks.
+            </div>
+            {recommendations.length > 0 ? (
+              <div className="validation-recommendation-grid">
+                {recommendations.map((recommendation) => (
+                  <div key={recommendation.id} className={`validation-recommendation-card ${recommendation.severity}`}>
+                    <div className="workflow-head">
+                      <div className="workflow-title">{recommendation.title}</div>
+                      <span className={`status-badge ${checkBadgeClass(recommendation.severity)}`}>
+                        ● {checkLabel(recommendation.severity)}
+                      </span>
+                    </div>
+                    <div className="workflow-detail">{recommendation.evidence}</div>
+                    <div className="validation-recommendation-action">{recommendation.action}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="validation-recommendation-card clear">
+                <div className="workflow-title">No corrective action required for the selected gates</div>
+                <div className="workflow-detail">
+                  All available validation, baseline, and drift checks pass for the current strictness and environment.
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="table-container section-offset">
             <div className="table-wrapper">
               <div className="section-title">Baseline Regression</div>
@@ -1182,8 +1243,7 @@ export function ValidationPage() {
                 <>
                   <div className="scope-meta">
                     Baseline sample size: {baselineSummary.sampleCount} run(s) · PER{" "}
-                    {baselineSummary.perPct.toFixed(3)}% · Warning {baselineSummary.warningRatePct.toFixed(2)}% ·
-                    P95 {baselineSummary.p95LatencyMs.toFixed(1)} ms
+                    {baselineSummary.perPct.toFixed(3)}% · Warning {baselineSummary.warningRatePct.toFixed(2)}%
                   </div>
                   <table>
                     <thead>
@@ -1220,19 +1280,28 @@ export function ValidationPage() {
 
           <div className="workflow-section">
             <div className="section-title">Drift Alerts</div>
-            <div className="panel-subtitle">Compares current window against the previous window.</div>
+            <div className="panel-subtitle">Compares exact current-window metrics against exact previous-window metrics.</div>
             <div className="workflow-grid">
-              {driftSignals.map((signal) => (
-                <div key={signal.id} className={`workflow-card ${signal.status === "fail" ? "critical" : signal.status === "warn" ? "warning" : "info"}`}>
-                  <div className="workflow-head">
-                    <div className="workflow-title">{signal.label}</div>
-                    <span className={`status-badge ${checkBadgeClass(signal.status)}`}>● {checkLabel(signal.status)}</span>
+              {driftSignals.length > 0 ? (
+                driftSignals.map((signal) => (
+                  <div
+                    key={signal.id}
+                    className={`workflow-card ${
+                      signal.status === "fail" ? "critical" : signal.status === "warn" ? "warning" : "info"
+                    }`}
+                  >
+                    <div className="workflow-head">
+                      <div className="workflow-title">{signal.label}</div>
+                      <span className={`status-badge ${checkBadgeClass(signal.status)}`}>● {checkLabel(signal.status)}</span>
+                    </div>
+                    <div className="workflow-detail">Current: {signal.current}</div>
+                    <div className="workflow-detail">Previous: {signal.previous}</div>
+                    <div className="workflow-metric">Delta: {signal.delta}</div>
                   </div>
-                  <div className="workflow-detail">Current: {signal.current}</div>
-                  <div className="workflow-detail">Previous: {signal.previous}</div>
-                  <div className="workflow-metric">Delta: {signal.delta}</div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <div className="empty-card">Not enough exact metric history for drift comparison in this window.</div>
+              )}
             </div>
           </div>
 
@@ -1240,7 +1309,7 @@ export function ValidationPage() {
             <div className="table-wrapper">
               <div className="section-title">Validation Policy</div>
               <div className="panel-subtitle">
-                Operational policy status for promotion decisions and release readiness.
+                Runtime policy status for promotion decisions and release readiness.
               </div>
               <table>
                 <thead>
@@ -1271,7 +1340,7 @@ export function ValidationPage() {
             <div className="table-wrapper">
               <div className="section-title">Target Basis & Literature</div>
               <div className="panel-subtitle">
-                Distinguishes literature-backed constraints from local calibration and operational policy gates.
+                Distinguishes literature-backed constraints from local calibration and runtime policy gates.
               </div>
               <table>
                 <thead>
@@ -1288,8 +1357,8 @@ export function ValidationPage() {
                     <tr key={`evidence-${check.id}`}>
                       <td>{check.label}</td>
                       <td>{evidence?.basis ?? "Internal gate definition."}</td>
-                      <td>{evidence ? targetEvidenceSourceLabel(evidence.sourceType) : "Operational Policy"}</td>
-                      <td>{evidence?.rationale ?? "Target is defined as an internal operational control."}</td>
+                      <td>{evidence ? targetEvidenceSourceLabel(evidence.sourceType) : "Runtime Policy"}</td>
+                      <td>{evidence?.rationale ?? "Target is defined as a local runtime control."}</td>
                       <td>
                         {evidence && evidence.references.length > 0
                           ? evidence.references.map((reference, index) => (
@@ -1314,6 +1383,6 @@ export function ValidationPage() {
           </div>
         </>
       ) : null}
-    </>
+    </div>
   );
 }

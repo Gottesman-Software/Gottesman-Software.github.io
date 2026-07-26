@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import type { PropsWithChildren } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { parseDecoderKey } from "./decoders";
+import { PUBLIC_DECODER_KEYS, parseDecoderKey } from "./decoders";
 import type { DecoderKey } from "./decoders";
 
 export type DataMode = "api" | "mock";
@@ -20,13 +20,10 @@ interface DataModeContextValue {
   resetSystemArming: () => void;
   activeDecoder: DecoderKey;
   setActiveDecoder: (decoder: DecoderKey) => void;
-  neuralModelPath: string;
-  setNeuralModelPath: (path: string) => void;
 }
 
 const STORAGE_MODE_KEY = "lidmas.data_mode";
 const STORAGE_DECODER_KEY = "lidmas.active_decoder";
-const STORAGE_NEURAL_MODEL_KEY = "lidmas.neural_model_path";
 const STORAGE_SYSTEM_OFF_KEY = "lidmas.system_off";
 const STORAGE_SYSTEM_ARMED_KEY = "lidmas.system_armed";
 const PUBLIC_DEMO_MODE =
@@ -83,34 +80,18 @@ function getInitialMode(): DataMode {
 
 function getInitialDecoder(): DecoderKey {
   const envDecoder = parseDecoderKey(import.meta.env.VITE_DEFAULT_DECODER);
+  const safeEnvDecoder = envDecoder && PUBLIC_DECODER_KEYS.includes(envDecoder) ? envDecoder : null;
   if (typeof window === "undefined") {
-    return envDecoder ?? "mwpm";
+    return safeEnvDecoder ?? "mwpm";
   }
 
   const paramDecoder = parseDecoderKey(new URL(window.location.href).searchParams.get("decoder"));
-  if (paramDecoder) {
+  if (paramDecoder && PUBLIC_DECODER_KEYS.includes(paramDecoder)) {
     return paramDecoder;
   }
 
   const storedDecoder = parseDecoderKey(window.localStorage.getItem(STORAGE_DECODER_KEY));
-  return storedDecoder ?? envDecoder ?? "mwpm";
-}
-
-function getInitialNeuralModelPath(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const paramValue = new URL(window.location.href).searchParams.get("neural_model");
-  if (paramValue && paramValue.trim().length > 0) {
-    return paramValue.trim();
-  }
-
-  const storedValue = window.localStorage.getItem(STORAGE_NEURAL_MODEL_KEY);
-  if (!storedValue) {
-    return "";
-  }
-  return storedValue.trim();
+  return storedDecoder && PUBLIC_DECODER_KEYS.includes(storedDecoder) ? storedDecoder : safeEnvDecoder ?? "mwpm";
 }
 
 function getInitialSystemOff(): boolean {
@@ -145,7 +126,6 @@ export function DataModeProvider({ children }: PropsWithChildren) {
   const [systemOff, setSystemOffState] = useState<boolean>(getInitialSystemOff);
   const [systemArmed, setSystemArmedState] = useState<boolean>(getInitialSystemArmed);
   const [activeDecoder, setActiveDecoderState] = useState<DecoderKey>(getInitialDecoder);
-  const [neuralModelPath, setNeuralModelPathState] = useState<string>(getInitialNeuralModelPath);
 
   const setMode = (nextMode: DataMode) => {
     const resolvedMode = publicDemoForcesMock() ? "mock" : nextMode;
@@ -159,18 +139,6 @@ export function DataModeProvider({ children }: PropsWithChildren) {
     setActiveDecoderState(nextDecoder);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_DECODER_KEY, nextDecoder);
-    }
-  };
-
-  const setNeuralModelPath = (nextPath: string) => {
-    setNeuralModelPathState(nextPath);
-    if (typeof window !== "undefined") {
-      const trimmed = nextPath.trim();
-      if (trimmed) {
-        window.localStorage.setItem(STORAGE_NEURAL_MODEL_KEY, trimmed);
-      } else {
-        window.localStorage.removeItem(STORAGE_NEURAL_MODEL_KEY);
-      }
     }
   };
 
@@ -248,10 +216,8 @@ export function DataModeProvider({ children }: PropsWithChildren) {
       resetSystemArming,
       activeDecoder,
       setActiveDecoder,
-      neuralModelPath,
-      setNeuralModelPath,
     }),
-    [activeDecoder, mode, neuralModelPath, systemArmed, systemOff],
+    [activeDecoder, mode, systemArmed, systemOff],
   );
 
   return <DataModeContext.Provider value={value}>{children}</DataModeContext.Provider>;

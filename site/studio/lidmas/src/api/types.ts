@@ -386,7 +386,7 @@ export interface IntegrationSessionConfig {
   remote_input_root?: string;
   neural_model_path?: string;
   skip_replay?: boolean;
-  simulator_code_family?: "surface" | "gkp";
+  simulator_code_family?: "surface" | "gkp" | "repetition" | "css_ldpc";
   simulator_shots?: number;
   simulator_distance?: number;
   simulator_rounds?: number;
@@ -399,6 +399,7 @@ export interface IntegrationSessionConfig {
   circuit_depth?: number;
   circuit_gate_count?: number;
   circuit_hardware_target?: "superconducting" | "trapped_ion" | "photonic";
+  circuit_qec_code?: "surface" | "gkp" | "repetition" | "css_ldpc";
   circuit_detector_model?: "threshold" | "pnr_approx";
   circuit_noise_config?: string;
   circuit_compile_artifact?: string;
@@ -545,46 +546,4 @@ export interface VendorCalibrationRefreshResponse {
   catalog_path: string;
   refreshed_at: string;
   catalog?: VendorCalibrationsCatalogResponse;
-}
-
-export interface Paper04ArtifactDigest {
-  path: string;
-  exists: boolean;
-  size_bytes?: number | null;
-  sha256?: string | null;
-}
-
-export interface Paper04Manifest {
-  generated_at: string;
-  results_root: string;
-  artifact_count: number;
-  manifest_hash: string;
-  artifacts: Paper04ArtifactDigest[];
-}
-
-export interface Paper04ParityResult {
-  expected_manifest_hash: string;
-  actual_manifest_hash: string;
-  match_exact: boolean;
-}
-
-export interface RunPaper04Request {
-  strict_three_stack?: boolean;
-  enable_param_sweeps?: boolean;
-  timeout_seconds?: number;
-  env_overrides?: Record<string, string>;
-  compare_with_manifest_hash?: string;
-}
-
-export interface RunPaper04Response {
-  ok: boolean;
-  status: string;
-  command: string;
-  duration_ms: number;
-  timeout_seconds: number;
-  exit_code?: number | null;
-  stdout_tail: string[];
-  stderr_tail: string[];
-  manifest: Paper04Manifest;
-  parity?: Paper04ParityResult | null;
 }

@@ -35,6 +35,7 @@ export type CircuitProviderFamily =
   | "cirq"
   | "schrosim"
   | "unknown";
+export type CircuitQecCode = "surface" | "gkp" | "repetition" | "css_ldpc";
 
 export interface CircuitOperation {
   id: string;
@@ -52,6 +53,7 @@ export interface CircuitDesignDraft {
   depth: number;
   gateCount: number;
   hardwareTarget: CircuitHardwareTarget;
+  qecCode: CircuitQecCode;
   noiseConfig: CircuitNoiseConfig;
   compileArtifact: CircuitCompileArtifact;
   calibrationSnapshotId?: string;
@@ -109,6 +111,11 @@ interface GateOption {
 
 interface NoiseChannelOption {
   key: CircuitNoiseChannelKey;
+  label: string;
+}
+
+interface QecCodeOption {
+  value: CircuitQecCode;
   label: string;
 }
 
@@ -248,7 +255,7 @@ const PHOTONIC_GATE_OPTIONS: GateOption[] = [
   { value: "bs", label: "BS (Gaussian)" },
   { value: "kerr", label: "KERR (Non-Gaussian)" },
   { value: "cubic", label: "CUBIC (Non-Gaussian)" },
-  { value: "measure", label: "MEASURE" },
+  { value: "measure", label: "MEASURE (Detector readout)" },
 ];
 
 const SUPERCONDUCTING_NOISE_OPTIONS: NoiseChannelOption[] = [
@@ -319,18 +326,88 @@ function gateLabel(gate: CircuitGate): string {
   return gate.toUpperCase();
 }
 
-function formatOperation(operation: CircuitOperation): string {
+function detectorModelLabel(model: PhotonicDetectorModel): string {
+  if (model === "pnr_approx") {
+    return "PNR detector approximation";
+  }
+  return "Threshold detector";
+}
+
+function circuitUnitPluralLabel(hardwareTarget: CircuitHardwareTarget): string {
+  if (hardwareTarget === "photonic") {
+    return "Modes";
+  }
+  return "Qubits";
+}
+
+function circuitTargetLabel(hardwareTarget: CircuitHardwareTarget, gate: CircuitGate): string {
+  if (hardwareTarget === "photonic") {
+    if (gate === "bs") {
+      return "Mode B";
+    }
+    return "Target Mode";
+  }
+  return "Target Qubit";
+}
+
+function circuitControlLabel(hardwareTarget: CircuitHardwareTarget, gate: CircuitGate): string {
+  if (hardwareTarget === "photonic") {
+    if (gate === "bs") {
+      return "Mode A";
+    }
+    return "Control Mode";
+  }
+  return "Control Qubit";
+}
+
+function gateParameterLabel(hardwareTarget: CircuitHardwareTarget, gate: CircuitGate): string {
+  if (hardwareTarget === "photonic") {
+    if (gate === "disp") {
+      return "Displacement amplitude";
+    }
+    if (gate === "sq") {
+      return "Squeeze factor r";
+    }
+    if (gate === "phase") {
+      return "Phase angle (rad)";
+    }
+    if (gate === "bs") {
+      return "Beamsplitter angle theta (rad)";
+    }
+    if (gate === "kerr") {
+      return "Kerr strength chi";
+    }
+    if (gate === "cubic") {
+      return "Cubic phase strength gamma";
+    }
+  }
+  if (gate === "ms") {
+    return "MS angle (rad)";
+  }
+  return "Parameter (radians)";
+}
+
+function formatOperation(
+  operation: CircuitOperation,
+  hardwareTarget: CircuitHardwareTarget = "superconducting",
+  photonicDetectorModel: PhotonicDetectorModel = "threshold",
+): string {
   const gate = gateLabel(operation.gate);
+  const target = circuitLaneDisplayLabel(hardwareTarget, operation.target);
   if (operation.gate === "measure") {
-    return `${gate} q[${operation.target}] -> c[${operation.target}]`;
+    if (hardwareTarget === "photonic") {
+      return `${detectorModelLabel(photonicDetectorModel)} ${target} -> d[${operation.target}]`;
+    }
+    return `${gate} ${target} -> c[${operation.target}]`;
   }
   if (gateNeedsControl(operation.gate)) {
-    return `${gate} q[${operation.control}], q[${operation.target}]`;
+    const control = circuitLaneDisplayLabel(hardwareTarget, operation.control ?? 0);
+    return `${gate} ${control}, ${target}`;
   }
   if (gateNeedsParameter(operation.gate)) {
-    return `${gate}(${operation.parameter ?? 0}) q[${operation.target}]`;
+    return `${gate}(${operation.parameter ?? 0}) ${target}`;
   }
-  return `${gate} q[${operation.target}]`;
+  return `${gate} ${target}`;
 }
 
 function buildQasm(qubitCount: number, operations: CircuitOperation[]): string {
@@ -364,6 +441,39 @@ function buildQasm(qubitCount: number, operations: CircuitOperation[]): string {
   return lines.join("\n");
 }
 
+function buildPhotonicProgramPreview(
+  modeCount: number,
+  operations: CircuitOperation[],
+  photonicDetectorModel: PhotonicDetectorModel,
+): string {
+  const lines = [
+    "PHOTONIC-CV-PROGRAM v1",
+    `modes m[${modeCount}]`,
+    `detector ${detectorModelLabel(photonicDetectorModel)}`,
+    "",
+  ];
+  if (operations.length === 0) {
+    lines.push("# add optical gates and detector readout before launch");
+    return lines.join("\n");
+  }
+  operations.forEach((operation) => {
+    lines.push(formatOperation(operation, "photonic", photonicDetectorModel));
+  });
+  return lines.join("\n");
+}
+
+function buildProgramPreview(
+  hardwareTarget: CircuitHardwareTarget,
+  qubitCount: number,
+  operations: CircuitOperation[],
+  photonicDetectorModel: PhotonicDetectorModel,
+): string {
+  if (hardwareTarget === "photonic") {
+    return buildPhotonicProgramPreview(qubitCount, operations, photonicDetectorModel);
+  }
+  return buildQasm(qubitCount, operations);
+}
+
 function estimateDepth(qubitCount: number, operations: CircuitOperation[]): number {
   const lastLayerByQubit = Array.from({ length: qubitCount }, () => 0);
   let depth = 0;
@@ -388,7 +498,10 @@ function nextOperationId(): string {
 
 function hardwareTargetsForProvider(providerFamily: CircuitProviderFamily): CircuitHardwareTarget[] {
   if (providerFamily === "pennylane") {
-    return ["superconducting", "trapped_ion", "photonic"];
+    return ["photonic"];
+  }
+  if (providerFamily === "schrosim") {
+    return ["photonic"];
   }
   return ["superconducting"];
 }
@@ -443,6 +556,43 @@ function hardwareTargetLabel(target: CircuitHardwareTarget): string {
     return "Photonic";
   }
   return "Superconducting";
+}
+
+function qecCodeOptionsForContext(
+  providerFamily: CircuitProviderFamily,
+  hardwareTarget: CircuitHardwareTarget,
+): QecCodeOption[] {
+  if (hardwareTarget === "photonic" || providerFamily === "schrosim") {
+    return [
+      { value: "gkp", label: "Digitized GKP" },
+      { value: "surface", label: "Surface / surface-GKP" },
+    ];
+  }
+  if (providerFamily === "cirq") {
+    return [
+      { value: "repetition", label: "Repetition" },
+      { value: "surface", label: "Surface" },
+      { value: "css_ldpc", label: "CSS-LDPC / qLDPC" },
+    ];
+  }
+  return [
+    { value: "surface", label: "Surface" },
+    { value: "repetition", label: "Repetition" },
+    { value: "css_ldpc", label: "CSS-LDPC / qLDPC" },
+  ];
+}
+
+function qecCodeLabel(code: CircuitQecCode): string {
+  if (code === "gkp") {
+    return "Digitized GKP";
+  }
+  if (code === "repetition") {
+    return "Repetition";
+  }
+  if (code === "css_ldpc") {
+    return "CSS-LDPC / qLDPC";
+  }
+  return "Surface";
 }
 
 function calibrationScaleFactors(
@@ -518,10 +668,46 @@ function formatPreviewParameter(value: number | undefined): string {
   return value.toFixed(2);
 }
 
+function circuitLaneLabel(hardwareTarget: CircuitHardwareTarget, index: number): string {
+  if (hardwareTarget === "photonic") {
+    return `m${index}`;
+  }
+  return `q${index}`;
+}
+
+function circuitLaneDisplayLabel(hardwareTarget: CircuitHardwareTarget, index: number): string {
+  if (hardwareTarget === "photonic") {
+    return `m[${index}]`;
+  }
+  return `q[${index}]`;
+}
+
+function circuitInputStateLabel(hardwareTarget: CircuitHardwareTarget): string {
+  if (hardwareTarget === "photonic") {
+    return "|vac⟩";
+  }
+  return "|0⟩";
+}
+
+function circuitActiveStateLabel(hardwareTarget: CircuitHardwareTarget): string {
+  if (hardwareTarget === "photonic") {
+    return "|ψm⟩";
+  }
+  return "|ψ⟩";
+}
+
+function circuitReadoutLaneLabel(hardwareTarget: CircuitHardwareTarget): string {
+  if (hardwareTarget === "photonic") {
+    return "d";
+  }
+  return "c";
+}
+
 interface CircuitPreviewExportModel {
   circuitName: string;
   providerFamily: CircuitProviderFamily;
   hardwareTarget: CircuitHardwareTarget;
+  qecCode: CircuitQecCode;
   qubitCount: number;
   operations: CircuitOperation[];
   noisePreset: CircuitNoisePreset;
@@ -535,6 +721,7 @@ interface CircuitPreviewPngMetadata {
   circuit_name: string;
   provider_family: CircuitProviderFamily;
   hardware_target: CircuitHardwareTarget;
+  qec_code: CircuitQecCode;
   qubit_count: number;
   operations: Array<{
     gate: CircuitGate;
@@ -583,6 +770,7 @@ const CIRCUIT_GATE_VALUES: CircuitGate[] = [
 ];
 const HARDWARE_TARGET_VALUES: CircuitHardwareTarget[] = ["superconducting", "trapped_ion", "photonic"];
 const PROVIDER_FAMILY_VALUES: CircuitProviderFamily[] = ["pennylane", "qiskit", "cirq", "schrosim", "unknown"];
+const QEC_CODE_VALUES: CircuitQecCode[] = ["surface", "gkp", "repetition", "css_ldpc"];
 const NOISE_PRESET_VALUES: CircuitNoisePreset[] = ["low", "medium", "high", "custom"];
 const PHOTONIC_DETECTOR_MODEL_VALUES: PhotonicDetectorModel[] = ["threshold", "pnr_approx"];
 const NOISE_CHANNEL_KEY_VALUES: CircuitNoiseChannelKey[] = [
@@ -628,6 +816,10 @@ function isCircuitHardwareTarget(value: unknown): value is CircuitHardwareTarget
 
 function isCircuitProviderFamily(value: unknown): value is CircuitProviderFamily {
   return typeof value === "string" && (PROVIDER_FAMILY_VALUES as readonly string[]).includes(value);
+}
+
+function isCircuitQecCode(value: unknown): value is CircuitQecCode {
+  return typeof value === "string" && (QEC_CODE_VALUES as readonly string[]).includes(value);
 }
 
 function isNoisePreset(value: unknown): value is CircuitNoisePreset {
@@ -725,6 +917,7 @@ function parseCircuitPreviewPngMetadata(value: unknown): CircuitPreviewPngMetada
   const circuitName = typeof record.circuit_name === "string" ? record.circuit_name.trim() : "custom_design";
   const providerFamily = isCircuitProviderFamily(record.provider_family) ? record.provider_family : "unknown";
   const hardwareTarget = isCircuitHardwareTarget(record.hardware_target) ? record.hardware_target : "superconducting";
+  const qecCode = isCircuitQecCode(record.qec_code) ? record.qec_code : qecCodeOptionsForContext(providerFamily, hardwareTarget)[0]?.value ?? "surface";
   const noiseConfigRecord = asRecord(record.noise_config);
   const noisePreset = isNoisePreset(noiseConfigRecord?.preset) ? noiseConfigRecord.preset : "medium";
 
@@ -800,6 +993,7 @@ function parseCircuitPreviewPngMetadata(value: unknown): CircuitPreviewPngMetada
     circuit_name: circuitName || "custom_design",
     provider_family: providerFamily,
     hardware_target: hardwareTarget,
+    qec_code: qecCode,
     qubit_count: qubitCount,
     operations: boundedOperations,
     noise_config: {
@@ -1095,7 +1289,7 @@ async function exportCircuitPreviewPng(model: CircuitPreviewExportModel): Promis
     context.font = 'italic 700 13px "SF Pro Text", "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
     context.textAlign = "right";
     context.fillStyle = "#21252b";
-    context.fillText(`q${qubitIndex}`, wireStartX - 12, rowCenterY);
+    context.fillText(circuitLaneLabel(model.hardwareTarget, qubitIndex), wireStartX - 12, rowCenterY);
   }
 
   const measurementSteps: Array<{ stepIndex: number; target: number }> = [];
@@ -1118,6 +1312,47 @@ async function exportCircuitPreviewPng(model: CircuitPreviewExportModel): Promis
       drawMeasurementGlyph(context, centerX, targetY, palette.text);
 
       measurementSteps.push({ stepIndex, target: operation.target });
+      return;
+    }
+
+    if (model.hardwareTarget === "photonic" && operation.gate === "bs" && operation.control != null) {
+      const controlY = rowCenterYForQubit(operation.control);
+      const targetY = rowCenterYForQubit(operation.target);
+      const couplerY = (controlY + targetY) / 2;
+      const chipLabel = "BS";
+      const palette = gatePalette(operation.gate);
+      const chipWidth = 32;
+      const chipHeight = 22;
+      const chipX = centerX - chipWidth / 2;
+      const chipY = couplerY - chipHeight / 2;
+
+      context.strokeStyle = "#6f9df3";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(centerX, Math.min(controlY, targetY));
+      context.lineTo(centerX, Math.max(controlY, targetY));
+      context.stroke();
+
+      [controlY, targetY].forEach((modeY) => {
+        context.beginPath();
+        context.strokeStyle = "#6f9df3";
+        context.lineWidth = 2;
+        context.arc(centerX, modeY, 4.5, 0, Math.PI * 2);
+        context.stroke();
+      });
+
+      roundedRectPath(context, chipX, chipY, chipWidth, chipHeight, 2);
+      context.fillStyle = palette.fill;
+      context.fill();
+      context.strokeStyle = palette.border;
+      context.lineWidth = 1;
+      context.stroke();
+      context.font =
+        '700 12px "SF Pro Text", "Segoe UI", Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillStyle = palette.text;
+      context.fillText(chipLabel, centerX, couplerY + 0.5);
       return;
     }
 
@@ -1212,7 +1447,7 @@ async function exportCircuitPreviewPng(model: CircuitPreviewExportModel): Promis
   context.textAlign = "right";
   context.textBaseline = "middle";
   context.fillStyle = "#3c495b";
-  context.fillText("c", wireStartX - 12, classicalRowY + 2);
+  context.fillText(circuitReadoutLaneLabel(model.hardwareTarget), wireStartX - 12, classicalRowY + 2);
   context.font = '600 10px "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace';
   context.fillStyle = "#4f6075";
   context.fillText(`${Math.max(0, qubitCount - 1)}`, wireStartX - 8, classicalRowY - 7);
@@ -1242,7 +1477,7 @@ async function exportCircuitPreviewPng(model: CircuitPreviewExportModel): Promis
     context.textAlign = "left";
     context.textBaseline = "middle";
     context.fillStyle = "#3f4f64";
-    context.fillText(`${bitIndex}`, x + 6, classicalRowY - 7);
+    context.fillText(model.hardwareTarget === "photonic" ? `d${bitIndex}` : `${bitIndex}`, x + 6, classicalRowY - 7);
   });
 
   const metadata: CircuitPreviewPngMetadata = {
@@ -1250,6 +1485,7 @@ async function exportCircuitPreviewPng(model: CircuitPreviewExportModel): Promis
     circuit_name: model.circuitName.trim() || "custom_design",
     provider_family: model.providerFamily,
     hardware_target: model.hardwareTarget,
+    qec_code: model.qecCode,
     qubit_count: qubitCount,
     operations: model.operations.map((operation) => ({
       gate: operation.gate,
@@ -1815,7 +2051,10 @@ function buildMeasurementPreviewModel(
       warning,
       modelLabel: "Awaiting measurement gates",
       rows: [],
-      unavailableReason: "Add one or more MEASURE operations to preview intended readout outcomes.",
+      unavailableReason:
+        hardwareTarget === "photonic"
+          ? "Add one or more detector measurements to preview intended readout outcomes."
+          : "Add one or more MEASURE operations to preview intended readout outcomes.",
     };
   }
 
@@ -1824,7 +2063,7 @@ function buildMeasurementPreviewModel(
       warning,
       modelLabel: "Preview limit reached",
       rows: [],
-      unavailableReason: `Preview supports up to ${PREVIEW_MAX_QUBITS} qubits/modes for interactive intended-result estimation.`,
+      unavailableReason: `Preview supports up to ${PREVIEW_MAX_QUBITS} ${circuitUnitPluralLabel(hardwareTarget).toLowerCase()} for interactive intended-result estimation.`,
     };
   }
 
@@ -2344,9 +2583,13 @@ function buildCircuitCompileArtifact(
     (op) => op.gate === "disp" || op.gate === "sq" || op.gate === "phase" || op.gate === "bs",
   ).length;
   if (operations.every((operation) => operation.gate !== "measure")) {
-    warnings.push("No measurement gate found; add MEASURE to produce deterministic readout targets.");
+    warnings.push(
+      hardwareTarget === "photonic"
+        ? "No detector measurement found; add detector readout to produce deterministic readout targets."
+        : "No measurement gate found; add MEASURE to produce deterministic readout targets.",
+    );
   }
-  if (hardwareTarget === "photonic" && nonGaussianCount === 0) {
+  if (hardwareTarget === "photonic" && gaussianCount > 0 && nonGaussianCount === 0) {
     warnings.push("Photonic program is Gaussian-only; add KERR/CUBIC for non-Gaussian injection workflows.");
   }
   if (hardwareTarget === "superconducting" && swapInsertions > 0) {
@@ -2385,9 +2628,12 @@ function buildCircuitCompileArtifact(
 
   const noise = averageNoiseIntensity(noisePreset, noiseChannels, noiseOptions);
   const twoQubitCount = transpiled.filter((operation) => operation.control != null).length;
-  const roundsEst = Math.max(2, Math.min(12, Math.ceil(Math.max(1, transpiledDepth) / 3)));
-  const stabilizerCount = Math.max(1, hardwareTarget === "photonic" ? qubitCount : 2 * qubitCount - 2);
-  const eventBase = (twoQubitCount + 1) * roundsEst * (0.45 + noise.intensity * 0.95);
+  const hasCircuitOperations = operations.length > 0;
+  const roundsEst = hasCircuitOperations ? Math.max(2, Math.min(12, Math.ceil(Math.max(1, transpiledDepth) / 3))) : 0;
+  const stabilizerCount = hasCircuitOperations
+    ? Math.max(1, hardwareTarget === "photonic" ? qubitCount : 2 * qubitCount - 2)
+    : 0;
+  const eventBase = hasCircuitOperations ? (twoQubitCount + 1) * roundsEst * (0.45 + noise.intensity * 0.95) : 0;
   const xEvents = Math.max(0, Math.round(eventBase * (hardwareTarget === "photonic" ? 0.43 : 0.52)));
   const zEvents = Math.max(0, Math.round(eventBase * (hardwareTarget === "photonic" ? 0.57 : 0.48)));
   const logicalHint = clamp01((xEvents + zEvents) / Math.max(20, stabilizerCount * roundsEst * 12));
@@ -2478,14 +2724,14 @@ function buildCircuitCompileReport(
     { label: "Source Depth", value: `${artifact.source_depth}` },
     { label: "Transpiled Depth", value: `${artifact.transpiled_depth}` },
     { label: "Transpiled Gate Count", value: `${artifact.transpiled_gate_count}` },
-    { label: "One-Qubit Gates", value: `${oneQubitCount}` },
-    { label: "Two-Qubit Gates", value: `${twoQubitCount}` },
-    { label: "Measurement Gates", value: `${measurementCount}` },
-    { label: "Parameterized Gates", value: `${parameterizedCount}` },
-    { label: "Total Program Duration (Est.)", value: `${durationMicros.toFixed(2)} μs` },
+    { label: hardwareTarget === "photonic" ? "Single-Mode Gates" : "One-Qubit Gates", value: `${oneQubitCount}` },
+    { label: hardwareTarget === "photonic" ? "Two-Mode Gates" : "Two-Qubit Gates", value: `${twoQubitCount}` },
+    { label: hardwareTarget === "photonic" ? "Detector Measurements" : "Measurement Gates", value: `${measurementCount}` },
+    { label: hardwareTarget === "photonic" ? "Parameterized Optical Gates" : "Parameterized Gates", value: `${parameterizedCount}` },
+    { label: hardwareTarget === "photonic" ? "Estimated Circuit Duration" : "Total Program Duration (Est.)", value: `${durationMicros.toFixed(2)} μs` },
     { label: "Active Noise Channels", value: `${activeNoiseCount}/${noiseOptionCount}` },
-    { label: "Syndrome X Events (Est.)", value: `${artifact.syndrome_preview.x_events_est}` },
-    { label: "Syndrome Z Events (Est.)", value: `${artifact.syndrome_preview.z_events_est}` },
+    { label: hardwareTarget === "photonic" ? "Syndrome q Events (Est.)" : "Syndrome X Events (Est.)", value: `${artifact.syndrome_preview.x_events_est}` },
+    { label: hardwareTarget === "photonic" ? "Syndrome p Events (Est.)" : "Syndrome Z Events (Est.)", value: `${artifact.syndrome_preview.z_events_est}` },
     { label: "Logical Error Hint", value: formatPercent(artifact.syndrome_preview.logical_error_hint) },
   ];
 
@@ -2503,7 +2749,7 @@ function buildCircuitCompileReport(
   if (hardwareTarget === "photonic") {
     metrics.push({ label: "Gaussian Gates", value: `${gaussianCount}` });
     metrics.push({ label: "Non-Gaussian Gates", value: `${nonGaussianCount}` });
-    metrics.push({ label: "Detector Model", value: artifact.photonic_detector_model });
+    metrics.push({ label: "Measurement Type", value: detectorModelLabel(artifact.photonic_detector_model) });
   }
 
   return {
@@ -2521,6 +2767,7 @@ function buildArtifactJson(artifact: CircuitCompileArtifact): string {
 function previewCellForOperation(
   operation: CircuitOperation | undefined,
   qubitIndex: number,
+  hardwareTarget: CircuitHardwareTarget,
 ): CircuitPreviewCellModel {
   if (!operation) {
     return { kind: "wire", label: null, hasConnector: false };
@@ -2530,6 +2777,9 @@ function previewCellForOperation(
     const low = Math.min(operation.control, operation.target);
     const high = Math.max(operation.control, operation.target);
     const hasConnector = qubitIndex >= low && qubitIndex <= high;
+    if (hardwareTarget === "photonic" && operation.gate === "bs" && qubitIndex === operation.control) {
+      return { kind: "wire", label: null, hasConnector };
+    }
     if (qubitIndex === operation.control) {
       return { kind: "control", label: null, hasConnector };
     }
@@ -2593,6 +2843,13 @@ export function StartCircuitDesignDialog({
     () => calibrationSnapshotsForContext(providerFamily, hardwareTarget, runtimeCalibrationSnapshots),
     [providerFamily, hardwareTarget, runtimeCalibrationSnapshots],
   );
+  const qecCodeOptions = useMemo(
+    () => qecCodeOptionsForContext(providerFamily, hardwareTarget),
+    [providerFamily, hardwareTarget],
+  );
+  const [qecCode, setQecCode] = useState<CircuitQecCode>(
+    () => qecCodeOptionsForContext(providerFamily, hardwareTargets[0] ?? "superconducting")[0]?.value ?? "surface",
+  );
   const [calibrationSnapshotId, setCalibrationSnapshotId] = useState<string>(() => {
     const defaultId = defaultCalibrationSnapshotId(
       providerFamily,
@@ -2649,6 +2906,7 @@ export function StartCircuitDesignDialog({
     setParameterInput("1.5708");
     setOperations([]);
     setHardwareTarget(hardwareTargets[0] ?? "superconducting");
+    setQecCode(qecCodeOptionsForContext(providerFamily, hardwareTargets[0] ?? "superconducting")[0]?.value ?? "surface");
     setCalibrationSnapshotId(
       defaultCalibrationSnapshotId(
         providerFamily,
@@ -2687,6 +2945,13 @@ export function StartCircuitDesignDialog({
   }, [calibrationOptions, calibrationSnapshotId, providerFamily, hardwareTarget, runtimeCalibrationSnapshots]);
 
   useEffect(() => {
+    if (qecCodeOptions.some((option) => option.value === qecCode)) {
+      return;
+    }
+    setQecCode(qecCodeOptions[0]?.value ?? "surface");
+  }, [qecCode, qecCodeOptions]);
+
+  useEffect(() => {
     const selectedSupported = availableGates.some((option) => option.value === selectedGate);
     if (selectedSupported) {
       return;
@@ -2712,7 +2977,10 @@ export function StartCircuitDesignDialog({
     () => Array.from({ length: qubitCount }, (_, index) => index),
     [qubitCount],
   );
-  const qasmPreview = useMemo(() => buildQasm(qubitCount, operations), [operations, qubitCount]);
+  const qasmPreview = useMemo(
+    () => buildProgramPreview(hardwareTarget, qubitCount, operations, photonicDetectorModel),
+    [hardwareTarget, operations, photonicDetectorModel, qubitCount],
+  );
   const estimatedDepth = useMemo(() => estimateDepth(qubitCount, operations), [operations, qubitCount]);
   const measurementPreview = useMemo(
     () => buildMeasurementPreviewModel(hardwareTarget, qubitCount, operations),
@@ -2892,6 +3160,7 @@ export function StartCircuitDesignDialog({
       depth: estimatedDepth,
       gateCount: operations.length,
       hardwareTarget,
+      qecCode,
       noiseConfig: {
         preset: noisePreset,
         channels: noiseChannels,
@@ -2945,6 +3214,9 @@ export function StartCircuitDesignDialog({
 
     setCircuitName(metadata.circuit_name.trim() || "custom_design");
     setHardwareTarget(resolvedTarget);
+    setQecCode(qecCodeOptionsForContext(providerFamily, resolvedTarget).some((option) => option.value === metadata.qec_code)
+      ? metadata.qec_code
+      : qecCodeOptionsForContext(providerFamily, resolvedTarget)[0]?.value ?? "surface");
     setQubitCount(resolvedQubitCount);
     setOperations(importedOperations);
     setSelectedGate(selectedImportedGate);
@@ -2989,6 +3261,7 @@ export function StartCircuitDesignDialog({
         circuitName,
         providerFamily,
         hardwareTarget,
+        qecCode,
         qubitCount,
         operations,
         noisePreset,
@@ -3008,7 +3281,7 @@ export function StartCircuitDesignDialog({
         <div className="modal-header">
           <div>
             <div className="modal-title">Circuit Design</div>
-            <div className="modal-subtitle">Provider: {providerName}</div>
+            <div className="modal-subtitle">Simulator: {providerName}</div>
           </div>
           <button className="modal-close" onClick={onClose} disabled={pending}>
             ×
@@ -3019,291 +3292,313 @@ export function StartCircuitDesignDialog({
             Build the circuit before launch. This design is attached to the session configuration and execution context.
           </p>
 
-          <div className="circuit-design-grid">
-            <div className="session-launcher-field">
-              <label>Circuit Name</label>
-              <input
-                type="text"
-                className="form-input"
-                value={circuitName}
-                onChange={(event) => setCircuitName(event.target.value)}
-                placeholder="e.g. ghz_3q_custom"
-                disabled={pending}
-              />
-            </div>
-            <div className="session-launcher-field">
-              <label>Qubits</label>
-              <input
-                type="number"
-                className="form-input"
-                value={qubitCount}
-                min={1}
-                max={24}
-                onChange={(event) => {
-                  const parsed = Number.parseInt(event.target.value, 10);
-                  if (!Number.isFinite(parsed)) {
-                    return;
-                  }
-                  const bounded = Math.max(1, Math.min(24, parsed));
-                  setQubitCount(bounded);
-                  setTargetQubit((current) => Math.min(current, bounded - 1));
-                  setControlQubit((current) => Math.min(current, bounded - 1));
-                }}
-                disabled={pending}
-              />
-            </div>
-            <div className="session-launcher-field">
-              <label>Hardware Target</label>
-              {hardwareTargets.length > 1 ? (
-                <select
-                  className="form-select"
-                  value={hardwareTarget}
-                  onChange={(event) => setHardwareTarget(event.target.value as CircuitHardwareTarget)}
-                  disabled={pending}
-                >
-                  {hardwareTargets.map((target) => (
-                    <option key={`hardware-target-${target}`} value={target}>
-                      {hardwareTargetLabel(target)}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  className="form-input"
-                  value={hardwareTargetLabel(hardwareTarget)}
-                  readOnly
-                  disabled
-                />
-              )}
-            </div>
-            <div className="session-launcher-field">
-              <label>Calibration Snapshot</label>
-              <select
-                className="form-select"
-                value={calibrationSnapshotId}
-                onChange={(event) => setCalibrationSnapshotId(event.target.value)}
-                disabled={pending || calibrationOptions.length === 0}
-              >
-                {calibrationOptions.length === 0 ? <option value="">No snapshot available</option> : null}
-                {calibrationOptions.map((snapshot) => (
-                  <option key={`calibration-${snapshot.id}`} value={snapshot.id}>
-                    {snapshot.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="circuit-gate-builder">
-            <div className="session-launcher-field">
-              <label>Gate</label>
-              <select
-                className="form-select"
-                value={selectedGate}
-                onChange={(event) => setSelectedGate(event.target.value as CircuitGate)}
-                disabled={pending}
-              >
-                {availableGates.map((gate) => (
-                  <option key={`gate-option-${gate.value}`} value={gate.value}>
-                    {gate.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="session-launcher-field">
-              <label>Target Qubit</label>
-              <select
-                className="form-select"
-                value={targetQubit}
-                onChange={(event) => setTargetQubit(Number.parseInt(event.target.value, 10))}
-                disabled={pending}
-              >
-                {qubitOptions.map((qubit) => (
-                  <option key={`target-${qubit}`} value={qubit}>
-                    q[{qubit}]
-                  </option>
-                ))}
-              </select>
-            </div>
-            {gateNeedsControl(selectedGate) ? (
-              <div className="session-launcher-field">
-                <label>Control Qubit</label>
-                <select
-                  className="form-select"
-                  value={controlQubit}
-                  onChange={(event) => setControlQubit(Number.parseInt(event.target.value, 10))}
-                  disabled={pending}
-                >
-                  {qubitOptions.map((qubit) => (
-                    <option key={`control-${qubit}`} value={qubit}>
-                      q[{qubit}]
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-            {gateNeedsParameter(selectedGate) ? (
-              <div className="session-launcher-field">
-                <label>Parameter (radians)</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={parameterInput}
-                  onChange={(event) => setParameterInput(event.target.value)}
-                  disabled={pending}
-                />
-              </div>
-            ) : null}
-            <div className="circuit-builder-action">
-              <button className="btn btn-secondary circuit-add-op-btn" onClick={addOperation} disabled={pending}>
-                <Plus size={14} aria-hidden="true" />
-                <span>Add Gate</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="circuit-noise-section">
-            <div className="circuit-noise-head">
-              <span>Noise Injection</span>
-              <span>{hardwareTargetLabel(hardwareTarget)} profile</span>
-            </div>
-            <div className="session-launcher-field">
-              <label>Preset</label>
-              <select
-                className="form-select"
-                value={noisePreset}
-                onChange={(event) => applyNoisePreset(event.target.value as CircuitNoisePreset)}
-                disabled={pending}
-              >
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-            {hardwareTarget === "photonic" ? (
-              <div className="session-launcher-field">
-                <label>Detector Model</label>
-                <select
-                  className="form-select"
-                  value={photonicDetectorModel}
-                  onChange={(event) => setPhotonicDetectorModel(event.target.value as PhotonicDetectorModel)}
-                  disabled={pending}
-                >
-                  <option value="threshold">Threshold</option>
-                  <option value="pnr_approx">PNR Approximation</option>
-                </select>
-              </div>
-            ) : null}
-            <div className="circuit-noise-list">
-              {noiseOptions.map((option) => {
-                const channel = noiseChannels[option.key] ?? { enabled: true, level: 0.5 };
-                return (
-                  <div key={`noise-${option.key}`} className="circuit-noise-row">
-                    <label className="circuit-noise-label">
-                      <input
-                        type="checkbox"
-                        checked={channel.enabled}
-                        onChange={() => toggleNoiseChannel(option.key)}
-                        disabled={pending}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                    <div className="circuit-noise-slider">
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        value={channel.level}
-                        onChange={(event) => setNoiseChannelLevel(option.key, Number.parseFloat(event.target.value))}
-                        disabled={pending || !channel.enabled}
-                      />
-                      <span>{channel.level.toFixed(2)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="circuit-compile-section">
-            <div className="circuit-compile-head">
-              <span>Hardware Compile Report</span>
-              <span>{compileReport.profileLabel}</span>
-            </div>
-            <div className="circuit-compile-band">
-              <span>Expected Fidelity Band</span>
-              <strong>{compileReport.fidelityBand}</strong>
-            </div>
-            <div className="circuit-compile-metrics">
-              {compileReport.metrics.map((metric) => (
-                <div key={`compile-metric-${metric.label}`} className="circuit-compile-metric">
-                  <span>{metric.label}</span>
-                  <strong>{metric.value}</strong>
+          <div className="circuit-design-layout">
+            <div className="circuit-design-controls">
+              <div className="circuit-design-grid">
+                <div className="session-launcher-field">
+                  <label>Circuit Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={circuitName}
+                    onChange={(event) => setCircuitName(event.target.value)}
+                    placeholder="e.g. ghz_3q_custom"
+                    disabled={pending}
+                  />
                 </div>
-              ))}
-            </div>
-            {compileReport.warnings.length > 0 ? (
-              <div className="circuit-compile-warnings">
-                {compileReport.warnings.map((warning) => (
-                  <div key={`compile-warning-${warning}`} className="circuit-compile-warning">
-                    {warning}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="scientific-muted-note">No compile warnings for the selected hardware target.</div>
-            )}
-            <div className="circuit-compile-syndrome">
-              <span>{`Syndrome Preview: rounds≈${compileArtifact.syndrome_preview.rounds_est}`}</span>
-              <span>{`stabilizers≈${compileArtifact.syndrome_preview.stabilizer_count_est}`}</span>
-            </div>
-          </div>
-
-          <div className="circuit-ops-head">
-            <span>Gate Sequence ({operations.length})</span>
-            <span>Estimated Depth: {estimatedDepth}</span>
-          </div>
-          <div className="circuit-ops-list">
-            {operations.length === 0 ? (
-              <div className="scientific-muted-note">No gates added yet.</div>
-            ) : (
-              operations.map((operation, index) => (
-                <div key={operation.id} className="circuit-op-row">
-                  <span className="circuit-op-index">{index + 1}.</span>
-                  <code className="circuit-op-code">{formatOperation(operation)}</code>
-                  <div className="circuit-op-actions">
-                    <button
-                      className="btn-icon"
-                      onClick={() => moveOperation(operation.id, "up")}
-                      disabled={pending || index === 0}
-                      title="Move up"
-                    >
-                      <ArrowUp size={14} aria-hidden="true" />
-                    </button>
-                    <button
-                      className="btn-icon"
-                      onClick={() => moveOperation(operation.id, "down")}
-                      disabled={pending || index === operations.length - 1}
-                      title="Move down"
-                    >
-                      <ArrowDown size={14} aria-hidden="true" />
-                    </button>
-                    <button
-                      className="btn-icon"
-                      onClick={() => removeOperation(operation.id)}
+                <div className="session-launcher-field">
+                  <label>{circuitUnitPluralLabel(hardwareTarget)}</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={qubitCount}
+                    min={1}
+                    max={24}
+                    onChange={(event) => {
+                      const parsed = Number.parseInt(event.target.value, 10);
+                      if (!Number.isFinite(parsed)) {
+                        return;
+                      }
+                      const bounded = Math.max(1, Math.min(24, parsed));
+                      setQubitCount(bounded);
+                      setTargetQubit((current) => Math.min(current, bounded - 1));
+                      setControlQubit((current) => Math.min(current, bounded - 1));
+                    }}
+                    disabled={pending}
+                  />
+                </div>
+                <div className="session-launcher-field">
+                  <label>Hardware Target</label>
+                  {hardwareTargets.length > 1 ? (
+                    <select
+                      className="form-select"
+                      value={hardwareTarget}
+                      onChange={(event) => setHardwareTarget(event.target.value as CircuitHardwareTarget)}
                       disabled={pending}
-                      title="Remove gate"
                     >
-                      <Trash2 size={14} aria-hidden="true" />
-                    </button>
-                  </div>
+                      {hardwareTargets.map((target) => (
+                        <option key={`hardware-target-${target}`} value={target}>
+                          {hardwareTargetLabel(target)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={hardwareTargetLabel(hardwareTarget)}
+                      readOnly
+                      disabled
+                    />
+                  )}
                 </div>
-              ))
-            )}
-          </div>
+                <div className="session-launcher-field">
+                  <label>QEC Code</label>
+                  <select
+                    className="form-select"
+                    value={qecCode}
+                    onChange={(event) => setQecCode(event.target.value as CircuitQecCode)}
+                    disabled={pending}
+                  >
+                    {qecCodeOptions.map((option) => (
+                      <option key={`qec-code-${option.value}`} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="session-launcher-field">
+                  <label>Calibration Snapshot</label>
+                  <select
+                    className="form-select"
+                    value={calibrationSnapshotId}
+                    onChange={(event) => setCalibrationSnapshotId(event.target.value)}
+                    disabled={pending || calibrationOptions.length === 0}
+                  >
+                    {calibrationOptions.length === 0 ? <option value="">No snapshot available</option> : null}
+                    {calibrationOptions.map((snapshot) => (
+                      <option key={`calibration-${snapshot.id}`} value={snapshot.id}>
+                        {snapshot.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="circuit-gate-builder">
+                <div className="session-launcher-field">
+                  <label>Gate</label>
+                  <select
+                    className="form-select"
+                    value={selectedGate}
+                    onChange={(event) => setSelectedGate(event.target.value as CircuitGate)}
+                    disabled={pending}
+                  >
+                    {availableGates.map((gate) => (
+                      <option key={`gate-option-${gate.value}`} value={gate.value}>
+                        {gate.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="session-launcher-field">
+	                  <label>{circuitTargetLabel(hardwareTarget, selectedGate)}</label>
+                  <select
+                    className="form-select"
+                    value={targetQubit}
+                    onChange={(event) => setTargetQubit(Number.parseInt(event.target.value, 10))}
+                    disabled={pending}
+                  >
+                    {qubitOptions.map((qubit) => (
+                      <option key={`target-${qubit}`} value={qubit}>
+	                        {circuitLaneDisplayLabel(hardwareTarget, qubit)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {gateNeedsControl(selectedGate) ? (
+                  <div className="session-launcher-field">
+                    <label>{circuitControlLabel(hardwareTarget, selectedGate)}</label>
+                    <select
+                      className="form-select"
+                      value={controlQubit}
+                      onChange={(event) => setControlQubit(Number.parseInt(event.target.value, 10))}
+                      disabled={pending}
+                    >
+                      {qubitOptions.map((qubit) => (
+                        <option key={`control-${qubit}`} value={qubit}>
+                          {circuitLaneDisplayLabel(hardwareTarget, qubit)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                {gateNeedsParameter(selectedGate) ? (
+                  <div className="session-launcher-field">
+                    <label>{gateParameterLabel(hardwareTarget, selectedGate)}</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={parameterInput}
+                      onChange={(event) => setParameterInput(event.target.value)}
+                      disabled={pending}
+                    />
+                  </div>
+                ) : null}
+                <div className="circuit-builder-action">
+                  <button className="btn btn-secondary circuit-add-op-btn" onClick={addOperation} disabled={pending}>
+                    <Plus size={14} aria-hidden="true" />
+                    <span>Add Gate</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="circuit-noise-section">
+                <div className="circuit-noise-head">
+                  <span>Noise Injection</span>
+                  <span>{hardwareTargetLabel(hardwareTarget)} profile</span>
+                </div>
+                <div className="session-launcher-field">
+                  <label>Preset</label>
+                  <select
+                    className="form-select"
+                    value={noisePreset}
+                    onChange={(event) => applyNoisePreset(event.target.value as CircuitNoisePreset)}
+                    disabled={pending}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+                {hardwareTarget === "photonic" ? (
+                  <div className="session-launcher-field">
+                    <label>Measurement Type</label>
+                    <select
+                      className="form-select"
+                      value={photonicDetectorModel}
+                      onChange={(event) => setPhotonicDetectorModel(event.target.value as PhotonicDetectorModel)}
+                      disabled={pending}
+                    >
+                      <option value="threshold">Threshold detector</option>
+                      <option value="pnr_approx">PNR detector approximation</option>
+                    </select>
+                  </div>
+                ) : null}
+                <div className="circuit-noise-list">
+                  {noiseOptions.map((option) => {
+                    const channel = noiseChannels[option.key] ?? { enabled: true, level: 0.5 };
+                    return (
+                      <div key={`noise-${option.key}`} className="circuit-noise-row">
+                        <label className="circuit-noise-label">
+                          <input
+                            type="checkbox"
+                            checked={channel.enabled}
+                            onChange={() => toggleNoiseChannel(option.key)}
+                            disabled={pending}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                        <div className="circuit-noise-slider">
+                          <input
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={channel.level}
+                            onChange={(event) => setNoiseChannelLevel(option.key, Number.parseFloat(event.target.value))}
+                            disabled={pending || !channel.enabled}
+                          />
+                          <span>{channel.level.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="circuit-compile-section">
+                <div className="circuit-compile-head">
+                  <span>Circuit Compile Report</span>
+                  <span>{compileReport.profileLabel}</span>
+                </div>
+                <div className="circuit-compile-band">
+                  <span>Expected Fidelity Band</span>
+                  <strong>{compileReport.fidelityBand}</strong>
+                </div>
+                <div className="circuit-compile-metrics">
+                  {compileReport.metrics.map((metric) => (
+                    <div key={`compile-metric-${metric.label}`} className="circuit-compile-metric">
+                      <span>{metric.label}</span>
+                      <strong>{metric.value}</strong>
+                    </div>
+                  ))}
+                </div>
+                {compileReport.warnings.length > 0 ? (
+                  <div className="circuit-compile-warnings">
+                    {compileReport.warnings.map((warning) => (
+                      <div key={`compile-warning-${warning}`} className="circuit-compile-warning">
+                        {warning}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="scientific-muted-note">No compile warnings for the selected hardware target.</div>
+                )}
+                <div className="circuit-compile-syndrome">
+                  <span>{`QEC Workflow: ${qecCodeLabel(qecCode)}`}</span>
+                  <span>{`Syndrome Preview: rounds≈${compileArtifact.syndrome_preview.rounds_est}`}</span>
+                  <span>{`stabilizers≈${compileArtifact.syndrome_preview.stabilizer_count_est}`}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="circuit-design-output">
+              <div className="circuit-ops-head">
+                <span>Gate Sequence ({operations.length})</span>
+                <span>Estimated Depth: {estimatedDepth}</span>
+              </div>
+              <div className="circuit-ops-list">
+                {operations.length === 0 ? (
+                  <div className="scientific-muted-note">No gates added yet.</div>
+                ) : (
+                  operations.map((operation, index) => (
+                    <div key={operation.id} className="circuit-op-row">
+                      <span className="circuit-op-index">{index + 1}.</span>
+                      <code className="circuit-op-code">
+                        {formatOperation(operation, hardwareTarget, photonicDetectorModel)}
+                      </code>
+                      <div className="circuit-op-actions">
+                        <button
+                          className="btn-icon"
+                          onClick={() => moveOperation(operation.id, "up")}
+                          disabled={pending || index === 0}
+                          title="Move up"
+                        >
+                          <ArrowUp size={14} aria-hidden="true" />
+                        </button>
+                        <button
+                          className="btn-icon"
+                          onClick={() => moveOperation(operation.id, "down")}
+                          disabled={pending || index === operations.length - 1}
+                          title="Move down"
+                        >
+                          <ArrowDown size={14} aria-hidden="true" />
+                        </button>
+                        <button
+                          className="btn-icon"
+                          onClick={() => removeOperation(operation.id)}
+                          disabled={pending}
+                          title="Remove gate"
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
 
           <div className="circuit-preview-head">
             <span>Circuit Preview</span>
@@ -3350,16 +3645,16 @@ export function StartCircuitDesignDialog({
             <div className="circuit-preview-grid" style={{ gridTemplateColumns: previewGridTemplate }}>
               {qubitOptions.map((qubit) => (
                 <Fragment key={`preview-row-${qubit}`}>
-                  <div className="circuit-preview-start-state">|0⟩</div>
-                  <div className="circuit-preview-qubit-label">{`q[${qubit}]`}</div>
+                  <div className="circuit-preview-start-state">{circuitInputStateLabel(hardwareTarget)}</div>
+                  <div className="circuit-preview-qubit-label">{circuitLaneDisplayLabel(hardwareTarget, qubit)}</div>
                   {Array.from({ length: previewStepCount }, (_, stepIndex) => {
                     const operation = operations[stepIndex];
-                    const cell = previewCellForOperation(operation, qubit);
+                    const cell = previewCellForOperation(operation, qubit, hardwareTarget);
                     return (
                       <div
                         key={`preview-cell-${qubit}-${stepIndex}`}
                         className={`circuit-preview-cell${cell.hasConnector ? " has-connector" : ""}`}
-                        title={operation ? formatOperation(operation) : "No gate"}
+                        title={operation ? formatOperation(operation, hardwareTarget, photonicDetectorModel) : "No gate"}
                       >
                         {cell.kind === "control" ? <span className="circuit-preview-control-dot" aria-hidden="true" /> : null}
                         {cell.label ? (
@@ -3376,13 +3671,15 @@ export function StartCircuitDesignDialog({
                           className="circuit-preview-end-state measured"
                           title={`Intended result: ${intended.intendedBit} (P(0) ${(intended.probabilityZero * 100).toFixed(1)}%, P(1) ${(intended.probabilityOne * 100).toFixed(1)}%)`}
                         >
-                          {`|${intended.intendedBit}⟩`}
+                          {hardwareTarget === "photonic" ? `d=${intended.intendedBit}` : `|${intended.intendedBit}⟩`}
                         </div>
                       );
                     }
                     return (
                       <div className="circuit-preview-end-state">
-                        {touchedQubits.has(qubit) ? "|ψ⟩" : "|0⟩"}
+                        {touchedQubits.has(qubit)
+                          ? circuitActiveStateLabel(hardwareTarget)
+                          : circuitInputStateLabel(hardwareTarget)}
                       </div>
                     );
                   })()}
@@ -3424,6 +3721,8 @@ export function StartCircuitDesignDialog({
             <textarea className="form-textarea circuit-compile-json" value={compileArtifactJson} readOnly spellCheck={false} />
           </div>
           {errorMessage ? <div className="session-launcher-error">{errorMessage}</div> : null}
+            </div>
+          </div>
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose} disabled={pending}>

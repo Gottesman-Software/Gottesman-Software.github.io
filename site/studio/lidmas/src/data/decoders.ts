@@ -7,6 +7,9 @@ export const DECODERS: Array<{ key: DecoderKey; label: string }> = [
   { key: "uf", label: "UF" },
 ];
 
+export const PUBLIC_DECODERS = DECODERS.filter((decoder) => decoder.key !== "neural_mwpm");
+export const PUBLIC_DECODER_KEYS = PUBLIC_DECODERS.map((decoder) => decoder.key);
+
 export const DECODER_PROFILES: Record<
   DecoderKey,
   {

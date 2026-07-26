@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Gottesman Software">
+  <defs>
+    <linearGradient id="axis" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="10" fill="#FFFFFF"/>
+  <text x="8" y="43" fill="#05070B" font-family="Georgia, 'Times New Roman', serif" font-size="32" font-weight="700" letter-spacing="-2">ψ</text>
+  <rect x="35" y="14" width="3.5" height="36" rx="1.75" fill="url(#axis)"/>
+  <text x="41" y="39" fill="#05070B" font-family="Georgia, 'Times New Roman', serif" font-size="15" font-weight="700" letter-spacing="-1">GS⟩</text>
+</svg>

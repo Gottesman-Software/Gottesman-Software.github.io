@@ -1,15 +1,8 @@
-import { ChevronDown, ChevronUp, Square } from "lucide-react";
-import type { ProviderKind, ProviderStatus } from "../../api/types";
+import { Square } from "lucide-react";
 import { type SessionLaunchStatus } from "../../data/sessionControl";
-import { SessionLauncherMenu } from "./SessionLauncherMenu";
 
 interface SessionLauncherButtonProps {
   launchStatus: SessionLaunchStatus;
-  isMenuOpen: boolean;
-  providerOptions: Array<{ id: string; name: string; status: ProviderStatus; kind: ProviderKind }>;
-  selectedProviderId: string;
-  onSelectProvider: (providerId: string) => void;
-  onToggleMenu: () => void;
   onStartScientific: () => void;
   onOpenBenchmark: () => void;
   onOpenReplay: () => void;
@@ -24,11 +17,6 @@ interface SessionLauncherButtonProps {
 
 export function SessionLauncherButton({
   launchStatus,
-  isMenuOpen,
-  providerOptions,
-  selectedProviderId,
-  onSelectProvider,
-  onToggleMenu,
   onStartScientific,
   onOpenBenchmark,
   onOpenReplay,
@@ -66,38 +54,30 @@ export function SessionLauncherButton({
 
   return (
     <div className="session-launcher-inline">
-      <div className="session-launcher-split">
-        <button
-          className="btn btn-primary decoder-inline-btn"
-          onClick={onStartScientific}
-          disabled={starting || scientificDisabled}
-          title={scientificDisabledReason ?? undefined}
-        >
-          <span>{starting ? "Starting..." : "Start Session"}</span>
-        </button>
-        <button
-          className="btn btn-primary session-launcher-toggle"
-          onClick={onToggleMenu}
-          disabled={starting}
-          aria-haspopup="menu"
-          aria-expanded={isMenuOpen}
-          title="Open session launcher"
-        >
-          {isMenuOpen ? <ChevronUp size={13} aria-hidden="true" /> : <ChevronDown size={13} aria-hidden="true" />}
-        </button>
-        <SessionLauncherMenu
-          open={isMenuOpen}
-          providerOptions={providerOptions}
-          selectedProviderId={selectedProviderId}
-          onSelectProvider={onSelectProvider}
-          onStartScientific={onStartScientific}
-          onStartBenchmark={onOpenBenchmark}
-          onStartReplay={onOpenReplay}
-          scientificDisabledReason={scientificDisabledReason}
-          benchmarkDisabledReason={benchmarkDisabledReason}
-          replayDisabledReason={replayDisabledReason}
-        />
-      </div>
+      <button
+        className="btn btn-primary decoder-inline-btn"
+        onClick={onStartScientific}
+        disabled={starting || scientificDisabled}
+        title={scientificDisabledReason ?? undefined}
+      >
+        <span>{starting ? "Starting..." : "Start Session"}</span>
+      </button>
+      <button
+        className="btn btn-secondary decoder-inline-btn"
+        onClick={onOpenBenchmark}
+        disabled={starting || Boolean(benchmarkDisabledReason)}
+        title={benchmarkDisabledReason ?? undefined}
+      >
+        <span>Benchmark</span>
+      </button>
+      <button
+        className="btn btn-secondary decoder-inline-btn"
+        onClick={onOpenReplay}
+        disabled={starting || Boolean(replayDisabledReason)}
+        title={replayDisabledReason ?? undefined}
+      >
+        <span>Replay</span>
+      </button>
     </div>
   );
 }

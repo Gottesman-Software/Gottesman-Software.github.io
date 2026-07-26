@@ -18,11 +18,11 @@ export function EditProviderModal({ provider, onClose }: EditProviderModalProps)
         <form onSubmit={(e) => { e.preventDefault(); onClose(); }}>
           <div className="modal-body">
             <div className="status-info">
-              ✓ Status: <span className="status-active">Active</span>
+              Status: <span className="status-active">{provider.status ?? "registry record"}</span>
             </div>
 
             <div className="info-box">
-              ℹ️ Last connected: 2 hours ago | Health: {provider.health}%
+              Registry fields only. Runtime health appears after a run, job, or telemetry payload is recorded.
             </div>
 
             <div className="form-group">

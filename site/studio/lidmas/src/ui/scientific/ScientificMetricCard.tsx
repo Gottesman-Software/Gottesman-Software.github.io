@@ -9,6 +9,7 @@ interface ScientificMetricCardProps {
   contract: ScientificCardContract;
   result: ScientificStateResult;
   value: string;
+  tooltip?: string | null;
   hideWhenUnavailable?: boolean;
   forceVisible?: boolean;
   zeroBaseline?: boolean;
@@ -18,6 +19,7 @@ export function ScientificMetricCard({
   contract,
   result,
   value,
+  tooltip = null,
   hideWhenUnavailable = true,
   forceVisible = false,
   zeroBaseline = false,
@@ -36,7 +38,11 @@ export function ScientificMetricCard({
   if (!availability.available) {
     if (zeroBaseline) {
       return (
-        <div className="kpi-card">
+        <div
+          className={`kpi-card scientific-card-${contract.key} ${tooltip ? "kpi-card-has-tooltip" : ""}`}
+          title={tooltip ?? undefined}
+          aria-label={tooltip ? `${contract.label}: ${value}. ${tooltip}` : `${contract.label}: ${value}`}
+        >
           <div className="kpi-label">{contract.label}</div>
           <div className="kpi-value">{value}</div>
           <div className="kpi-trend">Awaiting job start</div>
@@ -60,11 +66,15 @@ export function ScientificMetricCard({
   }
 
   return (
-    <div className="kpi-card">
+    <div
+      className={`kpi-card scientific-card-${contract.key} ${tooltip ? "kpi-card-has-tooltip" : ""}`}
+      title={tooltip ?? undefined}
+      aria-label={tooltip ? `${contract.label}: ${value}. ${tooltip}` : `${contract.label}: ${value}`}
+    >
       <div className="kpi-label">{contract.label}</div>
       <div className="kpi-value">{value}</div>
       <div className="kpi-trend">
-        {contract.requiredFields.map((field) => SCIENTIFIC_FIELD_LABELS[field]).join(" / ")}
+        {tooltip ? "Hover for exact formula" : contract.requiredFields.map((field) => SCIENTIFIC_FIELD_LABELS[field]).join(" / ")}
       </div>
     </div>
   );

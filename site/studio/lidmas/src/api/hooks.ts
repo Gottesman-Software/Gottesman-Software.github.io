@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { API_ORIGIN_URL, apiFetch } from "./client";
+import { trackStudioEvent } from "../analytics";
 import type {
   AuthSessionResponse,
   AuthSignInRequest,
@@ -21,10 +22,7 @@ import type {
   IntegrationSession,
   IntegrationSessionLogsResponse,
   Job,
-  Paper04Manifest,
   Provider,
-  RunPaper04Request,
-  RunPaper04Response,
   Run,
   RunTelemetry,
   VendorCalibrationRefreshResponse,
@@ -326,32 +324,6 @@ export function useRefreshVendorCalibrations() {
   });
 }
 
-export function usePaper04Manifest(options?: QueryHookOptions) {
-  return useQuery({
-    queryKey: ["paper-04-manifest"],
-    queryFn: () => apiFetch<Paper04Manifest>("/system/paper_04/manifest"),
-    enabled: options?.enabled ?? true,
-    refetchInterval: options?.refetchInterval,
-    retry: false,
-  });
-}
-
-export function useRunPaper04() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (payload: RunPaper04Request) =>
-      apiFetch<RunPaper04Response>("/system/paper_04/run", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["paper-04-manifest"] });
-      await qc.invalidateQueries({ queryKey: ["runs"] });
-      await qc.invalidateQueries({ queryKey: ["integration-sessions"] });
-    },
-  });
-}
-
 export function useIntegrationSessions(options?: PollingQueryHookOptions) {
   return useQuery({
     queryKey: ["integration-sessions"],
@@ -370,7 +342,13 @@ export function useCreateIntegrationSession() {
         method: "POST",
         body: JSON.stringify(payload),
       }),
-    onSuccess: async () => {
+    onSuccess: async (session, payload) => {
+      trackStudioEvent("lidmas_session_started", {
+        provider: session.provider,
+        adapter_id: session.adapter_id,
+        qec_code: payload.config?.circuit_qec_code,
+        architecture: payload.config?.circuit_hardware_target,
+      });
       await qc.invalidateQueries({ queryKey: ["integration-sessions"] });
     },
   });
@@ -384,7 +362,11 @@ export function useStopIntegrationSession() {
         method: "POST",
         body: JSON.stringify({}),
       }),
-    onSuccess: async () => {
+    onSuccess: async (response) => {
+      trackStudioEvent("lidmas_session_stopped", {
+        status: response.session.status,
+        provider: response.session.provider,
+      });
       await qc.invalidateQueries({ queryKey: ["integration-sessions"] });
     },
   });

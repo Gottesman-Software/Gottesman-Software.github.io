@@ -44,8 +44,9 @@ import type {
 import { useDataMode } from "../../data/dataMode";
 import { useSessionControl, type SessionLaunchMode } from "../../data/sessionControl";
 import {
-  DECODERS,
   DECODER_PROFILES,
+  PUBLIC_DECODERS,
+  PUBLIC_DECODER_KEYS,
   decoderMatchesKey,
   decoderLabel,
   parseDecoderKey,
@@ -60,11 +61,8 @@ import {
   type ScientificCardKey,
   type ScientificField,
 } from "../scientific/contracts";
-import { ScientificEmptyState } from "../scientific/ScientificEmptyState";
-import { ScientificIntegrityAlert } from "../scientific/ScientificIntegrityAlert";
 import { ScientificMetricCard } from "../scientific/ScientificMetricCard";
 import { SessionLauncherButton } from "../scientific/SessionLauncherButton";
-import { ScientificStateBanner } from "../scientific/ScientificStateBanner";
 import { StartBenchmarkSessionDialog } from "../scientific/StartBenchmarkSessionDialog";
 import {
   StartCircuitDesignDialog,
@@ -76,13 +74,12 @@ import {
   decoderRowMatchesActive,
   resolveScientificState,
   scientificStateLabel,
-  scientificStateStatusClass,
 } from "../scientific/stateMachine";
 
 type DashboardChart = "noise" | "success" | "error" | "latency";
 type TimeRangeFilter = "1h" | "6h" | "24h" | "7d";
-type DashboardRole = "viewer" | "operator" | "admin";
 type EncodingMapMode = "surface" | "gkp";
+type DashboardCircuitQecCode = "surface" | "gkp" | "repetition" | "css_ldpc";
 type OuterCodeDistance = 3 | 5 | 7;
 
 interface MonitoringPoint {
@@ -105,34 +102,29 @@ interface MonitoringSeriesResult {
   hasDecoderSignal: boolean;
 }
 
+interface DecoderStreamRow {
+  key: string;
+  decoderKey: DecoderKey;
+  decoderName: string;
+  round: number;
+  roundLabel: string;
+  flips: number;
+  residualWeight: number;
+  residualRatePct: number | null;
+  residualFormula: string;
+}
+
+interface DecoderStreamPoint {
+  round: number;
+  roundLabel: string;
+  [key: string]: number | string;
+}
+
 interface PhysicalNoisePoint {
   round: number;
   physicalErrorPct: number;
   photonLossPct: number;
   displacementSigma: number;
-}
-
-interface OperationalKpiCardModel {
-  key: string;
-  label: string;
-  value: string;
-  trendText: string;
-  trendDelta: number;
-  trendUpGood: boolean;
-}
-
-interface WorkflowAlertItem {
-  id: string;
-  level: "critical" | "warning" | "info";
-  title: string;
-  detail: string;
-  metric: string;
-}
-
-interface AlertWorkflowState {
-  acknowledged: boolean;
-  owner: string;
-  notes: string;
 }
 
 interface DrilldownState {
@@ -243,6 +235,23 @@ const PHYSICAL_LEGEND_SIGNALS: PhysicalLegendSignal[] = [
   },
 ];
 
+const DECODER_STREAM_COLORS: Record<DecoderKey, string> = {
+  mwpm: "#3f89ea",
+  bp: "#26b36b",
+  neural_mwpm: "#9f7aea",
+  uf: "#f0982f",
+};
+
+const PUBLIC_RUN_LIMITS = {
+  shots: 1024,
+  qubits: 12,
+  gates: 96,
+  distance: 5,
+  rounds: 4,
+  timeoutSeconds: 1200,
+  activeSessions: 1,
+};
+
 function providerKindLabel(kind: string): string {
   if (kind === "superconducting") {
     return "Superconducting Qubits";
@@ -315,24 +324,11 @@ function resolveProviderFamily(provider: Provider): ProviderFamily {
   return "unknown";
 }
 
-function familyRequiresNeuralModel(family: ProviderFamily): boolean {
-  return family === "pennylane" || family === "qiskit" || family === "cirq" || family === "schrosim";
-}
-
 function workflowForProviderFamily(family: ProviderFamily): string | undefined {
   if (family === "pennylane" || family === "qiskit" || family === "cirq" || family === "schrosim") {
-    return "paper_04";
+    return "scientific_circuit";
   }
   return undefined;
-}
-
-function adapterRequiresNeuralModel(adapterId: IntegrationAdapterId): boolean {
-  return (
-    adapterId === "pennylane_surface_replay" ||
-    adapterId === "qiskit_surface_replay" ||
-    adapterId === "cirq_surface_replay" ||
-    adapterId === "schrosim_photonic_replay"
-  );
 }
 
 function supportsSoftwareCircuitDesign(provider: Provider): boolean {
@@ -342,35 +338,6 @@ function supportsSoftwareCircuitDesign(provider: Provider): boolean {
 
 function providerReady(provider: Provider | null): boolean {
   return provider != null && provider.status !== "offline";
-}
-
-function runHasScientificEvidence(run: Run): boolean {
-  if (run.status === "created") {
-    return false;
-  }
-  const metrics = run.metrics;
-  if (!metrics) {
-    return false;
-  }
-  return (
-    metrics.scientific_validation_ready === true ||
-    metrics.logical_error_rate != null ||
-    metrics.logical_failures != null ||
-    metrics.logical_trials != null ||
-    metrics.physical_error_rate != null ||
-    metrics.physical_error_events != null ||
-    metrics.physical_error_opportunities != null ||
-    metrics.request_line_count != null ||
-    metrics.response_line_count != null ||
-    metrics.rounds != null ||
-    metrics.stabilizer_count != null ||
-    metrics.syndrome_opportunities != null ||
-    metrics.residual_syndrome_events != null ||
-    metrics.expanded_shot_count != null ||
-    metrics.syndrome_satisfaction_rate != null ||
-    (metrics.decoder_exact_metrics?.length ?? 0) > 0 ||
-    (metrics.decoder_rankings?.length ?? 0) > 0
-  );
 }
 
 function scientificTransport(provider: Provider): "live" | "replay" | null {
@@ -385,8 +352,6 @@ function scientificTransport(provider: Provider): "live" | "replay" | null {
 
 function buildQuickLaunchPlan(
   provider: Provider,
-  _selectedDecoder: DecoderKey,
-  neuralModelPath: string,
   mode: SessionLaunchMode,
 ): QuickLaunchPlan | null {
   const family = resolveProviderFamily(provider);
@@ -405,7 +370,6 @@ function buildQuickLaunchPlan(
     if ((mode === "scientific" || mode === "benchmark") && scientificMode !== "replay") {
       return null;
     }
-    const trimmedModelPath = neuralModelPath.trim();
     const adapterId: IntegrationAdapterId =
       family === "pennylane"
         ? "pennylane_surface_replay"
@@ -423,7 +387,6 @@ function buildQuickLaunchPlan(
         simulator_rounds: 4,
         simulator_error_rate: 0.08,
         simulator_sigma: 0.18,
-        neural_model_path: trimmedModelPath || undefined,
       },
     };
   }
@@ -436,13 +399,6 @@ function parseTimeRange(value: string | null): TimeRangeFilter {
     return value;
   }
   return "1h";
-}
-
-function parseRole(value: string | null): DashboardRole {
-  if (value === "viewer" || value === "operator") {
-    return value;
-  }
-  return "admin";
 }
 
 function parseOuterCodeDistance(value: string | null): OuterCodeDistance {
@@ -472,15 +428,6 @@ function average(values: number[]): number {
     return 0;
   }
   return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function percentile(values: number[], p: number): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
-  return sorted[index];
 }
 
 function formatTrend(deltaPct: number): string {
@@ -536,17 +483,32 @@ function formatPercentWithCounts(
   return `${n.toLocaleString()} / ${d.toLocaleString()} = ${pct.toFixed(digits)}%`;
 }
 
-function formatRatioWithCounts(
+function formatPercentOnly(
   numerator: number | null | undefined,
   denominator: number | null | undefined,
-  digits = 3,
+  digits = 2,
 ): string {
   const n = asCount(numerator);
   const d = asCount(denominator);
-  if (n == null || d == null || d <= 0) {
+  if (n == null || d == null || d <= 0 || n > d) {
     return "—";
   }
-  return `${n.toLocaleString()} / ${d.toLocaleString()} = ${(n / d).toFixed(digits)}`;
+  return `${((n / d) * 100).toFixed(digits)}%`;
+}
+
+function formatPercentFormulaTooltip(
+  numeratorLabel: string,
+  denominatorLabel: string,
+  numerator: number | null | undefined,
+  denominator: number | null | undefined,
+  digits = 2,
+): string {
+  const n = asCount(numerator);
+  const d = asCount(denominator);
+  if (n == null || d == null || d <= 0 || n > d) {
+    return `Exact formula: ${numeratorLabel} / ${denominatorLabel}. Awaiting a valid numerator and denominator.`;
+  }
+  return `Exact formula: ${numeratorLabel} / ${denominatorLabel} = ${n.toLocaleString()} / ${d.toLocaleString()} = ${((n / d) * 100).toFixed(digits)}%`;
 }
 
 function formatOverheadMapping(
@@ -571,6 +533,94 @@ function formatOverheadMapping(
     return `${mappedOverhead.toLocaleString()} CV states / logical mode`;
   }
   return `${mappedOverhead.toLocaleString()} physical qubits / logical qubit`;
+}
+
+function optionalNumber(value: number | null | undefined): number | null {
+  return value == null || !Number.isFinite(value) ? null : value;
+}
+
+function percentFromCounts(
+  numerator: number | null | undefined,
+  denominator: number | null | undefined,
+): number | null {
+  const n = asCount(numerator);
+  const d = asCount(denominator);
+  if (n == null || d == null || d <= 0 || n > d) {
+    return null;
+  }
+  return (n / d) * 100;
+}
+
+function formatFigurePercent(value: number | null | undefined, digits = 3): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "Awaiting run";
+  }
+  return `${value.toFixed(digits)}%`;
+}
+
+function formatBudgetValue(value: number | null | undefined, suffix = ""): string {
+  if (value == null || !Number.isFinite(value)) {
+    return "Pending";
+  }
+  return `${Math.trunc(value).toLocaleString()}${suffix}`;
+}
+
+function budgetFillPercent(value: number | null | undefined, limit: number): number {
+  if (value == null || !Number.isFinite(value) || limit <= 0) {
+    return 0;
+  }
+  return clamp((value / limit) * 100, 0, 100);
+}
+
+function qecFamilyLabel(value: string | null | undefined): string {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "gkp" || normalized === "digitized_gkp") {
+    return "Digitized GKP";
+  }
+  if (normalized === "css_ldpc" || normalized === "qldpc") {
+    return "CSS-LDPC / qLDPC";
+  }
+  if (normalized === "repetition") {
+    return "Repetition";
+  }
+  if (normalized === "surface") {
+    return "Surface";
+  }
+  return "Selected code";
+}
+
+function normalizeCircuitQecCode(value: string | null | undefined): DashboardCircuitQecCode | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "gkp" || normalized === "digitized_gkp") {
+    return "gkp";
+  }
+  if (normalized === "surface" || normalized === "surface_gkp") {
+    return "surface";
+  }
+  if (normalized === "repetition") {
+    return "repetition";
+  }
+  if (normalized === "css_ldpc" || normalized === "qldpc") {
+    return "css_ldpc";
+  }
+  return null;
+}
+
+function encodingMapModeForQecCode(code: DashboardCircuitQecCode | null): EncodingMapMode {
+  return code === "gkp" ? "gkp" : "surface";
+}
+
+function circuitArchitectureLabel(value: string | null | undefined): string {
+  if (value === "photonic") {
+    return "Photonic";
+  }
+  if (value === "trapped_ion") {
+    return "Trapped ion";
+  }
+  if (value === "superconducting") {
+    return "Superconducting";
+  }
+  return "Architecture pending";
 }
 
 function formatAgo(isoText: string | null | undefined): string {
@@ -914,18 +964,15 @@ export function DecoderDashboard() {
   const [encodingMapMode, setEncodingMapMode] = useState<EncodingMapMode>("surface");
   const [isPhysicalPanelCollapsed, setPhysicalPanelCollapsed] = useState(false);
   const [drilldown, setDrilldown] = useState<DrilldownState | null>(null);
-  const [alertWorkflow, setAlertWorkflow] = useState<Record<string, AlertWorkflowState>>({});
   const [showLiveConsole, setShowLiveConsole] = useState(true);
-  const [showOperationalWorkflow, setShowOperationalWorkflow] = useState(true);
   const [opsLogCursor, setOpsLogCursor] = useState(0);
   const [quickLaunchMessage, setQuickLaunchMessage] = useState<string | null>(null);
   const [quickLaunchTone, setQuickLaunchTone] = useState<"info" | "success" | "error">("info");
-  const [sessionLauncherMenuOpen, setSessionLauncherMenuOpen] = useState(false);
   const [circuitDesignDialogOpen, setCircuitDesignDialogOpen] = useState(false);
   const [pendingCircuitLaunch, setPendingCircuitLaunch] = useState<LaunchSessionInput | null>(null);
   const [benchmarkDialogOpen, setBenchmarkDialogOpen] = useState(false);
   const [replayDialogOpen, setReplayDialogOpen] = useState(false);
-  const [benchmarkDecoders, setBenchmarkDecoders] = useState<DecoderKey[]>(() => DECODERS.map((decoder) => decoder.key));
+  const [benchmarkDecoders, setBenchmarkDecoders] = useState<DecoderKey[]>(() => [...PUBLIC_DECODER_KEYS]);
   const [replaySourceRunId, setReplaySourceRunId] = useState<string>("");
   const [activeHomeSessionSnapshot, setActiveHomeSessionSnapshot] = useState<IntegrationSession | null>(null);
   const [healthProbeLatencyMs, setHealthProbeLatencyMs] = useState<number | null>(null);
@@ -953,8 +1000,6 @@ export function DecoderDashboard() {
     armSystem,
     activeDecoder,
     setActiveDecoder,
-    neuralModelPath,
-    setNeuralModelPath,
   } = useDataMode();
   const apiConnected = isApi && !systemOff;
   const apiEnabled = apiConnected && systemArmed;
@@ -964,17 +1009,14 @@ export function DecoderDashboard() {
   const timeRangeFilter = parseTimeRange(searchParams.get("range"));
   const providerFilter = searchParams.get("provider") ?? "all";
   const compareMode = parseBooleanFlag(searchParams.get("compare"));
-  const role = parseRole(searchParams.get("role"));
   const outerCodeDistance = parseOuterCodeDistance(searchParams.get("outerDistance"));
   const compareDecoderParam = parseDecoderKey(searchParams.get("compareDecoder"));
   const fallbackCompareDecoder =
-    DECODERS.find((decoder) => decoder.key !== activeDecoder)?.key ?? activeDecoder;
+    PUBLIC_DECODERS.find((decoder) => decoder.key !== activeDecoder)?.key ?? "mwpm";
   const compareDecoder =
-    compareDecoderParam && compareDecoderParam !== activeDecoder
+    compareDecoderParam && compareDecoderParam !== activeDecoder && PUBLIC_DECODER_KEYS.includes(compareDecoderParam)
       ? compareDecoderParam
       : fallbackCompareDecoder;
-  const canEditWorkflow = role !== "viewer";
-
   const setFilterParam = (key: string, value: string, defaultValue: string) => {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
@@ -996,24 +1038,21 @@ export function DecoderDashboard() {
   const createSessionMutation = useCreateIntegrationSession();
   const stopSessionMutation = useStopIntegrationSession();
 
+  useEffect(() => {
+    if (!PUBLIC_DECODER_KEYS.includes(activeDecoder)) {
+      setActiveDecoder("mwpm");
+    }
+  }, [activeDecoder, setActiveDecoder]);
+
   const healthDataRaw = isMock ? gkpHealth : healthQuery.data;
   const healthData = systemOff ? null : healthDataRaw;
   const providerCatalogData = isMock ? gkpProviders : providersQuery.data ?? [];
-  const providersData = systemArmed ? providerCatalogData : [];
+  const simulatorCatalogData = useMemo(() => {
+    return providerCatalogData.filter((provider) => supportsSoftwareCircuitDesign(provider));
+  }, [providerCatalogData]);
+  const providersData = systemArmed ? simulatorCatalogData : [];
   const jobsData = systemArmed ? (isMock ? gkpJobs : jobsQuery.data ?? []) : [];
   const runsData = systemArmed ? (isMock ? gkpRuns : runsQuery.data ?? []) : [];
-  const groupedProviderOptions = useMemo(() => {
-    const hardware: Provider[] = [];
-    const simulators: Provider[] = [];
-    providerCatalogData.forEach((provider) => {
-      if (provider.kind === "simulated") {
-        simulators.push(provider);
-        return;
-      }
-      hardware.push(provider);
-    });
-    return { hardware, simulators };
-  }, [providerCatalogData]);
   const integrationSessions = systemArmed ? (isMock ? [] : sessionsQuery.data ?? []) : [];
   const sortedIntegrationSessions = useMemo(() => {
     return [...integrationSessions].sort(
@@ -1022,13 +1061,13 @@ export function DecoderDashboard() {
   }, [integrationSessions]);
 
   const selectableProviders = useMemo(() => {
-    return providerCatalogData.filter((provider) => {
+    return simulatorCatalogData.filter((provider) => {
       if (providerFilter !== "all" && provider.id !== providerFilter) {
         return false;
       }
       return true;
     });
-  }, [providerCatalogData, providerFilter]);
+  }, [providerFilter, simulatorCatalogData]);
 
   const filteredProviders = useMemo(
     () => (systemArmed ? selectableProviders : []),
@@ -1037,44 +1076,12 @@ export function DecoderDashboard() {
 
   const scopedProviders = useMemo(() => (systemOff ? [] : filteredProviders), [filteredProviders, systemOff]);
 
-  const [launcherProviderId, setLauncherProviderId] = useState<string>("auto");
-  const quickLaunchProvider = useMemo(() => {
+  const launchProvider = useMemo(() => {
     if (providerFilter !== "all") {
       return selectableProviders[0] ?? null;
     }
-    return selectableProviders[0] ?? null;
+    return null;
   }, [providerFilter, selectableProviders]);
-  const launcherProviderOptions = useMemo(() => {
-    if (selectableProviders.length === 0) {
-      return [];
-    }
-    return selectableProviders.map((provider) => ({
-      id: provider.id,
-      name: provider.name,
-      status: provider.status,
-      kind: provider.kind,
-    }));
-  }, [selectableProviders]);
-  useEffect(() => {
-    if (launcherProviderOptions.length === 0) {
-      if (launcherProviderId !== "auto") {
-        setLauncherProviderId("auto");
-      }
-      return;
-    }
-    if (
-      launcherProviderId === "auto" ||
-      !launcherProviderOptions.some((provider) => provider.id === launcherProviderId)
-    ) {
-      setLauncherProviderId(launcherProviderOptions[0].id);
-    }
-  }, [launcherProviderId, launcherProviderOptions]);
-  const launchProvider = useMemo(() => {
-    if (launcherProviderId === "auto") {
-      return quickLaunchProvider;
-    }
-    return selectableProviders.find((provider) => provider.id === launcherProviderId) ?? quickLaunchProvider;
-  }, [launcherProviderId, quickLaunchProvider, selectableProviders]);
 
   const scopedProviderIds = useMemo(
     () => new Set(scopedProviders.map((provider) => provider.id)),
@@ -1133,15 +1140,7 @@ export function DecoderDashboard() {
         return byRun;
       }
     }
-    return (
-      scopedIntegrationSessions.find(
-        (session) => session.status === "running" || session.status === "starting",
-      ) ??
-      sortedIntegrationSessions.find(
-        (session) => session.status === "running" || session.status === "starting",
-      ) ??
-      null
-    );
+    return null;
   }, [
     activeHomeRunId,
     activeHomeSessionId,
@@ -1232,27 +1231,11 @@ export function DecoderDashboard() {
     setActiveContext,
   ]);
 
-  const latestScopedRun = scopedRuns.length > 0 ? scopedRuns[scopedRuns.length - 1] : null;
-  const latestScopedRunWithEvidence = useMemo(() => {
-    for (let index = scopedRuns.length - 1; index >= 0; index -= 1) {
-      const candidate = scopedRuns[index];
-      if (runHasScientificEvidence(candidate)) {
-        return candidate;
-      }
-    }
-    return null;
-  }, [scopedRuns]);
-  const passiveRun = latestScopedRunWithEvidence ?? latestScopedRun;
-  const activeRunId = activeHomeRunId ?? activeIntegrationSession?.run_id ?? passiveRun?.id ?? null;
-  const activeRun = activeRunId ? runById.get(activeRunId) ?? null : passiveRun;
+  const activeRunId = activeHomeRunId ?? activeIntegrationSession?.run_id ?? null;
+  const activeRun = activeRunId ? runById.get(activeRunId) ?? null : null;
+  const hasActiveScientificContext = Boolean(activeRunId);
   const activeRunStreaming = activeRun?.status === "running" || activeRun?.status === "created";
   const streamWarmupActive = activeSessionStreaming || activeRunStreaming;
-  const showingHistoricalEvidenceRun =
-    !activeHomeRunId &&
-    !activeIntegrationSession &&
-    latestScopedRun != null &&
-    latestScopedRunWithEvidence != null &&
-    latestScopedRun.id !== latestScopedRunWithEvidence.id;
   const runTelemetryScientificQuery = useRunTelemetry(activeRunId, {
     enabled: apiEnabled && Boolean(activeRunId),
     scientificMode: true,
@@ -1331,9 +1314,10 @@ export function DecoderDashboard() {
   ]);
 
   const healthy = healthData?.status.toLowerCase() === "ok";
-  const providerCount = scopedProviders.length;
-  const jobsCount = scopedJobs.length;
-  const runsCount = scopedRuns.length;
+  const providerCount = hasActiveScientificContext ? scopedProviders.length : 0;
+  const jobsCount = hasActiveScientificContext ? scopedJobs.length : 0;
+  const runsCount = hasActiveScientificContext ? scopedRuns.length : 0;
+  const workspaceProviderRatio = hasActiveScientificContext ? `${providerCount} / 12` : "0 / 0";
   const baseProviderCount = providersData.length;
   const baseJobsCount = jobsData.length;
   const baseRunsCount = runsData.length;
@@ -1393,49 +1377,43 @@ export function DecoderDashboard() {
     }
   }, [healthQuery.fetchStatus, isApi]);
 
-  useEffect(() => {
-    if (!sessionLauncherMenuOpen) {
-      return;
-    }
-    const onWindowClick = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) {
-        return;
-      }
-      if (target.closest(".session-launcher-split")) {
-        return;
-      }
-      setSessionLauncherMenuOpen(false);
-    };
-    window.addEventListener("click", onWindowClick);
-    return () => window.removeEventListener("click", onWindowClick);
-  }, [sessionLauncherMenuOpen]);
-
   const activeRunsCount = useMemo(
-    () => scopedRuns.filter((run) => run.status === "created" || run.status === "running").length,
-    [scopedRuns],
+    () =>
+      hasActiveScientificContext
+        ? scopedRuns.filter((run) => run.status === "created" || run.status === "running").length
+        : 0,
+    [hasActiveScientificContext, scopedRuns],
   );
   const queuedJobsCount = useMemo(
-    () => scopedJobs.filter((job) => job.status === "queued").length,
-    [scopedJobs],
+    () => (hasActiveScientificContext ? scopedJobs.filter((job) => job.status === "queued").length : 0),
+    [hasActiveScientificContext, scopedJobs],
   );
   const latestProviderUpdate = useMemo(() => {
+    if (!hasActiveScientificContext) {
+      return null;
+    }
     if (scopedProviders.length === 0) {
       return null;
     }
     return scopedProviders
       .map((provider) => provider.updated_at)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
-  }, [scopedProviders]);
+  }, [hasActiveScientificContext, scopedProviders]);
   const latestJobUpdate = useMemo(() => {
+    if (!hasActiveScientificContext) {
+      return null;
+    }
     if (scopedJobs.length === 0) {
       return null;
     }
     return scopedJobs
       .map((job) => job.updated_at)
       .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
-  }, [scopedJobs]);
+  }, [hasActiveScientificContext, scopedJobs]);
   const scopePayloadBytes = useMemo(() => {
+    if (!hasActiveScientificContext) {
+      return 0;
+    }
     const snapshot = {
       providers: scopedProviders,
       jobs: scopedJobs,
@@ -1447,9 +1425,12 @@ export function DecoderDashboard() {
       return new Blob([serialized]).size;
     }
     return serialized.length;
-  }, [runTelemetry, scopedJobs, scopedProviders, scopedRuns]);
+  }, [hasActiveScientificContext, runTelemetry, scopedJobs, scopedProviders, scopedRuns]);
 
   const hardwareMix = useMemo(() => {
+    if (!hasActiveScientificContext) {
+      return [];
+    }
     const mix = scopedProviders.reduce(
       (acc, provider) => {
         const label = providerKindLabel(provider.kind);
@@ -1461,7 +1442,7 @@ export function DecoderDashboard() {
     return Object.entries(mix)
       .map(([label, count]) => ({ label, count }))
       .sort((a, b) => b.count - a.count);
-  }, [scopedProviders]);
+  }, [hasActiveScientificContext, scopedProviders]);
 
   const physicalNoiseData = useMemo<PhysicalNoisePoint[]>(() => {
     if (!runTelemetry || !runTelemetry.noise_samples || runTelemetry.noise_samples.length === 0) {
@@ -1492,10 +1473,10 @@ export function DecoderDashboard() {
         : healthQuery.isLoading
           ? "Checking"
           : healthy
-            ? "Operational"
+            ? "Ready"
             : "Degraded"
       : healthy
-        ? "Operational"
+        ? "Ready"
         : "Checking";
 
   const healthBadgeClass = systemOff
@@ -1586,6 +1567,9 @@ export function DecoderDashboard() {
 
     if (isApi && anyApiError) {
       items.push({ tone: "red", text: "Backend API reported connectivity failures", time: "now" });
+    } else if (!hasActiveScientificContext) {
+      items.push({ tone: "blue", text: "No circuit session started", time: "standby" });
+      return items;
     } else {
       items.push({
         tone: "green",
@@ -1596,7 +1580,7 @@ export function DecoderDashboard() {
 
     items.push({
       tone: providerCount > 0 ? "blue" : "red",
-      text: `${providerCount} providers available for dispatch in filter`,
+      text: `${providerCount} simulators active in current session`,
       time: formatAgo(latestProviderUpdate),
     });
     items.push({
@@ -1608,6 +1592,7 @@ export function DecoderDashboard() {
     return items;
   }, [
     anyApiError,
+    hasActiveScientificContext,
     isApi,
     latestJobUpdate,
     latestProviderUpdate,
@@ -1627,75 +1612,28 @@ export function DecoderDashboard() {
   }, [physicalNoiseData]);
 
   const latestRunMetrics = activeRun?.metrics ?? null;
-  const previousRunMetrics = useMemo(() => {
-    if (scopedRuns.length < 2) {
-      return null;
-    }
-    if (!activeRunId) {
-      return scopedRuns[scopedRuns.length - 2].metrics ?? null;
-    }
-    const activeIndex = scopedRuns.findIndex((run) => run.id === activeRunId);
-    if (activeIndex === -1) {
-      return scopedRuns[scopedRuns.length - 2].metrics ?? null;
-    }
-    if (activeIndex === 0) {
-      return null;
-    }
-    return scopedRuns[activeIndex - 1].metrics ?? null;
-  }, [activeRunId, scopedRuns]);
-  const monitoringSplitIndex = Math.max(1, Math.floor(monitoringRaw.length / 2));
-  const previousWindow = monitoringRaw.slice(0, monitoringSplitIndex);
-  const currentWindow = monitoringRaw.slice(monitoringSplitIndex);
+  const dataUpdatedAt = hasActiveScientificContext
+    ? runTelemetry?.updated_at ?? activeRun?.updated_at ?? healthData?.started_at ?? null
+    : null;
+  const activeCircuitHardwareTarget = activeIntegrationSession?.config.circuit_hardware_target ?? null;
+  const activeCircuitQecCode = hasActiveScientificContext
+    ? normalizeCircuitQecCode(
+        activeIntegrationSession?.config.circuit_qec_code ?? latestRunMetrics?.best_encoder_state,
+      )
+    : null;
+  const activeEncodingMapMode = hasActiveScientificContext
+    ? encodingMapModeForQecCode(activeCircuitQecCode)
+    : null;
+  const activeEncodingContextLabel = hasActiveScientificContext
+    ? `${circuitArchitectureLabel(activeCircuitHardwareTarget)} architecture · ${qecFamilyLabel(activeCircuitQecCode)} encoding`
+    : "No architecture or QEC encoding selected yet";
 
-  const p95LatencyCurrent = percentile(
-    currentWindow.map((point) => point.latency),
-    95,
-  );
-  const p95LatencyPrevious = percentile(
-    previousWindow.map((point) => point.latency),
-    95,
-  );
-  const p95LatencyTrend = percentDelta(p95LatencyCurrent, p95LatencyPrevious);
-
-  const throughputCurrent =
-    average(currentWindow.map((point) => point.success / 100)) *
-    (1000 / Math.max(1, average(currentWindow.map((point) => point.latency))));
-  const throughputPrevious =
-    average(previousWindow.map((point) => point.success / 100)) *
-    (1000 / Math.max(1, average(previousWindow.map((point) => point.latency))));
-  const throughputTrend = percentDelta(throughputCurrent, throughputPrevious);
-
-  const queueAgedJobs = scopedJobs.filter((job) => job.status === "queued");
-  const oldestQueuedAt = queueAgedJobs.reduce((oldest, job) => {
-    const stamp = new Date(job.created_at).getTime();
-    return Number.isFinite(stamp) && stamp < oldest ? stamp : oldest;
-  }, Number.POSITIVE_INFINITY);
-  const queueAgeMinutes =
-    Number.isFinite(oldestQueuedAt) ? Math.max(0, (Date.now() - oldestQueuedAt) / 60_000) : 0;
-  const queueAgeTrend = percentDelta(queueAgeMinutes, 5);
-
-  const liveSyndromeSatisfactionRate = useMemo(() => {
-    if (syndromeSamples.length === 0) {
-      return null;
+  useEffect(() => {
+    if (!activeEncodingMapMode || encodingMapMode === activeEncodingMapMode) {
+      return;
     }
-    const triggered = syndromeSamples.filter((sample) => sample.is_triggered).length;
-    const satisfied = 1 - triggered / Math.max(1, syndromeSamples.length);
-    return clamp(satisfied, 0, 1);
-  }, [syndromeSamples]);
-  const syndromeCurrent =
-    (latestRunMetrics?.syndrome_satisfaction_rate ?? liveSyndromeSatisfactionRate ?? 0) * 100;
-  const syndromePrevious = (previousRunMetrics?.syndrome_satisfaction_rate ?? syndromeCurrent / 100) * 100;
-  const syndromeTrend = percentDelta(syndromeCurrent, syndromePrevious);
-  const dataUpdatedAt = runTelemetry?.updated_at ?? activeRun?.updated_at ?? healthData?.started_at ?? null;
-  const confidenceScore = systemOff
-    ? 0
-    : clamp(((monitoringData.length + physicalNoiseData.length) / Math.max(1, timelinePoints + 40)) * 100, 6, 99);
-  const globalRunLogicalErrorRate = latestRunMetrics?.logical_error_rate ?? null;
-  const previousGlobalRunLogicalErrorRate = previousRunMetrics?.logical_error_rate ?? null;
-  const globalRunLerTrend =
-    globalRunLogicalErrorRate != null && previousGlobalRunLogicalErrorRate != null
-      ? percentDelta(globalRunLogicalErrorRate, previousGlobalRunLogicalErrorRate)
-      : 0;
+    setEncodingMapMode(activeEncodingMapMode);
+  }, [activeEncodingMapMode, encodingMapMode]);
 
   const scientificState = useMemo(
     () =>
@@ -1708,7 +1646,6 @@ export function DecoderDashboard() {
     [activeDecoder, activeRun, runTelemetryScientific],
   );
   const scientificExactnessLabel = scientificStateLabel(scientificState.state);
-  const scientificExactnessClass = scientificStateStatusClass(scientificState.state);
   const scientificOverheadProviderKind = activeRun
     ? providerById.get(activeRun.provider_id)?.kind ?? null
     : null;
@@ -1716,9 +1653,8 @@ export function DecoderDashboard() {
   const scientificCardValues = useMemo<Record<ScientificCardKey, string>>(() => {
     if (scientificZeroBaseline) {
       return {
-        ler: "0 / 0 = 0.0000%",
-        per: "0 / 0 = 0.0000%",
-        response_ratio: "0 / 0 = 0.000",
+        ler: "0.0000%",
+        per: "0.0000%",
         rounds: "0",
         stabilizer_count: "0",
         syndrome_opportunities: "0",
@@ -1733,20 +1669,15 @@ export function DecoderDashboard() {
       };
     }
     return {
-      ler: formatPercentWithCounts(
+      ler: formatPercentOnly(
         scientificState.signals.logical_failures,
         scientificState.signals.logical_trials,
         4,
       ),
-      per: formatPercentWithCounts(
+      per: formatPercentOnly(
         scientificState.signals.physical_error_events,
         scientificState.signals.physical_error_opportunities,
         4,
-      ),
-      response_ratio: formatRatioWithCounts(
-        scientificState.signals.response_line_count,
-        scientificState.signals.request_line_count,
-        3,
       ),
       rounds: formatCount(scientificState.signals.rounds),
       stabilizer_count: formatCount(scientificState.signals.stabilizer_count),
@@ -1766,6 +1697,25 @@ export function DecoderDashboard() {
       expanded_shot_count: formatCompactCount(scientificState.signals.expanded_shot_count),
     };
   }, [scientificOverheadProviderKind, scientificState.signals, scientificZeroBaseline]);
+  const scientificCardTooltips = useMemo<Partial<Record<ScientificCardKey, string>>>(
+    () => ({
+      ler: formatPercentFormulaTooltip(
+        "logical_failures",
+        "logical_trials",
+        scientificState.signals.logical_failures,
+        scientificState.signals.logical_trials,
+        4,
+      ),
+      per: formatPercentFormulaTooltip(
+        "physical_error_events",
+        "physical_error_opportunities",
+        scientificState.signals.physical_error_events,
+        scientificState.signals.physical_error_opportunities,
+        4,
+      ),
+    }),
+    [scientificState.signals],
+  );
   const scientificPrimaryCards = useMemo(
     () =>
       SCIENTIFIC_PRIMARY_CARD_ORDER.map((key) => ({
@@ -1803,53 +1753,6 @@ export function DecoderDashboard() {
     }
     return "Exact Calculation...";
   }, [scientificState.completeness.missingSignals.length, scientificState.state]);
-  const scientificIngestingRows = useMemo(() => {
-    const rows: Array<{ label: string; value: string }> = [];
-    if (!scientificState.hasRunContext) {
-      rows.push({ label: "Run", value: "No run selected" });
-    } else {
-      const runLabel = activeRun?.id ? activeRun.id.slice(0, 8).toUpperCase() : "active";
-      rows.push({ label: "Run", value: `Run ${runLabel} detected` });
-    }
-    if (!scientificState.hasTelemetryContext) {
-      rows.push({ label: "Telemetry", value: "Awaiting decoder output" });
-    } else {
-      rows.push({ label: "Telemetry", value: "Scientific telemetry stream connected" });
-    }
-    if (scientificState.signals.rounds != null) {
-      rows.push({
-        label: "Rounds",
-        value: `${scientificState.signals.rounds.toLocaleString()} rounds detected`,
-      });
-    }
-    if (scientificState.signals.stabilizer_count != null) {
-      rows.push({
-        label: "Stabilizers",
-        value: `${scientificState.signals.stabilizer_count.toLocaleString()} stabilizers tracked`,
-      });
-    }
-    if (scientificState.signals.request_line_count != null) {
-      rows.push({
-        label: "Request lines",
-        value: scientificState.signals.request_line_count.toLocaleString(),
-      });
-    }
-    if (scientificState.signals.response_line_count != null) {
-      rows.push({
-        label: "Response lines",
-        value: scientificState.signals.response_line_count.toLocaleString(),
-      });
-    }
-    return rows;
-  }, [
-    activeRun?.id,
-    scientificState.hasRunContext,
-    scientificState.hasTelemetryContext,
-    scientificState.signals.request_line_count,
-    scientificState.signals.response_line_count,
-    scientificState.signals.rounds,
-    scientificState.signals.stabilizer_count,
-  ]);
   const scientificExactSourceRows =
     runTelemetryScientific?.decoder_exact_metrics ?? activeRun?.metrics?.decoder_exact_metrics ?? [];
   const scientificActiveDecoderRow = useMemo(
@@ -1859,6 +1762,30 @@ export function DecoderDashboard() {
       ) ?? null,
     [activeDecoder, scientificExactSourceRows],
   );
+  const decoderRecommendationRows = (latestRunMetrics?.decoder_rankings ?? []).filter((row) => {
+    const decoderKey = parseDecoderKey(row.decoder);
+    return decoderKey != null && PUBLIC_DECODER_KEYS.includes(decoderKey);
+  });
+  const topDecoderRecommendation = decoderRecommendationRows[0] ?? null;
+  const backendRecommendedDecoderKey = parseDecoderKey(latestRunMetrics?.best_decoder ?? runTelemetry?.decoder_name);
+  const topDecoderRecommendationKey = parseDecoderKey(topDecoderRecommendation?.decoder);
+  const recommendedDecoderKey =
+    backendRecommendedDecoderKey && PUBLIC_DECODER_KEYS.includes(backendRecommendedDecoderKey)
+      ? backendRecommendedDecoderKey
+      : topDecoderRecommendationKey && PUBLIC_DECODER_KEYS.includes(topDecoderRecommendationKey)
+        ? topDecoderRecommendationKey
+        : null;
+  const recommendedDecoderLabel =
+    recommendedDecoderKey != null
+      ? decoderLabel(recommendedDecoderKey)
+      : topDecoderRecommendation?.decoder ?? "Awaiting run";
+
+  useEffect(() => {
+    if (!recommendedDecoderKey || recommendedDecoderKey === activeDecoder || !PUBLIC_DECODER_KEYS.includes(recommendedDecoderKey)) {
+      return;
+    }
+    setActiveDecoder(recommendedDecoderKey);
+  }, [activeDecoder, recommendedDecoderKey, setActiveDecoder]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) {
@@ -1892,78 +1819,6 @@ export function DecoderDashboard() {
     scientificState.state,
   ]);
 
-  const operationalKpiCards = useMemo<OperationalKpiCardModel[]>(() => {
-    const cards: OperationalKpiCardModel[] = [
-      {
-        key: "p95-latency",
-        label: "P95 Decoder Latency",
-        value: `${p95LatencyCurrent.toFixed(1)} ms`,
-        trendText: formatTrend(p95LatencyTrend),
-        trendDelta: p95LatencyTrend,
-        trendUpGood: false,
-      },
-      {
-        key: "syndrome",
-        label: "Syndrome Satisfaction",
-        value: `${syndromeCurrent.toFixed(2)}%`,
-        trendText: formatTrend(syndromeTrend),
-        trendDelta: syndromeTrend,
-        trendUpGood: true,
-      },
-      {
-        key: "throughput",
-        label: "Throughput",
-        value: `${throughputCurrent.toFixed(2)} ops/s`,
-        trendText: formatTrend(throughputTrend),
-        trendDelta: throughputTrend,
-        trendUpGood: true,
-      },
-      {
-        key: "queue-age",
-        label: "Queue Age",
-        value: `${queueAgeMinutes.toFixed(1)} min`,
-        trendText: formatTrend(queueAgeTrend),
-        trendDelta: queueAgeTrend,
-        trendUpGood: false,
-      },
-      {
-        key: "confidence",
-        label: "Confidence (Heuristic)",
-        value: `${confidenceScore.toFixed(1)}%`,
-        trendText: "Synthetic confidence from signal coverage",
-        trendDelta: 0,
-        trendUpGood: true,
-      },
-    ];
-
-    if (globalRunLogicalErrorRate != null) {
-      cards.push({
-        key: "global-run-ler",
-        label: "Global Run LER",
-        value: `${(globalRunLogicalErrorRate * 100).toFixed(4)}%`,
-        trendText:
-          previousGlobalRunLogicalErrorRate != null
-            ? `${formatTrend(globalRunLerTrend)} vs previous run`
-            : "Legacy run.metrics.logical_error_rate scope",
-        trendDelta: globalRunLerTrend,
-        trendUpGood: false,
-      });
-    }
-    return cards;
-  }, [
-    confidenceScore,
-    globalRunLerTrend,
-    globalRunLogicalErrorRate,
-    p95LatencyCurrent,
-    p95LatencyTrend,
-    previousGlobalRunLogicalErrorRate,
-    queueAgeMinutes,
-    queueAgeTrend,
-    syndromeCurrent,
-    syndromeTrend,
-    throughputCurrent,
-    throughputTrend,
-  ]);
   const anomalyThresholds = {
     noiseWarn: 0.022,
     noiseCritical: 0.03,
@@ -2029,6 +1884,8 @@ export function DecoderDashboard() {
       : "Standby";
   const extractionStatusLabel = systemOff
     ? "Syndrome extraction off"
+    : !hasActiveScientificContext
+      ? "Syndrome extraction standby"
     : syndromeExtractionActive
       ? activeIntegrationSession
         ? `Syndrome extraction ${sessionStatusLabel(activeIntegrationSession.status).toLowerCase()}`
@@ -2109,15 +1966,18 @@ export function DecoderDashboard() {
       rows,
     };
   }, [latestRoundSyndromes, outerCodeDistance]);
-  const qecTriggeredNodes = qecLattice.nodes.filter((node) => node.triggered);
+  const qecTriggeredNodes = hasActiveScientificContext ? qecLattice.nodes.filter((node) => node.triggered) : [];
   const qecPointerNodes = qecTriggeredNodes.slice(0, 8);
-  const qecStabilizerTotal = Math.max(0, runTelemetry?.stabilizer_count ?? qecLattice.nodes.length);
-  const qecTrackedTotal = qecLattice.nodes.length;
+  const qecStabilizerTotal = hasActiveScientificContext
+    ? Math.max(0, runTelemetry?.stabilizer_count ?? qecLattice.nodes.length)
+    : 0;
+  const qecTrackedTotal = hasActiveScientificContext ? qecLattice.nodes.length : 0;
   const qecMapTrimmed = qecStabilizerTotal > qecTrackedTotal;
   const qecTriggeredPct =
     qecTrackedTotal > 0 ? (qecTriggeredNodes.length / Math.max(1, qecTrackedTotal)) * 100 : 0;
   const qecSurfaceDistance = outerCodeDistance;
-  const qecSurfaceRoundLabel = latestSyndromeRound !== null ? `Round ${latestSyndromeRound + 1}` : "No round";
+  const qecSurfaceRoundLabel =
+    hasActiveScientificContext && latestSyndromeRound !== null ? `Round ${latestSyndromeRound + 1}` : "No round";
   const gkpOscillatorStates = useMemo<GkpOscillatorStateSample[]>(() => {
     if (rawGkpOscillatorStates.length > 0) {
       return rawGkpOscillatorStates;
@@ -2194,17 +2054,81 @@ export function DecoderDashboard() {
   const gkpEnergyAvg =
     gkpOscillatorMapPoints.length > 0 ? average(gkpOscillatorMapPoints.map((point) => point.energy)) : 0;
   const qecMapHeading =
-    encodingMapMode === "surface"
-      ? "Surface Syndrome Map (Outer Code)"
-      : "Raw GKP Oscillator Map (Inner Code)";
+    !hasActiveScientificContext
+      ? "Encoding Map Pending"
+      : encodingMapMode === "surface"
+        ? `${qecFamilyLabel(activeCircuitQecCode)} Syndrome Map`
+        : "Digitized GKP Oscillator Map";
   const qecMapSubtitle =
-    encodingMapMode === "surface"
-      ? `Surface lattice telemetry for ${qecSurfaceRoundLabel} · distance-${qecSurfaceDistance}`
+    !hasActiveScientificContext
+      ? "Build a circuit and select an architecture/QEC pair before syndrome or oscillator state maps are shown."
+      : encodingMapMode === "surface"
+        ? activeCircuitQecCode === "repetition"
+          ? `Repetition-code syndrome telemetry for ${qecSurfaceRoundLabel}`
+          : activeCircuitQecCode === "css_ldpc"
+            ? `CSS-LDPC parity-check telemetry for ${qecSurfaceRoundLabel}`
+            : `Surface lattice telemetry for ${qecSurfaceRoundLabel} · distance-${qecSurfaceDistance}`
       : gkpOscillatorFallback
         ? `Derived oscillator projection for ${gkpRoundLabel} from physical noise telemetry`
         : `Direct oscillator telemetry for ${gkpRoundLabel} with phase-space state vectors`;
+  const publicDecoderInterventions = useMemo(
+    () =>
+      (runTelemetry?.decoder_interventions ?? []).filter((row) => {
+        const decoderKey = parseDecoderKey(row.decoder);
+        return decoderKey != null && PUBLIC_DECODER_KEYS.includes(decoderKey);
+      }),
+    [runTelemetry?.decoder_interventions],
+  );
+  const hasPublicDecoderInterventions = publicDecoderInterventions.length > 0;
+  const decoderStreamRows = useMemo<DecoderStreamRow[]>(() => {
+    const stabilizerDenominator = asCount(scientificState.signals.stabilizer_count) ?? 0;
+    return publicDecoderInterventions
+      .map((row, index) => {
+        const decoderKey = parseDecoderKey(row.decoder);
+        if (decoderKey == null || !PUBLIC_DECODER_KEYS.includes(decoderKey)) {
+          return null;
+        }
+        const roundLabel = `R${row.round + 1}`;
+        const residualRatePct =
+          stabilizerDenominator > 0 ? Number(((row.residual_weight / stabilizerDenominator) * 100).toFixed(4)) : null;
+        const residualFormula =
+          stabilizerDenominator > 0
+            ? `residual_weight / stabilizer_count = ${row.residual_weight.toLocaleString()} / ${stabilizerDenominator.toLocaleString()} = ${residualRatePct?.toFixed(4)}%`
+            : "residual_weight / stabilizer_count requires a positive stabilizer_count.";
+        return {
+          key: `${decoderKey}-${row.round}-${index}`,
+          decoderKey,
+          decoderName: decoderLabel(decoderKey),
+          round: row.round,
+          roundLabel,
+          flips: row.flips,
+          residualWeight: row.residual_weight,
+          residualRatePct,
+          residualFormula,
+        };
+      })
+      .filter((row): row is DecoderStreamRow => row != null)
+      .sort((left, right) => left.round - right.round || left.decoderName.localeCompare(right.decoderName));
+  }, [publicDecoderInterventions, scientificState.signals.stabilizer_count]);
+  const decoderStreamDecoderKeys = PUBLIC_DECODER_KEYS.filter((decoderKey) =>
+    decoderStreamRows.some((row) => row.decoderKey === decoderKey),
+  );
+  const decoderStreamChartData = useMemo<DecoderStreamPoint[]>(() => {
+    const byRound = new Map<number, DecoderStreamPoint>();
+    decoderStreamRows.forEach((row) => {
+      const point = byRound.get(row.round) ?? { round: row.round, roundLabel: row.roundLabel };
+      point[`${row.decoderKey}_residual`] = row.residualRatePct ?? 0;
+      point[`${row.decoderKey}_flips`] = row.flips;
+      byRound.set(row.round, point);
+    });
+    return [...byRound.values()].sort((left, right) => left.round - right.round);
+  }, [decoderStreamRows]);
+  const decoderStreamLatestRound = decoderStreamRows.reduce((roundMax, row) => Math.max(roundMax, row.round), -1);
+  const decoderStreamTotalFlips = decoderStreamRows.reduce((sum, row) => sum + row.flips, 0);
+  const decoderStreamResidualWeight = decoderStreamRows.reduce((sum, row) => sum + row.residualWeight, 0);
+  const decoderStreamLatestRows = decoderStreamRows.slice(-12).reverse();
   const opsInterventionSeries = useMemo(() => {
-    const rows = (runTelemetry?.decoder_interventions ?? []).slice(-32);
+    const rows = publicDecoderInterventions.slice(-32);
     if (rows.length === 0) {
       return Array.from({ length: 12 }, (_, index) => ({
         key: `idle-${index}`,
@@ -2237,7 +2161,7 @@ export function DecoderDashboard() {
         round,
       };
     });
-  }, [runTelemetry?.decoder_interventions]);
+  }, [publicDecoderInterventions]);
   const latestInterventionRoundLabel = useMemo(() => {
     const latest = opsInterventionSeries[opsInterventionSeries.length - 1];
     if (!latest || latest.round === null) {
@@ -2285,7 +2209,7 @@ export function DecoderDashboard() {
       });
     });
 
-    (runTelemetry?.decoder_interventions ?? [])
+    publicDecoderInterventions
       .slice(-28)
       .forEach((row) => {
         const decoder = decoderLabel(parseDecoderKey(row.decoder) ?? activeDecoder);
@@ -2301,8 +2225,8 @@ export function DecoderDashboard() {
     physicalAnomalies.slice(-8).forEach((point) => {
       events.push({
         level: "critical",
-        text: `Physical anomaly at round ${point.round}: PER ${point.physicalErrorPct.toFixed(3)}%`,
-        tag: "PER",
+        text: `Physical anomaly at round ${point.round}: telemetry PER ${point.physicalErrorPct.toFixed(3)}%`,
+        tag: "Telemetry PER",
         source: "physical",
       });
     });
@@ -2330,7 +2254,7 @@ export function DecoderDashboard() {
     activeIntegrationSession,
     activityFeed,
     physicalAnomalies,
-    runTelemetry?.decoder_interventions,
+    publicDecoderInterventions,
     sessionLogsQuery.data?.lines,
     systemOff,
   ]);
@@ -2371,91 +2295,19 @@ export function DecoderDashboard() {
   const compareHigherIsBetter = activeChart === "success";
   const compareIsGood = compareHigherIsBetter ? compareDelta >= 0 : compareDelta <= 0;
 
-  const workflowAlerts = useMemo<WorkflowAlertItem[]>(() => {
-    const items: WorkflowAlertItem[] = [];
-    if (anyApiError) {
-      items.push({
-        id: "api-link",
-        level: "critical",
-        title: "Backend Connectivity",
-        detail: "One or more API endpoints are unreachable in live mode.",
-        metric: "API health",
-      });
-    }
-    if (latencyAnomalies.length > 0) {
-      items.push({
-        id: "latency-spike",
-        level: "warning",
-        title: "Latency threshold breached",
-        detail: `${latencyAnomalies.length} windows above ${anomalyThresholds.latencyWarn} ms`,
-        metric: `P95 ${p95LatencyCurrent.toFixed(1)} ms`,
-      });
-    }
-    if (errorAnomalies.length > 0) {
-      items.push({
-        id: "error-rise",
-        level: "warning",
-        title: "Decoder error rate elevated",
-        detail: `${errorAnomalies.length} windows above ${anomalyThresholds.errorWarn}%`,
-        metric: `${average(errorAnomalies.map((point) => point.error)).toFixed(2)}% avg`,
-      });
-    }
-    if (perValue !== null && perValue >= anomalyThresholds.perWarn) {
-      items.push({
-        id: "per-high",
-        level: "critical",
-        title: "Physical error rate high",
-        detail: `PER exceeded ${anomalyThresholds.perWarn.toFixed(1)}% threshold`,
-        metric: `${perValue.toFixed(3)}%`,
-      });
-    }
-    if (items.length === 0) {
-      items.push({
-        id: "all-clear",
-        level: "info",
-        title: "No critical anomalies",
-        detail: "All monitored bands are within configured thresholds.",
-        metric: "Operational",
-      });
-    }
-    return items;
-  }, [
-    anomalyThresholds.errorWarn,
-    anomalyThresholds.latencyWarn,
-    anomalyThresholds.perWarn,
-    anyApiError,
-    errorAnomalies,
-    latencyAnomalies,
-    p95LatencyCurrent,
-    perValue,
-  ]);
-
-  const updateWorkflowState = (alertId: string, patch: Partial<AlertWorkflowState>) => {
-    setAlertWorkflow((current) => {
-      const previous = current[alertId] ?? {
-        acknowledged: false,
-        owner: "Unassigned",
-        notes: "",
-      };
-      return {
-        ...current,
-        [alertId]: {
-          ...previous,
-          ...patch,
-        },
-      };
-    });
-  };
-
   const activeProviderName =
     providerFilter !== "all"
-      ? providerById.get(providerFilter)?.name ?? "Unknown Provider"
-      : "All Providers";
+      ? providerById.get(providerFilter)?.name ?? "Unknown Simulator"
+      : "Choose Simulator";
   const activeRunProvider = activeRun ? providerById.get(activeRun.provider_id) ?? null : null;
   const heroProviderLabel = activeRunProvider?.name ?? activeProviderName;
   const heroHardwareLabel = activeRunProvider
     ? providerKindLabel(activeRunProvider.kind)
     : "Mixed Simulator Scope";
+  const heroSimulatorLabel = hasActiveScientificContext
+    ? `${heroHardwareLabel} · ${heroProviderLabel}`
+    : heroProviderLabel;
+  const activeDecoderHeaderLabel = hasActiveScientificContext ? recommendedDecoderLabel : "None";
   const activeRunShortId = activeRunId ? activeRunId.slice(0, 8).toUpperCase() : "None";
   const activeSessionShortId = activeIntegrationSession
     ? activeIntegrationSession.id.slice(0, 8).toUpperCase()
@@ -2463,11 +2315,6 @@ export function DecoderDashboard() {
   const quickLaunchBusy = createRunMutation.isPending || createSessionMutation.isPending;
   const sessionStopBusy = stopSessionMutation.isPending;
   const launchProviderFamily = launchProvider ? resolveProviderFamily(launchProvider) : "unknown";
-  const quickLaunchRequiresNeuralModel =
-    launchProvider != null &&
-    activeDecoder === "neural_mwpm" &&
-    familyRequiresNeuralModel(launchProviderFamily);
-  const quickLaunchMissingNeuralModel = quickLaunchRequiresNeuralModel && !neuralModelPath.trim();
   const replaySourceOptions = useMemo<ReplaySourceOption[]>(() => {
     return [...scopedRuns]
       .filter((run) => run.status === "finished")
@@ -2498,18 +2345,13 @@ export function DecoderDashboard() {
     ? providerById.get(selectedReplaySourceRun.provider_id) ?? null
     : launchProvider;
   const replayLaunchProviderFamily = replayLaunchProvider ? resolveProviderFamily(replayLaunchProvider) : "unknown";
-  const benchmarkIncludesNeural = benchmarkDecoders.includes("neural_mwpm");
-  const benchmarkRequiresNeuralModel =
-    launchProvider != null &&
-    benchmarkIncludesNeural &&
-    familyRequiresNeuralModel(launchProviderFamily);
   const providerOperationalStateText = !launchProvider
-    ? "No provider configured"
+    ? "No simulator selected"
     : !providerReady(launchProvider)
-      ? "Provider configured but currently offline"
+      ? "Simulator configured but currently offline"
       : scientificTransport(launchProvider) != null
-        ? "Provider available and scientific-ready"
-        : "Provider configured but scientific mode unsupported";
+        ? "Simulator available and scientific-ready"
+        : "Simulator configured but scientific mode unsupported";
   const baseSessionUnavailableReason =
     !isApi
       ? "Scientific session unavailable — switch to Live API mode"
@@ -2518,15 +2360,15 @@ export function DecoderDashboard() {
         : anyApiError
           ? "Scientific session unavailable — backend unreachable"
           : launchProvider == null
-            ? "Scientific session unavailable — no provider configured"
+            ? "Scientific session unavailable — no simulator selected"
             : !providerReady(launchProvider)
-              ? "Scientific session unavailable — provider configured but offline"
+              ? "Scientific session unavailable — simulator configured but offline"
               : !launchProvider.supports_scientific
-                ? "Scientific session unavailable — provider configured but scientific mode unsupported"
+                ? "Scientific session unavailable — simulator configured but scientific mode unsupported"
                 : scientificTransport(launchProvider) == null
-                  ? "Scientific session unavailable — provider configured but public replay mode unsupported"
+                  ? "Scientific session unavailable — simulator configured but public replay mode unsupported"
                   : launchProviderFamily === "unknown"
-                    ? "Scientific session unavailable — provider configured but adapter mapping missing"
+                    ? "Scientific session unavailable — simulator configured but adapter mapping missing"
                     : null;
   const benchmarkBaseUnavailableReason =
     !isApi
@@ -2536,15 +2378,15 @@ export function DecoderDashboard() {
         : anyApiError
           ? "Benchmark unavailable — backend unreachable"
           : launchProvider == null
-            ? "Benchmark unavailable — no provider configured"
+            ? "Benchmark unavailable — no simulator selected"
             : !providerReady(launchProvider)
-              ? "Benchmark unavailable — provider configured but offline"
+              ? "Benchmark unavailable — simulator configured but offline"
               : !launchProvider.supports_benchmark
-                ? "Benchmark unavailable — provider configured but benchmark mode unsupported"
+                ? "Benchmark unavailable — simulator configured but benchmark mode unsupported"
                 : scientificTransport(launchProvider) == null
-                  ? "Benchmark unavailable — provider configured but public replay mode unsupported"
+                  ? "Benchmark unavailable — simulator configured but public replay mode unsupported"
                   : launchProviderFamily === "unknown"
-                    ? "Benchmark unavailable — provider configured but adapter mapping missing"
+                    ? "Benchmark unavailable — simulator configured but adapter mapping missing"
                     : null;
   const replayBaseUnavailableReason =
     !isApi
@@ -2554,24 +2396,183 @@ export function DecoderDashboard() {
         : anyApiError
           ? "Replay unavailable — backend unreachable"
           : replayLaunchProvider == null
-            ? "Replay unavailable — no provider configured"
+            ? "Replay unavailable — no simulator selected"
             : !providerReady(replayLaunchProvider)
-              ? "Replay unavailable — provider configured but offline"
+              ? "Replay unavailable — simulator configured but offline"
               : !replayLaunchProvider.supports_replay
-                ? "Replay unavailable — provider configured but replay mode unsupported"
+                ? "Replay unavailable — simulator configured but replay mode unsupported"
                 : replayLaunchProviderFamily === "unknown"
-                  ? "Replay unavailable — provider configured but adapter mapping missing"
+                  ? "Replay unavailable — simulator configured but adapter mapping missing"
                   : null;
-  const scientificSessionUnavailableReason =
-    baseSessionUnavailableReason ??
-    (quickLaunchMissingNeuralModel
-      ? "Scientific session unavailable — set Neural Model path for Neural MWPM replay sessions"
-      : null);
-  const benchmarkMenuDisabledReason =
-    benchmarkBaseUnavailableReason ??
-    (benchmarkRequiresNeuralModel && !neuralModelPath.trim()
-      ? "Benchmark unavailable — set Neural Model path for Neural MWPM replay sessions"
-      : null);
+  const scientificSessionUnavailableReason = baseSessionUnavailableReason;
+  const activeSessionConfig = activeIntegrationSession?.config ?? null;
+  const launchArchitectureLabel =
+    launchProviderFamily === "pennylane" || launchProviderFamily === "schrosim"
+      ? "Photonic"
+      : launchProviderFamily === "qiskit" || launchProviderFamily === "cirq"
+        ? "Superconducting"
+        : "Pending";
+  const publicRunArchitectureLabel = hasActiveScientificContext
+    ? circuitArchitectureLabel(activeCircuitHardwareTarget)
+    : launchArchitectureLabel;
+  const publicRunQecLabel = hasActiveScientificContext ? qecFamilyLabel(activeCircuitQecCode) : "Selected in circuit builder";
+  const publicRunBudgetRows = [
+    {
+      key: "shots",
+      label: "Shots",
+      value: optionalNumber(activeSessionConfig?.simulator_shots) ?? optionalNumber(scientificState.signals.expanded_shot_count),
+      limit: PUBLIC_RUN_LIMITS.shots,
+      note: "public replay cap",
+    },
+    {
+      key: "qubits",
+      label: "Qubits / Modes",
+      value: optionalNumber(activeSessionConfig?.circuit_qubits),
+      limit: PUBLIC_RUN_LIMITS.qubits,
+      note: publicRunArchitectureLabel,
+    },
+    {
+      key: "gates",
+      label: "Gate Count",
+      value: optionalNumber(activeSessionConfig?.circuit_gate_count),
+      limit: PUBLIC_RUN_LIMITS.gates,
+      note: "compiled circuit",
+    },
+    {
+      key: "distance",
+      label: "Code Distance",
+      value: optionalNumber(activeSessionConfig?.simulator_distance) ?? (activeCircuitQecCode === "surface" ? outerCodeDistance : null),
+      limit: PUBLIC_RUN_LIMITS.distance,
+      note: publicRunQecLabel,
+    },
+    {
+      key: "rounds",
+      label: "Rounds",
+      value: optionalNumber(activeSessionConfig?.simulator_rounds) ?? optionalNumber(scientificState.signals.rounds),
+      limit: PUBLIC_RUN_LIMITS.rounds,
+      note: "bounded stream",
+    },
+    {
+      key: "sessions",
+      label: "Active Session",
+      value: activeSessionStreaming || hasActiveScientificContext ? 1 : null,
+      limit: PUBLIC_RUN_LIMITS.activeSessions,
+      note: `${PUBLIC_RUN_LIMITS.timeoutSeconds / 60} min timeout`,
+    },
+  ];
+  const publicRunBudgetViolations = publicRunBudgetRows.filter(
+    (row) => row.value != null && row.value > row.limit,
+  );
+  const publicRunEnvelopeTone =
+    systemOff || scientificSessionUnavailableReason
+      ? "standby"
+      : publicRunBudgetViolations.length > 0
+        ? "warning"
+        : hasActiveScientificContext
+          ? "running"
+          : "ready";
+  const publicRunEnvelopeLabel =
+    publicRunEnvelopeTone === "standby"
+      ? "Choose simulator"
+      : publicRunEnvelopeTone === "warning"
+        ? "Reduce payload"
+        : publicRunEnvelopeTone === "running"
+          ? "Bounded run"
+          : "Ready";
+  const publicRunEnvelopeNote =
+    publicRunEnvelopeTone === "standby"
+      ? "Select a simulator and build a circuit before a public session is dispatched."
+      : publicRunEnvelopeTone === "warning"
+        ? `Public mode limit exceeded: ${publicRunBudgetViolations.map((row) => row.label).join(", ")}.`
+        : hasActiveScientificContext
+          ? "This session is held inside the public Render envelope; no private credentials or lab hardware controls are used."
+          : "Public mode caps shots, rounds, distance, gate count, and active sessions before dispatch.";
+  const lerFigurePct = scientificZeroBaseline
+    ? null
+    : percentFromCounts(scientificState.signals.logical_failures, scientificState.signals.logical_trials);
+  const perFigurePct = scientificZeroBaseline
+    ? null
+    : percentFromCounts(scientificState.signals.physical_error_events, scientificState.signals.physical_error_opportunities);
+  const residualFigurePct = scientificZeroBaseline
+    ? null
+    : percentFromCounts(scientificState.signals.residual_syndrome_events, scientificState.signals.syndrome_opportunities);
+  const exactEvidenceRows = [
+    {
+      label: "Logical error",
+      value: lerFigurePct,
+      formula: scientificCardTooltips.ler ?? "Exact formula: logical_failures / logical_trials.",
+      tone: "green",
+    },
+    {
+      label: "Physical error",
+      value: perFigurePct,
+      formula: scientificCardTooltips.per ?? "Exact formula: physical_error_events / physical_error_opportunities.",
+      tone: "red",
+    },
+    {
+      label: "Residual syndrome",
+      value: residualFigurePct,
+      formula: "Exact formula: residual_syndrome_events / syndrome_opportunities.",
+      tone: "orange",
+    },
+  ];
+  const maxEvidencePercent = Math.max(
+    0.1,
+    ...exactEvidenceRows.map((row) => (row.value != null && Number.isFinite(row.value) ? row.value : 0)),
+  );
+  const decoderFigureRows = decoderRecommendationRows.slice(0, 4).map((row) => {
+    const decoderKey = parseDecoderKey(row.decoder);
+    return {
+      key: row.decoder,
+      label: decoderKey ? decoderLabel(decoderKey) : row.decoder,
+      lerPct: row.logical_error_rate * 100,
+      residualPct: row.residual_nonzero_rate * 100,
+      flips: row.avg_flips,
+    };
+  });
+  const resourceFigureRows = [
+    {
+      label: "Rounds",
+      value: asCount(scientificState.signals.rounds),
+      limit: PUBLIC_RUN_LIMITS.rounds,
+    },
+    {
+      label: "Stabilizers",
+      value: asCount(scientificState.signals.stabilizer_count),
+      limit: Math.max(PUBLIC_RUN_LIMITS.distance * PUBLIC_RUN_LIMITS.distance, qecStabilizerTotal),
+    },
+    {
+      label: "Syndrome opportunities",
+      value: asCount(scientificState.signals.syndrome_opportunities),
+      limit: Math.max(1, PUBLIC_RUN_LIMITS.rounds * PUBLIC_RUN_LIMITS.distance * PUBLIC_RUN_LIMITS.distance),
+    },
+    {
+      label: "Expanded shots",
+      value: asCount(scientificState.signals.expanded_shot_count),
+      limit: PUBLIC_RUN_LIMITS.shots,
+    },
+  ];
+  const noiseFigureRows = [
+    {
+      label: "Latest PER",
+      value: latestPhysicalPoint?.physicalErrorPct ?? null,
+      limit: anomalyThresholds.perWarn,
+      unit: "%",
+    },
+    {
+      label: "Photon loss",
+      value: latestPhysicalPoint?.photonLossPct ?? null,
+      limit: anomalyThresholds.perWarn,
+      unit: "%",
+    },
+    {
+      label: "Displacement sigma",
+      value: latestPhysicalPoint?.displacementSigma ?? null,
+      limit: anomalyThresholds.noiseWarn * 10,
+      unit: "",
+    },
+  ];
+  const benchmarkMenuDisabledReason = benchmarkBaseUnavailableReason;
   const benchmarkSessionUnavailableReason =
     benchmarkMenuDisabledReason ??
     (benchmarkDecoders.length === 0 ? "Benchmark unavailable — select at least one decoder" : null);
@@ -2579,7 +2580,7 @@ export function DecoderDashboard() {
     replayBaseUnavailableReason ??
     (replaySourceOptions.length === 0
       ? providersData.length > 0
-        ? "Replay unavailable — provider configured but no replay source available"
+        ? "Replay unavailable — simulator configured but no replay source available"
         : "Replay unavailable — no historical run in scope"
       : null) ??
     (!selectedReplaySourceRun ? "Replay unavailable — select a replay source" : null);
@@ -2604,35 +2605,24 @@ export function DecoderDashboard() {
     armSystem();
     clearError();
     beginLaunch(input.mode);
-    setSessionLauncherMenuOpen(false);
     setBenchmarkDialogOpen(false);
     setReplayDialogOpen(false);
     setActiveHomeSessionSnapshot(null);
     homeSessionStatusRef.current = null;
-    const primaryDecoder = input.decoders[0] ?? activeDecoder;
-    const launchPlan = buildQuickLaunchPlan(input.provider, primaryDecoder, neuralModelPath, input.mode);
+    const publicDecoders = input.decoders.filter((decoder) => PUBLIC_DECODER_KEYS.includes(decoder));
+    const launchDecoders = publicDecoders.length > 0 ? publicDecoders : [...PUBLIC_DECODER_KEYS];
+    const launchPlan = buildQuickLaunchPlan(input.provider, input.mode);
     const launchProviderFamily = resolveProviderFamily(input.provider);
     const launchWorkflowId = workflowForProviderFamily(launchProviderFamily);
-    const launchDecoders = input.decoders.length > 0 ? input.decoders : [activeDecoder];
     const launchDecoderLabel = launchDecoders.map((decoder) => decoderLabel(decoder)).join(", ");
     if (!launchPlan) {
       const unsupportedMessage =
         input.mode === "replay"
-          ? "Replay unavailable — provider configured but replay mode unsupported"
-          : "Session unavailable — provider configured but public replay mode unsupported";
+          ? "Replay unavailable — simulator configured but replay mode unsupported"
+          : "Session unavailable — simulator configured but public replay mode unsupported";
       markFailed(unsupportedMessage);
       setQuickLaunchTone("error");
       setQuickLaunchMessage(unsupportedMessage);
-      return;
-    }
-    if (
-      adapterRequiresNeuralModel(launchPlan.adapterId) &&
-      launchDecoders.includes("neural_mwpm") &&
-      !neuralModelPath.trim()
-    ) {
-      markFailed("Set Neural Model path before running neural_mwpm in replay mode.");
-      setQuickLaunchTone("error");
-      setQuickLaunchMessage("Set Neural Model path before running neural_mwpm in replay mode.");
       return;
     }
     const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -2670,12 +2660,14 @@ export function DecoderDashboard() {
             circuit_depth: circuitDesign.depth,
             circuit_gate_count: circuitDesign.gateCount,
             circuit_hardware_target: circuitDesign.hardwareTarget,
+            circuit_qec_code: circuitDesign.qecCode,
+            simulator_code_family: circuitDesign.qecCode,
             circuit_detector_model: circuitDesign.compileArtifact.photonic_detector_model,
             circuit_noise_config: JSON.stringify(circuitDesign.noiseConfig),
             circuit_compile_artifact: JSON.stringify(circuitDesign.compileArtifact),
             circuit_calibration_snapshot:
               circuitDesign.calibrationSnapshotId ?? circuitDesign.compileArtifact.calibration_snapshot_id,
-            simulator_shots: 16384,
+            simulator_shots: 1024,
             circuit_gate_plan: JSON.stringify(
               circuitDesign.operations.map((operation) => ({
                 gate: operation.gate,
@@ -2733,7 +2725,6 @@ export function DecoderDashboard() {
   const openCircuitDesignDialogForLaunch = (input: LaunchSessionInput) => {
     setPendingCircuitLaunch(input);
     setCircuitDesignDialogOpen(true);
-    setSessionLauncherMenuOpen(false);
     setBenchmarkDialogOpen(false);
     setReplayDialogOpen(false);
   };
@@ -2772,8 +2763,8 @@ export function DecoderDashboard() {
     const launchInput: LaunchSessionInput = {
       mode: "scientific",
       provider: launchProvider,
-      decoders: [activeDecoder],
-      datasetHint: `scientific ${timeRangeFilter} ${activeDecoder}`,
+      decoders: [...PUBLIC_DECODER_KEYS],
+      datasetHint: `scientific ${timeRangeFilter} all-decoders`,
     };
     if (supportsSoftwareCircuitDesign(launchProvider)) {
       openCircuitDesignDialogForLaunch(launchInput);
@@ -2869,11 +2860,9 @@ export function DecoderDashboard() {
     );
   };
   const handleOpenBenchmarkDialog = () => {
-    setSessionLauncherMenuOpen(false);
     setBenchmarkDialogOpen(true);
   };
   const handleOpenReplayDialog = () => {
-    setSessionLauncherMenuOpen(false);
     setReplayDialogOpen(true);
   };
   const handleViewRun = () => {
@@ -2906,7 +2895,6 @@ export function DecoderDashboard() {
     setSystemOff(true);
     setDrilldown(null);
     setOpsLogCursor(0);
-    setSessionLauncherMenuOpen(false);
     setCircuitDesignDialogOpen(false);
     setPendingCircuitLaunch(null);
     setBenchmarkDialogOpen(false);
@@ -2944,12 +2932,14 @@ export function DecoderDashboard() {
     const compareValue = metricValue(payload, activeChart, true);
     const hasCompare = compareMode && Number.isFinite(compareValue);
     const interventionTimeline =
-      runTelemetry?.decoder_interventions
+      publicDecoderInterventions
         .slice(-4)
         .map(
           (row) =>
-            `Round ${row.round + 1}: ${row.decoder} flips=${row.flips}, residual=${row.residual_weight}`,
-        ) ?? [];
+            `Round ${row.round + 1}: ${decoderLabel(parseDecoderKey(row.decoder) ?? activeDecoder)} flips=${row.flips}, residual=${
+              row.residual_weight
+            }`,
+        );
 
     setDrilldown({
       source: "realtime",
@@ -2988,20 +2978,53 @@ export function DecoderDashboard() {
     });
   };
 
+  const handleDecoderStreamDrilldown = (event: unknown) => {
+    const payload = extractChartPayload<DecoderStreamPoint>(event);
+    if (!payload) {
+      return;
+    }
+    const rowsForRound = decoderStreamRows.filter((row) => row.round === payload.round);
+    if (rowsForRound.length === 0) {
+      return;
+    }
+
+    setDrilldown({
+      source: "realtime",
+      title: `Decoder stream @ ${payload.roundLabel}`,
+      summary: `${rowsForRound.length} public decoder policies reported exact intervention rows.`,
+      keyValues: [
+        { label: "Provider", value: drilldownProviderName },
+        { label: "Run", value: activeRunId ?? "N/A" },
+        { label: "Round", value: payload.roundLabel },
+        { label: "Total flips", value: rowsForRound.reduce((sum, row) => sum + row.flips, 0).toLocaleString() },
+        {
+          label: "Residual weight",
+          value: rowsForRound.reduce((sum, row) => sum + row.residualWeight, 0).toLocaleString(),
+        },
+      ],
+      timeline: rowsForRound.map(
+        (row) =>
+          `${row.decoderName}: flips=${row.flips.toLocaleString()}, residual=${row.residualWeight.toLocaleString()}, rate=${
+            row.residualRatePct == null ? "N/A" : `${row.residualRatePct.toFixed(4)}%`
+          }`,
+      ),
+    });
+  };
+
   const handlePhysicalDrilldown = (event: unknown) => {
     const payload = extractChartPayload<PhysicalNoisePoint>(event);
     if (!payload) {
       return;
     }
     const roundInterventions =
-      runTelemetry?.decoder_interventions
+      publicDecoderInterventions
         .filter((row) => row.round === payload.round - 1)
         .map(
           (row) =>
             `${decoderLabel(parseDecoderKey(row.decoder) ?? activeDecoder)} flips=${row.flips}, residual=${
               row.residual_weight
             }`,
-        ) ?? [];
+        );
 
     setDrilldown({
       source: "physical",
@@ -3025,20 +3048,24 @@ export function DecoderDashboard() {
   const renderInterpretationPanel = () => (
     <div className="qec-sidepanel ops-console">
       <div className="ops-console-head">
-        <div className="panel-title">Realtime Decoder Console</div>
+        <div className="panel-title">Decoder Console</div>
         <span className={`status-badge ${streamingStatusClass}`}>
           ● {streamingStatusLabel}
         </span>
       </div>
-      <div className="panel-subtitle">Intervention load trend and live event tape.</div>
+      <div className="panel-subtitle">
+        {hasActiveScientificContext
+          ? "Live decoder events for the selected scientific context."
+          : "Idle until a circuit session starts."}
+      </div>
 
       <div className="ops-console-kpis">
         <div className="ops-console-kpi">
-          <span>Decoder</span>
-          <strong>{decoderLabel(activeDecoder)}</strong>
+          <span>Recommended</span>
+          <strong>{activeDecoderHeaderLabel}</strong>
         </div>
         <div className="ops-console-kpi">
-          <span>PER</span>
+          <span>Avg telemetry PER</span>
           <strong>{perValue !== null ? `${perValue.toFixed(3)}%` : "N/A"}</strong>
         </div>
         <div className="ops-console-kpi">
@@ -3053,68 +3080,70 @@ export function DecoderDashboard() {
         </div>
       </div>
 
-      <div className="ops-timeline">
-        <div className="ops-timeline-head">
-          <span>Intervention Load</span>
-          <span>{latestInterventionRoundLabel}</span>
+      {hasPublicDecoderInterventions ? (
+        <div className="ops-timeline">
+          <div className="ops-timeline-head">
+            <span>Intervention Load</span>
+            <span>{latestInterventionRoundLabel}</span>
+          </div>
+          <div className="ops-intervention-meta">
+            <span>Round Aggregate</span>
+            <strong>{`${opsInterventionSeries[opsInterventionSeries.length - 1]?.loadIndex.toFixed(1)}% load`}</strong>
+          </div>
+          <div className="ops-intervention-chart">
+            <ResponsiveContainer width="100%" height={168}>
+              <LineChart data={opsInterventionSeries} margin={{ top: 8, right: 10, left: 2, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(143,158,180,0.2)" />
+                <XAxis dataKey="roundLabel" tick={{ fill: "#8f9eb4", fontSize: 10 }} tickMargin={8} />
+                <YAxis yAxisId="work" width={36} tick={{ fill: "#8f9eb4", fontSize: 10 }} />
+                <YAxis
+                  yAxisId="load"
+                  orientation="right"
+                  domain={[0, 100]}
+                  unit="%"
+                  width={36}
+                  tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                />
+                <Tooltip
+                  formatter={(value, name) => {
+                    const numeric = numericValue(value);
+                    if (name === "Load Index") {
+                      return [`${numeric.toFixed(1)}%`, name];
+                    }
+                    return [numeric.toFixed(1), name];
+                  }}
+                  contentStyle={{ background: "#0f0f0f", border: "1px solid #1f1f1f", borderRadius: 8 }}
+                  labelStyle={{ color: "#c8d0db" }}
+                />
+                <Line yAxisId="work" type="monotone" dataKey="totalFlips" name="Flips" stroke="#3f89ea" strokeWidth={2.1} dot={false} />
+                <Line
+                  yAxisId="work"
+                  type="monotone"
+                  dataKey="totalResidual"
+                  name="Residual Weight"
+                  stroke="#f0982f"
+                  strokeWidth={2.1}
+                  dot={false}
+                />
+                <Line
+                  yAxisId="load"
+                  type="monotone"
+                  dataKey="loadIndex"
+                  name="Load Index"
+                  stroke="#e25564"
+                  strokeWidth={1.9}
+                  strokeDasharray="5 4"
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="ops-intervention-meta">
-          <span>Round Aggregate</span>
-          <strong>
-            {opsInterventionSeries.length > 0
-              ? `${opsInterventionSeries[opsInterventionSeries.length - 1]?.loadIndex.toFixed(1)}% load`
-              : "No load"}
-          </strong>
+      ) : (
+        <div className="ops-context-hint">
+          Decoder intervention charts appear after a scientific run returns measured intervention rows.
         </div>
-        <div className="ops-intervention-chart">
-          <ResponsiveContainer width="100%" height={168}>
-            <LineChart data={opsInterventionSeries} margin={{ top: 8, right: 10, left: 2, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(143,158,180,0.2)" />
-              <XAxis dataKey="roundLabel" tick={{ fill: "#8f9eb4", fontSize: 10 }} tickMargin={8} />
-              <YAxis yAxisId="work" width={36} tick={{ fill: "#8f9eb4", fontSize: 10 }} />
-              <YAxis
-                yAxisId="load"
-                orientation="right"
-                domain={[0, 100]}
-                unit="%"
-                width={36}
-                tick={{ fill: "#8f9eb4", fontSize: 10 }}
-              />
-              <Tooltip
-                formatter={(value, name) => {
-                  const numeric = numericValue(value);
-                  if (name === "Load Index") {
-                    return [`${numeric.toFixed(1)}%`, name];
-                  }
-                  return [numeric.toFixed(1), name];
-                }}
-                contentStyle={{ background: "#0f0f0f", border: "1px solid #1f1f1f", borderRadius: 8 }}
-                labelStyle={{ color: "#c8d0db" }}
-              />
-              <Line yAxisId="work" type="monotone" dataKey="totalFlips" name="Flips" stroke="#3f89ea" strokeWidth={2.1} dot={false} />
-              <Line
-                yAxisId="work"
-                type="monotone"
-                dataKey="totalResidual"
-                name="Residual Weight"
-                stroke="#f0982f"
-                strokeWidth={2.1}
-                dot={false}
-              />
-              <Line
-                yAxisId="load"
-                type="monotone"
-                dataKey="loadIndex"
-                name="Load Index"
-                stroke="#e25564"
-                strokeWidth={1.9}
-                strokeDasharray="5 4"
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      )}
 
       <div className="ops-log-head">
         <span>Live Event Stream</span>
@@ -3138,11 +3167,101 @@ export function DecoderDashboard() {
     : launchProvider
       ? resolveProviderFamily(launchProvider)
       : "unknown";
+  const backendStatusRail = (
+    <div className="workflow-section workflow-section-compact decoder-rail-backend-status">
+      <div className="section-title">Backend Status</div>
+      <div className="panel-subtitle">API fields and active scope. Scientific evidence remains in the main summary.</div>
+      <div className="rail-status-grid">
+        <section className="rail-status-card">
+          <div className="panel-title">Platform</div>
+          <div className="panel-subtitle">Backend health</div>
+          <div className="rail-status-row">
+            <span>Status</span>
+            <strong>
+              {systemOff
+                ? "Off"
+                : isApi && healthQuery.isError
+                  ? "API unreachable"
+                  : isApi && healthQuery.isLoading
+                    ? "Loading"
+                    : healthData?.status ?? "Unavailable"}
+            </strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Uptime</span>
+            <strong>{systemOff ? "0s" : healthData ? `${uptimeSeconds.toLocaleString()}s` : "—"}</strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Probe</span>
+            <strong>
+              {systemOff
+                ? "0ms"
+                : healthProbeLatencyMs !== null
+                  ? `${healthProbeLatencyMs}ms`
+                  : isApi && healthQuery.isLoading
+                    ? "Probing..."
+                    : "—"}
+            </strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Version</span>
+            <strong>{systemOff ? "—" : healthData?.version ?? (isApi ? "—" : "v0.1.0")}</strong>
+          </div>
+        </section>
+
+        <section className="rail-status-card">
+          <div className="panel-title">Scope</div>
+          <div className="panel-subtitle">Active public run context</div>
+          <div className="rail-status-row">
+            <span>Providers</span>
+            <strong>{workspaceProviderRatio}</strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Queued Jobs</span>
+            <strong>{queuedJobsCount}</strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Active Runs</span>
+            <strong>{activeRunsCount}</strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Payload</span>
+            <strong>{formatBytes(scopePayloadBytes)}</strong>
+          </div>
+          <div className="rail-status-row">
+            <span>Architecture</span>
+            <strong>{hardwareMix.length > 0 ? hardwareMix[0].label : "Unknown"}</strong>
+          </div>
+        </section>
+
+        <section className="rail-status-card">
+          <div className="panel-title-row">
+            <div>
+              <div className="panel-title">Activity</div>
+              <div className="panel-subtitle">Runtime events</div>
+            </div>
+            <span className={`status-badge ${hasActiveScientificContext ? "status-running" : "status-warning"}`}>
+              ● {hasActiveScientificContext ? (mode === "api" ? "Live API" : "GKP Mock") : "Standby"}
+            </span>
+          </div>
+          <div className="rail-activity-list">
+            {activityFeed.map((item, index) => (
+              <div key={`rail-${item.text}-${index}`} className="activity-item">
+                <span className={`activity-dot ${item.tone}`} />
+                <span className="activity-text">{item.text}</span>
+                <span className="activity-time">{item.time}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
   const liveConsoleRail = (
     <div className="decoder-live-rail">
       <div className="workflow-section workflow-section-compact">
         <div className="section-title">Live Console</div>
-        <div className="panel-subtitle">Realtime decoder stream for operator context.</div>
+        <div className="panel-subtitle">Realtime decoder stream for scientific context.</div>
         <button
           className="btn btn-secondary scientific-console-toggle"
           onClick={() => setShowLiveConsole((current) => !current)}
@@ -3153,54 +3272,10 @@ export function DecoderDashboard() {
         {showLiveConsole ? (
           renderInterpretationPanel()
         ) : (
-          <div className="scientific-muted-note">Live console hidden.</div>
+            <div className="scientific-muted-note">Live console hidden.</div>
         )}
       </div>
-      <div className="workflow-section workflow-section-compact decoder-rail-status">
-        <div className="section-title">Scientific Summary</div>
-        <div className="panel-subtitle">
-          Circuit construction, noise injection, syndrome extraction, and decoder-policy evidence with exact denominators.
-          <span className={`status-badge ${scientificExactnessClass} scientific-badge-inline`}>● {scientificExactnessLabel}</span>
-          {sessionRunning && scientificState.state === "INGESTING" ? (
-            <span className="status-badge status-running scientific-badge-inline">
-              ● Session running — ingesting telemetry
-            </span>
-          ) : null}
-        </div>
-        <ScientificStateBanner result={scientificState} />
-        {scientificState.state === "VALIDATED" ? (
-          <div className="scientific-muted-note">
-            <strong>Scientific validation passed.</strong> Exact scientific contracts and validation checks are both
-            satisfied.
-          </div>
-        ) : null}
-        {scientificState.state === "DEGRADED" ? <ScientificIntegrityAlert issues={scientificState.integrityIssues} /> : null}
-        {scientificState.state === "IDLE" ? (
-          <ScientificEmptyState
-            onStartScientificSession={handleStartScientificSession}
-            onOpenSessionLauncher={() => setSessionLauncherMenuOpen(true)}
-            startDisabled={Boolean(scientificSessionUnavailableReason) || launcherStatus === "launching"}
-            startDisabledReason={scientificSessionUnavailableReason}
-            launcherDisabled={launcherStatus === "launching"}
-          />
-        ) : null}
-        {scientificState.state === "INGESTING" ? (
-          <div className="scientific-ingesting-list">
-            {scientificIngestingRows.map((row) => (
-              <div key={row.label} className="scientific-ingesting-item">
-                <span>{row.label}</span>
-                <strong>{row.value}</strong>
-              </div>
-            ))}
-            {scientificIngestingRows.length === 0 ? (
-              <div className="scientific-ingesting-item">
-                <span>Status</span>
-                <strong>Computing logical metrics...</strong>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      {backendStatusRail}
     </div>
   );
 
@@ -3218,7 +3293,7 @@ export function DecoderDashboard() {
         <div className="trust-strip">
           <div className="trust-item">
             <span>Simulator / Backend</span>
-            <strong>{heroHardwareLabel} · {heroProviderLabel}</strong>
+            <strong>{heroSimulatorLabel}</strong>
           </div>
           <div className="trust-item">
             <span>Run / Session</span>
@@ -3229,18 +3304,24 @@ export function DecoderDashboard() {
             <strong>Scientific</strong>
           </div>
           <div className="trust-item">
-            <span>Active Decoder</span>
-            <strong>{decoderLabel(activeDecoder)}</strong>
+            <span>Recommended Decoder</span>
+            <strong>{activeDecoderHeaderLabel}</strong>
           </div>
           <div className="trust-item">
             <span>Data Source / Exactness</span>
             <strong>
-              {systemOff ? "Off" : !systemArmed ? "Standby" : mode === "api" ? "Live API" : "GKP Mock"} · {scientificExactnessLabel}
+              {systemOff
+                ? "Off"
+                : !systemArmed || !hasActiveScientificContext
+                  ? "Standby"
+                  : mode === "api"
+                    ? "Live API"
+                    : "GKP Mock"} · {scientificExactnessLabel}
             </strong>
           </div>
           <div className="trust-item">
             <span>Last Refresh</span>
-            <strong>{systemOff ? "off" : !systemArmed ? "standby" : formatAgo(dataUpdatedAt)}</strong>
+            <strong>{systemOff ? "off" : !systemArmed || !hasActiveScientificContext ? "standby" : formatAgo(dataUpdatedAt)}</strong>
           </div>
           <div className="trust-item">
             <span>Exactness Notes</span>
@@ -3263,53 +3344,25 @@ export function DecoderDashboard() {
             </select>
           </div>
           <div className="filter-group">
-            <label>Provider</label>
+            <label>Simulator</label>
             <select
               className="select-field research-select"
               value={providerFilter}
               onChange={(event) => setFilterParam("provider", event.target.value, "all")}
             >
-              <option value="all">All Providers</option>
-              {groupedProviderOptions.hardware.length > 0 ? (
-                <optgroup label="Non-simulator Boundary">
-                  {groupedProviderOptions.hardware.map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
-              {groupedProviderOptions.simulators.length > 0 ? (
-                <optgroup label="Simulators">
-                  {groupedProviderOptions.simulators.map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null}
+              <option value="all">Choose Simulator</option>
+              {simulatorCatalogData.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.name}
+                </option>
+              ))}
             </select>
-          </div>
-          <div className="filter-group">
-            <label>Neural Model</label>
-            <input
-              type="text"
-              className="search-box research-search"
-              value={neuralModelPath}
-              onChange={(event) => setNeuralModelPath(event.target.value)}
-              placeholder="/absolute/path/to/model.onnx"
-            />
           </div>
           <div className="filter-group decoder-top-actions">
             <label>Actions</label>
             <div className="decoder-inline-actions">
               <SessionLauncherButton
                 launchStatus={launcherStatus}
-                isMenuOpen={sessionLauncherMenuOpen}
-                providerOptions={launcherProviderOptions}
-                selectedProviderId={launcherProviderId}
-                onSelectProvider={setLauncherProviderId}
-                onToggleMenu={() => setSessionLauncherMenuOpen((current) => !current)}
                 onStartScientific={handleStartScientificSession}
                 onOpenBenchmark={handleOpenBenchmarkDialog}
                 onOpenReplay={handleOpenReplayDialog}
@@ -3341,44 +3394,13 @@ export function DecoderDashboard() {
           </div>
         </div>
 
-        <div className="decoder-buttons">
-          {DECODERS.map((decoder) => (
-            <button
-              key={`top-run-decoder-${decoder.key}`}
-              className={`decoder-btn ${activeDecoder === decoder.key ? "active" : ""}`}
-              onClick={() => setActiveDecoder(decoder.key)}
-            >
-              {decoder.label}
-            </button>
-          ))}
-        </div>
-
         <div className="scope-meta">
           Scope: {providerCount} simulator backends, {jobsCount} jobs, {runsCount} runs. Active backend: {activeProviderName}.
-          {" "}Launch provider state: {providerOperationalStateText}.
-          {showingHistoricalEvidenceRun ? (
-            <span className="decoder-action-feedback decoder-action-feedback-info">
-              {" "}
-              Showing latest run with scientific evidence (Run{" "}
-              {latestScopedRunWithEvidence?.id.slice(0, 8).toUpperCase()}) while the newest run has no telemetry yet.
-            </span>
-          ) : null}
+          {" "}Launch simulator state: {providerOperationalStateText}.
           {usingWarmupTelemetry ? (
             <span className="decoder-action-feedback decoder-action-feedback-info">
               {" "}
               Session is warming up. Showing provisional telemetry until the first exact replay frames arrive.
-            </span>
-          ) : null}
-          {activeDecoder === "neural_mwpm" ? (
-            <span
-              className={`decoder-action-feedback ${
-                neuralModelPath.trim() ? "decoder-action-feedback-info" : "decoder-action-feedback-error"
-              }`}
-            >
-              {" "}
-              {neuralModelPath.trim()
-                ? "Neural model path configured."
-                : "Set Neural Model path before running neural_mwpm in replay mode."}
             </span>
           ) : null}
           {quickLaunchMessage ? (
@@ -3406,6 +3428,40 @@ export function DecoderDashboard() {
         ) : null}
       </div>
 
+      <section className="public-run-envelope">
+        <div className="public-run-envelope-head">
+          <div>
+            <div className="section-title">Public Run Envelope</div>
+            <div className="panel-subtitle">
+              Render-safe public sessions for circuit construction, noise injection, syndrome extraction, and decoder comparison.
+            </div>
+          </div>
+          <span className={`public-run-status public-run-status-${publicRunEnvelopeTone}`}>
+            {publicRunEnvelopeLabel}
+          </span>
+        </div>
+        <div className="public-run-budget-grid">
+          {publicRunBudgetRows.map((row) => (
+            <div key={row.key} className="public-run-budget-card">
+              <div className="public-run-budget-meta">
+                <span>{row.label}</span>
+                <strong>
+                  {formatBudgetValue(row.value)} / {formatBudgetValue(row.limit)}
+                </strong>
+              </div>
+              <div className="public-run-budget-track" aria-hidden="true">
+                <span
+                  className={row.value != null && row.value > row.limit ? "is-over" : ""}
+                  style={{ width: `${budgetFillPercent(row.value, row.limit)}%` }}
+                />
+              </div>
+              <div className="public-run-budget-note">{row.note}</div>
+            </div>
+          ))}
+        </div>
+        <div className="public-run-envelope-note">{publicRunEnvelopeNote}</div>
+      </section>
+
       <section className="research-summary-surface">
         <div className="section-title">Scientific Summary</div>
         <div className="panel-subtitle">Exact scientific decoder metrics for the selected run and decoder.</div>
@@ -3417,6 +3473,7 @@ export function DecoderDashboard() {
                 contract={contract}
                 result={scientificState}
                 value={scientificCardValues[key]}
+                tooltip={scientificCardTooltips[key]}
                 forceVisible={scientificZeroBaseline}
                 zeroBaseline={scientificZeroBaseline}
               />
@@ -3443,10 +3500,273 @@ export function DecoderDashboard() {
                 ))}
                 <div className="scientific-detail-row">
                   <span>Decoder policy readout</span>
-                  <strong>{decoderLabel(activeDecoder)} selected in scientific mode</strong>
+                  <strong>{hasActiveScientificContext ? `${decoderLabel(activeDecoder)} selected in scientific mode` : "Awaiting run"}</strong>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="scientific-figures-section">
+          <div className="scientific-figures-head">
+            <div>
+              <div className="section-title">Scientific Evidence</div>
+              <div className="panel-subtitle">
+                Plots and exact counters from the selected simulator run. Values stay empty until a circuit session returns data.
+              </div>
+            </div>
+            <span className="scientific-figures-source">
+              {hasActiveScientificContext ? "Exact run evidence" : "Awaiting run"}
+            </span>
+          </div>
+
+          <div className="scientific-figure-grid">
+            <article className="scientific-figure-card scientific-figure-card-wide">
+              <div className="scientific-figure-card-head">
+                <span>Decoder comparison</span>
+                <strong>Decoder policy ranking</strong>
+              </div>
+              <div className="scientific-decoder-plot">
+                {decoderFigureRows.length > 0 ? (
+                  <>
+                    <div className="scientific-decoder-chart">
+                      <ResponsiveContainer width="100%" height={218}>
+                        <LineChart data={decoderFigureRows} margin={{ top: 10, right: 18, left: 0, bottom: 12 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                            axisLine={{ stroke: "rgba(255,255,255,0.14)" }}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            width={42}
+                            unit="%"
+                            tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
+                            formatter={(value, name) => {
+                              const numeric = numericValue(value);
+                              return [`${numeric.toFixed(3)}%`, name];
+                            }}
+                            contentStyle={{ background: "#0f0f0f", border: "1px solid #242a31", borderRadius: 8 }}
+                            labelStyle={{ color: "#c8d0db" }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="lerPct"
+                            name="Logical error"
+                            stroke="#4a90ff"
+                            strokeWidth={2.4}
+                            dot={{ r: 3, fill: "#4a90ff", strokeWidth: 0 }}
+                            activeDot={{ r: 5 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="residualPct"
+                            name="Residual syndrome"
+                            stroke="#35c6ac"
+                            strokeWidth={2.4}
+                            dot={{ r: 3, fill: "#35c6ac", strokeWidth: 0 }}
+                            activeDot={{ r: 5 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="scientific-decoder-legend" aria-label="Decoder policy ranking values">
+                      {decoderFigureRows.map((row, index) => (
+                        <div key={`figure-decoder-${row.key}`} className="scientific-decoder-legend-row">
+                          <span>{index + 1}</span>
+                          <strong>{row.label}</strong>
+                          <small>{row.lerPct.toFixed(3)}% LER</small>
+                          <small>{row.residualPct.toFixed(2)}% residual</small>
+                          <small>{row.flips.toFixed(2)} flips</small>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="scientific-figure-empty">
+                    Run a circuit session to rank MWPM, Union-Find, and BP from exact decoder counters.
+                  </div>
+                )}
+              </div>
+            </article>
+
+            <article className="scientific-figure-card">
+              <div className="scientific-figure-card-head">
+                <span>Error rates</span>
+                <strong>Error evidence</strong>
+              </div>
+              <div className="scientific-evidence-plot">
+                {exactEvidenceRows.map((row) => (
+                  <div key={`evidence-${row.label}`} className={`scientific-evidence-row tone-${row.tone}`} title={row.formula}>
+                    <div className="scientific-evidence-label">
+                      <span>{row.label}</span>
+                      <strong>{formatFigurePercent(row.value, row.label === "Residual syndrome" ? 2 : 4)}</strong>
+                    </div>
+                    <div className="scientific-evidence-track" aria-hidden="true">
+                      <span style={{ width: `${row.value == null ? 0 : clamp((row.value / maxEvidencePercent) * 100, 3, 100)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="scientific-figure-card">
+              <div className="scientific-figure-card-head">
+                <span>Resource counts</span>
+                <strong>QEC resource envelope</strong>
+              </div>
+              <div className="scientific-resource-plot">
+                {resourceFigureRows.map((row) => (
+                  <div key={`resource-${row.label}`} className="scientific-resource-row">
+                    <span>{row.label}</span>
+                    <strong>{formatBudgetValue(row.value)}</strong>
+                    <div className="scientific-resource-track" aria-hidden="true">
+                      <span style={{ width: `${budgetFillPercent(row.value, row.limit)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article className="scientific-figure-card">
+              <div className="scientific-figure-card-head">
+                <span>Physical telemetry</span>
+                <strong>Physical-noise readout</strong>
+              </div>
+              {physicalNoiseData.length > 0 ? (
+                <>
+                  <div className="scientific-noise-chart">
+                    <ResponsiveContainer width="100%" height={188}>
+                      <LineChart data={physicalNoiseData} margin={{ top: 8, right: 14, left: 0, bottom: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis
+                          dataKey="round"
+                          tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                          axisLine={{ stroke: "rgba(255,255,255,0.14)" }}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          yAxisId="pct"
+                          width={40}
+                          unit="%"
+                          tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis yAxisId="sigma" orientation="right" hide />
+                        <Tooltip
+                          formatter={(value, name) => {
+                            const numeric = numericValue(value);
+                            if (name === "Displacement sigma") {
+                              return [numeric.toFixed(4), name];
+                            }
+                            return [`${numeric.toFixed(3)}%`, name];
+                          }}
+                          contentStyle={{ background: "#0f0f0f", border: "1px solid #242a31", borderRadius: 8 }}
+                          labelStyle={{ color: "#c8d0db" }}
+                        />
+                        <Line
+                          yAxisId="pct"
+                          type="monotone"
+                          dataKey="physicalErrorPct"
+                          name="Telemetry PER"
+                          stroke="#e25564"
+                          strokeWidth={2.2}
+                          dot={false}
+                        />
+                        <Line
+                          yAxisId="pct"
+                          type="monotone"
+                          dataKey="photonLossPct"
+                          name="Photon loss"
+                          stroke="#f0982f"
+                          strokeWidth={2.2}
+                          dot={false}
+                        />
+                        <Line
+                          yAxisId="sigma"
+                          type="monotone"
+                          dataKey="displacementSigma"
+                          name="Displacement sigma"
+                          stroke="#4a90ff"
+                          strokeWidth={2.2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="scientific-noise-dials scientific-noise-dials-compact">
+                    {noiseFigureRows.map((row) => (
+                      <div key={`noise-${row.label}`} className="scientific-noise-dial">
+                        <span>{row.label}</span>
+                        <strong>
+                          {row.value == null
+                            ? "Awaiting run"
+                            : `${row.value.toFixed(row.unit === "%" ? 3 : 4)}${row.unit}`}
+                        </strong>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="scientific-noise-dials">
+                  {noiseFigureRows.map((row) => (
+                    <div key={`noise-${row.label}`} className="scientific-noise-dial">
+                      <span>{row.label}</span>
+                      <strong>
+                        {row.value == null
+                          ? "Awaiting run"
+                          : `${row.value.toFixed(row.unit === "%" ? 3 : 4)}${row.unit}`}
+                      </strong>
+                      <div className="scientific-noise-track" aria-hidden="true">
+                        <span style={{ width: `${budgetFillPercent(row.value, row.limit)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="scientific-figure-caption">
+                Shown only when the backend returns measured pre-QEC physical-noise samples.
+              </p>
+            </article>
+
+            <article className="scientific-figure-card">
+              <div className="scientific-figure-card-head">
+                <span>Run provenance</span>
+                <strong>Evidence trail</strong>
+              </div>
+              <div className="scientific-evidence-trail">
+                <div className="scientific-evidence-trail-row">
+                  <span>Run</span>
+                  <strong>{hasActiveScientificContext && activeRun ? `#${activeRun.id.slice(0, 8).toUpperCase()}` : "Awaiting run"}</strong>
+                </div>
+                <div className="scientific-evidence-trail-row">
+                  <span>Source</span>
+                  <strong>{hasActiveScientificContext ? "Live API" : "Awaiting run"}</strong>
+                </div>
+                <div className="scientific-evidence-trail-row">
+                  <span>Recommended decoder</span>
+                  <strong>{hasActiveScientificContext ? recommendedDecoderLabel : "Awaiting run"}</strong>
+                </div>
+                <div className="scientific-evidence-trail-row">
+                  <span>Exactness</span>
+                  <strong>{hasActiveScientificContext ? scientificMissingSignalsLabel : "Awaiting run"}</strong>
+                </div>
+                <div className="scientific-evidence-trail-row">
+                  <span>Request / response</span>
+                  <strong>
+                    {hasActiveScientificContext
+                      ? `${scientificCardValues.request_line_count} / ${scientificCardValues.response_line_count}`
+                      : "Awaiting run"}
+                  </strong>
+                </div>
+              </div>
+            </article>
           </div>
         </div>
 
@@ -3464,147 +3784,58 @@ export function DecoderDashboard() {
           </div>
         ) : null}
 
-        <div className="section-title">Operational Diagnostics</div>
-        <div className="panel-subtitle">Runtime and synthetic indicators separated from scientific metrics.</div>
-        <div className="kpi-grid">
-          {operationalKpiCards.map((card) => {
-            const trendPositive = card.trendUpGood ? card.trendDelta >= 0 : card.trendDelta <= 0;
-            return (
-              <div key={card.key} className="kpi-card">
-                <div className="kpi-label">{card.label}</div>
-                <div className="kpi-value">{card.value}</div>
-                <div className={`kpi-trend ${trendPositive ? "good" : "bad"}`}>{card.trendText}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="panels">
-          <section className="panel panel-blue">
-            <div className="panel-title">Platform Health</div>
-            <div className="panel-subtitle">Backend status</div>
-            <div className="panel-row">
-              <span className="panel-row-label">Status</span>
-              <span className="panel-row-value">
-                {systemOff
-                  ? "Off"
-                  : isApi && healthQuery.isError
-                  ? "API unreachable"
-                  : isApi && healthQuery.isLoading
-                    ? "Loading"
-                    : healthData?.status ?? "Unavailable"}
-              </span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Uptime</span>
-              <span className="panel-row-value">
-                {systemOff ? "0s" : healthData ? `${uptimeSeconds.toLocaleString()}s` : "—"}
-              </span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Latency</span>
-              <span className="panel-row-value">
-                {systemOff
-                  ? "0ms"
-                  : healthProbeLatencyMs !== null
-                  ? `${healthProbeLatencyMs}ms`
-                  : isApi && healthQuery.isLoading
-                    ? "Probing..."
-                    : "—"}
-              </span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Version</span>
-              <span className="panel-row-value">
-                {systemOff ? "—" : healthData?.version ?? (isApi ? "—" : "v0.1.0")}
-              </span>
-            </div>
-          </section>
-
-          <section className="panel panel-green">
-            <div className="panel-title">Workspace</div>
-            <div className="panel-subtitle">Active entities</div>
-            <div className="panel-row">
-              <span className="panel-row-label">Providers</span>
-              <span className="panel-row-value">{providerCount} / 12</span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Jobs Queue</span>
-              <span className="panel-row-value">{queuedJobsCount}</span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Runs Active</span>
-              <span className="panel-row-value">{activeRunsCount}</span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Scope Payload</span>
-              <span className="panel-row-value">{formatBytes(scopePayloadBytes)}</span>
-            </div>
-            <div className="panel-row">
-              <span className="panel-row-label">Hardware Mix</span>
-              <span className="panel-row-value">{hardwareMix.length > 0 ? hardwareMix[0].label : "Unknown"}</span>
-            </div>
-          </section>
-
-          <section className="panel panel-orange">
-            <div className="panel-title-row">
-              <div>
-                <div className="panel-title">Activity Feed</div>
-                <div className="panel-subtitle">Recent events and runtime mode</div>
-              </div>
-              <span className="status-badge status-running">
-                ● {mode === "api" ? "Live API" : "GKP Mock"}
-              </span>
-            </div>
-
-            {activityFeed.map((item, index) => (
-              <div key={`${item.text}-${index}`} className="activity-item">
-                <span className={`activity-dot ${item.tone}`} />
-                <span className="activity-text">{item.text}</span>
-                <span className="activity-time">{item.time}</span>
-              </div>
-            ))}
-          </section>
-        </div>
       </section>
 
       <div className="qec-map-section">
-        <div className="section-title">QEC Encoding State Map</div>
-        <div className="qec-map-selector" role="tablist" aria-label="Encoding map selector">
-          <button
-            className={`qec-map-select-btn ${encodingMapMode === "surface" ? "active" : ""}`}
-            onClick={() => setEncodingMapMode("surface")}
-            role="tab"
-            aria-selected={encodingMapMode === "surface"}
-          >
-            Surface Syndrome (Outer)
-          </button>
-          <button
-            className={`qec-map-select-btn ${encodingMapMode === "gkp" ? "active" : ""}`}
-            onClick={() => setEncodingMapMode("gkp")}
-            role="tab"
-            aria-selected={encodingMapMode === "gkp"}
-          >
-            Raw GKP Oscillator (Inner)
-          </button>
-        </div>
-        {encodingMapMode === "surface" ? (
-          <div className="qec-distance-controls" role="group" aria-label="Outer code distance selector">
-            <span className="qec-distance-label">Outer code</span>
-            <div className="qec-distance-selector">
-              {[3, 5, 7].map((distance) => (
-                <button
-                  key={`outer-distance-${distance}`}
-                  className={`qec-distance-btn ${outerCodeDistance === distance ? "active" : ""}`}
-                  onClick={() => setFilterParam("outerDistance", String(distance), "3")}
-                  title={`Set outer code distance to d=${distance}`}
-                >
-                  d={distance}
-                </button>
-              ))}
-            </div>
+        <div className="qec-map-section-header">
+          <div className="qec-map-title-block">
+            <div className="section-title">QEC Encoding State Map</div>
+            <div className="panel-subtitle">{activeEncodingContextLabel}</div>
           </div>
-        ) : null}
+          <div className="qec-map-controls">
+            <div className="qec-map-selector" role="tablist" aria-label="Encoding map selector">
+              <button
+                className={`qec-map-select-btn ${
+                  hasActiveScientificContext && encodingMapMode === "surface" ? "active" : ""
+                }`}
+                onClick={() => setEncodingMapMode("surface")}
+                disabled={!hasActiveScientificContext || activeEncodingMapMode === "gkp"}
+                role="tab"
+                aria-selected={hasActiveScientificContext && encodingMapMode === "surface"}
+              >
+                Syndrome
+              </button>
+              <button
+                className={`qec-map-select-btn ${
+                  hasActiveScientificContext && encodingMapMode === "gkp" ? "active" : ""
+                }`}
+                onClick={() => setEncodingMapMode("gkp")}
+                disabled={!hasActiveScientificContext || activeEncodingMapMode === "surface"}
+                role="tab"
+                aria-selected={hasActiveScientificContext && encodingMapMode === "gkp"}
+              >
+                GKP
+              </button>
+            </div>
+            {encodingMapMode === "surface" && activeCircuitQecCode === "surface" ? (
+              <div className="qec-distance-controls" role="group" aria-label="Outer code distance selector">
+                <span className="qec-distance-label">Distance</span>
+                <div className="qec-distance-selector">
+                  {[3, 5, 7].map((distance) => (
+                    <button
+                      key={`outer-distance-${distance}`}
+                      className={`qec-distance-btn ${outerCodeDistance === distance ? "active" : ""}`}
+                      onClick={() => setFilterParam("outerDistance", String(distance), "3")}
+                      title={`Set outer code distance to d=${distance}`}
+                    >
+                      d={distance}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
         <div className="qec-map-layout">
           <section className="qec-map-panel">
             <div className="qec-map-head">
@@ -3676,7 +3907,9 @@ export function DecoderDashboard() {
 
             {encodingMapMode === "surface" && latestRoundSyndromes.length === 0 ? (
               <div className="empty-card">
-                {telemetryInitializing
+                {!hasActiveScientificContext
+                  ? "No encoding map is active. Choose a simulator, build a circuit, select a QEC code, then start the session."
+                  : telemetryInitializing
                   ? "Scientific session started. Waiting for first syndrome telemetry batch from replay."
                   : "No syndrome extraction stream found for the active run. Start a run with telemetry to render the lattice map."}
               </div>
@@ -3738,6 +3971,10 @@ export function DecoderDashboard() {
           </section>
 
           <aside className="qec-map-metrics">
+            <div className="qec-map-rail-header">
+              <span>Evidence Rail</span>
+              <strong>{encodingMapMode === "surface" ? "Syndrome readout" : "Oscillator readout"}</strong>
+            </div>
             {encodingMapMode === "surface" ? (
               <>
                 <div className="qec-map-metric-card">
@@ -3839,7 +4076,7 @@ export function DecoderDashboard() {
 
             {isPhysicalPanelCollapsed ? (
               <div className="panel-collapsed-content">
-                <span>PER</span>
+                <span>Avg telemetry PER</span>
                 <strong>{perValue !== null ? `${perValue.toFixed(3)}%` : "N/A"}</strong>
               </div>
             ) : (
@@ -3938,7 +4175,7 @@ export function DecoderDashboard() {
                           yAxisId="pct"
                           type="monotone"
                           dataKey="physicalErrorPct"
-                          name="Physical Error Rate (%)"
+                          name="Telemetry PER (%)"
                           stroke="#e25564"
                           strokeWidth={2.2}
                           dot={false}
@@ -3989,73 +4226,67 @@ export function DecoderDashboard() {
             )}
           </section>
 
-          <section className="monitoring-right-panel">
-            <div className="monitoring-right-head">
-              <div className="monitoring-chart-title">Real-Time Decoder Monitor</div>
-              <div className="monitor-compare-controls">
-                <div className="filter-group">
-                  <label>Compare Mode</label>
-                  <button
-                    className={`btn btn-secondary monitor-compare-toggle ${compareMode ? "active" : ""}`}
-                    onClick={() => setFilterParam("compare", compareMode ? "0" : "1", "0")}
-                  >
-                    {compareMode ? "Enabled" : "Disabled"}
-                  </button>
-                </div>
-                <div className="filter-group">
-                  <label>Compare Decoder</label>
-                  <select
-                    className="select-field research-select"
-                    value={compareDecoder}
-                    onChange={(event) => setFilterParam("compareDecoder", event.target.value, fallbackCompareDecoder)}
-                    disabled={!compareMode}
-                  >
-                    {DECODERS.filter((decoder) => decoder.key !== activeDecoder).map((decoder) => (
-                      <option key={decoder.key} value={decoder.key}>
-                        {decoder.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
+	          <section className="monitoring-right-panel">
+	            <div className="monitoring-right-head">
+	              <div className="monitoring-chart-title">Real-Time Decoder Monitor</div>
+	              {!isApi ? (
+	                <div className="monitor-compare-controls">
+	                  <div className="filter-group">
+	                    <label>Compare Mode</label>
+	                    <button
+	                      className={`btn btn-secondary monitor-compare-toggle ${compareMode ? "active" : ""}`}
+	                      onClick={() => setFilterParam("compare", compareMode ? "0" : "1", "0")}
+	                    >
+	                      {compareMode ? "Enabled" : "Disabled"}
+	                    </button>
+	                  </div>
+	                  <div className="filter-group">
+	                    <label>Compare Decoder</label>
+	                    <select
+	                      className="select-field research-select"
+	                      value={compareDecoder}
+	                      onChange={(event) => setFilterParam("compareDecoder", event.target.value, fallbackCompareDecoder)}
+	                      disabled={!compareMode}
+	                    >
+	                      {PUBLIC_DECODERS.filter((decoder) => decoder.key !== activeDecoder).map((decoder) => (
+	                        <option key={decoder.key} value={decoder.key}>
+	                          {decoder.label}
+	                        </option>
+	                      ))}
+	                    </select>
+	                  </div>
+	                </div>
+	              ) : null}
+	            </div>
 
-            <div className="decoder-buttons">
-              {DECODERS.map((decoder) => (
-                <button
-                  key={decoder.key}
-                  className={`decoder-btn ${activeDecoder === decoder.key ? "active" : ""}`}
-                  onClick={() => setActiveDecoder(decoder.key)}
-                >
-                  {decoder.label}
-                </button>
-              ))}
-            </div>
+	            {!isApi ? (
+	              <div className="metric-buttons">
+	                <button className={`metric-btn ${activeChart === "noise" ? "active" : ""}`} onClick={() => setActiveChart("noise")}>
+	                  Noise Level
+	                </button>
+	                <button className={`metric-btn ${activeChart === "success" ? "active" : ""}`} onClick={() => setActiveChart("success")}>
+	                  Success Rate
+	                </button>
+	                <button className={`metric-btn ${activeChart === "error" ? "active" : ""}`} onClick={() => setActiveChart("error")}>
+	                  Error Rate
+	                </button>
+	                <button className={`metric-btn ${activeChart === "latency" ? "active" : ""}`} onClick={() => setActiveChart("latency")}>
+	                  Latency Trend
+	                </button>
+	              </div>
+	            ) : null}
 
-            <div className="metric-buttons">
-              <button className={`metric-btn ${activeChart === "noise" ? "active" : ""}`} onClick={() => setActiveChart("noise")}>
-                Noise Level
-              </button>
-              <button className={`metric-btn ${activeChart === "success" ? "active" : ""}`} onClick={() => setActiveChart("success")}>
-                Success Rate
-              </button>
-              <button className={`metric-btn ${activeChart === "error" ? "active" : ""}`} onClick={() => setActiveChart("error")}>
-                Error Rate
-              </button>
-              <button className={`metric-btn ${activeChart === "latency" ? "active" : ""}`} onClick={() => setActiveChart("latency")}>
-                Latency Trend
-              </button>
-            </div>
-
-            <div className="monitoring-chart-title">
-              {chartLabel(activeChart)} · {decoderLabel(activeDecoder)}
-            </div>
-            {activeDecoderMissingTelemetry ? (
-              <div className="monitor-warning-note">Selected decoder has no intervention stream in this run.</div>
-            ) : null}
-            {compareDecoderMissingTelemetry ? (
-              <div className="monitor-warning-note">Compare decoder has no intervention stream in this run.</div>
-            ) : null}
+	            {!isApi ? (
+	              <div className="monitoring-chart-title">
+	                {chartLabel(activeChart)} · {decoderLabel(activeDecoder)}
+	              </div>
+	            ) : null}
+	            {!isApi && activeDecoderMissingTelemetry ? (
+	              <div className="monitor-warning-note">Recommended decoder has no intervention stream in this run.</div>
+	            ) : null}
+	            {!isApi && compareDecoderMissingTelemetry ? (
+	              <div className="monitor-warning-note">Compare decoder has no intervention stream in this run.</div>
+	            ) : null}
             {telemetryUnavailableForRun || telemetryInitializing ? (
               <div className="monitor-warning-note">
                 {telemetryInitializing
@@ -4066,14 +4297,112 @@ export function DecoderDashboard() {
             {runTelemetryHardError ? (
               <div className="monitor-warning-note">Failed to load realtime monitor telemetry from backend.</div>
             ) : null}
-            {compareMode ? (
-              <div className={`compare-delta ${compareIsGood ? "good" : "bad"}`}>
-                Compare vs {decoderLabel(compareDecoder)}: {formatTrend(compareDelta)}
-              </div>
-            ) : null}
-            <div className="visualization-area">
-              {activeChart === "noise" && monitoringHasRows ? (
-                <ResponsiveContainer width="100%" height={360}>
+	            {!isApi && compareMode ? (
+	              <div className={`compare-delta ${compareIsGood ? "good" : "bad"}`}>
+	                Compare vs {decoderLabel(compareDecoder)}: {formatTrend(compareDelta)}
+	              </div>
+	            ) : null}
+	            <div className="visualization-area">
+	              {isApi ? (
+                  hasPublicDecoderInterventions ? (
+                    <div className="decoder-stream-panel">
+                      <div className="decoder-stream-summary">
+                        <div>
+                          <span>Latest Round</span>
+                          <strong>{decoderStreamLatestRound >= 0 ? `R${decoderStreamLatestRound + 1}` : "—"}</strong>
+                        </div>
+                        <div>
+                          <span>Decoders</span>
+                          <strong>{decoderStreamDecoderKeys.length}</strong>
+                        </div>
+                        <div>
+                          <span>Total Flips</span>
+                          <strong>{decoderStreamTotalFlips.toLocaleString()}</strong>
+                        </div>
+                        <div>
+                          <span>Residual Weight</span>
+                          <strong>{decoderStreamResidualWeight.toLocaleString()}</strong>
+                        </div>
+                      </div>
+
+                      <div className="decoder-stream-legend" aria-label="Decoder stream legend">
+                        {decoderStreamDecoderKeys.map((decoderKey) => (
+                          <span key={`decoder-stream-legend-${decoderKey}`}>
+                            <i style={{ background: DECODER_STREAM_COLORS[decoderKey] }} />
+                            {decoderLabel(decoderKey)}
+                          </span>
+                        ))}
+                      </div>
+
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart
+                          data={decoderStreamChartData}
+                          margin={{ top: 8, right: 18, left: 8, bottom: 18 }}
+                          onClick={handleDecoderStreamDrilldown}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.12)" />
+                          <XAxis
+                            dataKey="roundLabel"
+                            tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                            tickMargin={8}
+                            label={{ value: "QEC Round", position: "insideBottom", offset: -6, fill: "#8f9eb4", fontSize: 10 }}
+                          />
+                          <YAxis
+                            width={52}
+                            tick={{ fill: "#8f9eb4", fontSize: 10 }}
+                            tickFormatter={(value: number) => `${value.toFixed(0)}%`}
+                            label={{ value: "Residual Rate", angle: -90, position: "insideLeft", fill: "#8f9eb4", fontSize: 10 }}
+                          />
+                          <Tooltip
+                            formatter={(value, name) => {
+                              const key = String(name).replace("_residual", "") as DecoderKey;
+                              return [`${numericValue(value).toFixed(4)}%`, `${decoderLabel(key)} residual`];
+                            }}
+                            contentStyle={{ background: "#0f0f0f", border: "1px solid #1f1f1f", borderRadius: 8 }}
+                            labelStyle={{ color: "#c8d0db" }}
+                          />
+                          {decoderStreamDecoderKeys.map((decoderKey) => (
+                            <Line
+                              key={`decoder-stream-${decoderKey}`}
+                              type="monotone"
+                              dataKey={`${decoderKey}_residual`}
+                              name={`${decoderKey}_residual`}
+                              stroke={DECODER_STREAM_COLORS[decoderKey]}
+                              strokeWidth={2.4}
+                              dot={{ r: 3 }}
+                              connectNulls
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+
+                      <div className="decoder-stream-table" aria-label="Exact decoder intervention stream">
+                        <div className="decoder-stream-row decoder-stream-head">
+                          <span>Round</span>
+                          <span>Decoder</span>
+                          <span>Flips</span>
+                          <span>Residual</span>
+                          <span>Rate</span>
+                        </div>
+                        {decoderStreamLatestRows.map((row) => (
+                          <div key={row.key} className="decoder-stream-row" title={row.residualFormula}>
+                            <span>{row.roundLabel}</span>
+                            <strong>{row.decoderName}</strong>
+                            <span>{row.flips.toLocaleString()}</span>
+                            <span>{row.residualWeight.toLocaleString()}</span>
+                            <span>{row.residualRatePct == null ? "—" : `${row.residualRatePct.toFixed(4)}%`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="empty-card">
+                      The realtime decoder stream will populate after the backend returns exact decoder intervention rows.
+                    </div>
+                  )
+	              ) : null}
+	              {!isApi && activeChart === "noise" && monitoringHasRows ? (
+	                <ResponsiveContainer width="100%" height={360}>
                   <AreaChart
                     data={monitoringData}
                     margin={{ top: 8, right: 16, left: 8, bottom: 18 }}
@@ -4140,7 +4469,7 @@ export function DecoderDashboard() {
                 </ResponsiveContainer>
               ) : null}
 
-              {activeChart === "success" && monitoringHasRows ? (
+	              {!isApi && activeChart === "success" && monitoringHasRows ? (
                 <ResponsiveContainer width="100%" height={360}>
                   <LineChart
                     data={monitoringData}
@@ -4198,7 +4527,7 @@ export function DecoderDashboard() {
                 </ResponsiveContainer>
               ) : null}
 
-              {activeChart === "error" && monitoringHasRows ? (
+	              {!isApi && activeChart === "error" && monitoringHasRows ? (
                 <ResponsiveContainer width="100%" height={360}>
                   <LineChart
                     data={monitoringData}
@@ -4256,7 +4585,7 @@ export function DecoderDashboard() {
                 </ResponsiveContainer>
               ) : null}
 
-              {activeChart === "latency" && monitoringHasRows ? (
+	              {!isApi && activeChart === "latency" && monitoringHasRows ? (
                 <ResponsiveContainer width="100%" height={360}>
                   <AreaChart
                     data={monitoringData}
@@ -4318,7 +4647,7 @@ export function DecoderDashboard() {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : null}
-              {!monitoringHasRows ? (
+	              {!isApi && !monitoringHasRows ? (
                 <div className="empty-card">
                   {telemetryInitializing
                     ? "Realtime monitor is initializing from replay stream..."
@@ -4334,74 +4663,6 @@ export function DecoderDashboard() {
         </div>
       </div>
 
-      <div className="workflow-section">
-        <div className="section-title">Operational Workflow</div>
-        <div className="panel-subtitle">
-          Non-scientific remediation workflow for operational anomalies.
-        </div>
-        <button
-          className="btn btn-secondary scientific-console-toggle"
-          onClick={() => setShowOperationalWorkflow((current) => !current)}
-        >
-          {showOperationalWorkflow ? <ChevronUp size={13} aria-hidden="true" /> : <ChevronDown size={13} aria-hidden="true" />}
-          <span>{showOperationalWorkflow ? "Hide Operational Workflow" : "Show Operational Workflow"}</span>
-        </button>
-        {showOperationalWorkflow ? (
-          <div className="workflow-grid">
-            {workflowAlerts.map((alert) => {
-              const state = alertWorkflow[alert.id] ?? {
-                acknowledged: false,
-                owner: "Unassigned",
-                notes: "",
-              };
-              return (
-                <div key={alert.id} className={`workflow-card ${alert.level}`}>
-                  <div className="workflow-head">
-                    <div>
-                      <div className="workflow-title">{alert.title}</div>
-                      <div className="workflow-detail">{alert.detail}</div>
-                    </div>
-                    <span className={`status-badge status-${alert.level === "info" ? "running" : alert.level}`}>
-                      {alert.level.toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="workflow-metric">{alert.metric}</div>
-                  <div className="workflow-controls">
-                    <button
-                      className={`btn btn-secondary ${state.acknowledged ? "active" : ""}`}
-                      onClick={() => updateWorkflowState(alert.id, { acknowledged: !state.acknowledged })}
-                      disabled={!canEditWorkflow}
-                    >
-                      {state.acknowledged ? "Acknowledged" : "Acknowledge"}
-                    </button>
-                    <select
-                      className="select-field research-select"
-                      value={state.owner}
-                      onChange={(event) => updateWorkflowState(alert.id, { owner: event.target.value })}
-                      disabled={!canEditWorkflow}
-                    >
-                      <option value="Unassigned">Unassigned</option>
-                      <option value="QEC Ops">QEC Ops</option>
-                      <option value="Provider Team">Provider Team</option>
-                      <option value="SRE">SRE</option>
-                    </select>
-                  </div>
-                  <textarea
-                    className="form-textarea workflow-notes"
-                    placeholder="Resolution notes"
-                    value={state.notes}
-                    onChange={(event) => updateWorkflowState(alert.id, { notes: event.target.value })}
-                    disabled={!canEditWorkflow}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="scientific-muted-note">Operational workflow is collapsed in scientific mode.</div>
-        )}
-      </div>
-
       {rightRailHost ? createPortal(liveConsoleRail, rightRailHost) : null}
 
       <StartCircuitDesignDialog
@@ -4415,7 +4676,7 @@ export function DecoderDashboard() {
       <StartBenchmarkSessionDialog
         open={benchmarkDialogOpen}
         pending={quickLaunchBusy}
-        decoderOptions={DECODERS}
+        decoderOptions={PUBLIC_DECODERS}
         selectedDecoders={benchmarkDecoders}
         onToggleDecoder={handleToggleBenchmarkDecoder}
         onClose={() => setBenchmarkDialogOpen(false)}

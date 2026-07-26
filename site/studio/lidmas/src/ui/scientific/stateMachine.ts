@@ -116,12 +116,6 @@ function availabilityReasonForMissingFields(
     }
     return "Missing physical_error_opportunities";
   }
-  if (contract.key === "response_ratio") {
-    if (missing.includes("request_line_count")) {
-      return "Missing request_line_count";
-    }
-    return "Missing response_line_count";
-  }
   if (contract.key === "rounds") {
     return "Missing rounds";
   }
@@ -203,18 +197,6 @@ export function evaluateScientificMetricAvailability(
           availabilityReason: "physical_error_events exceeds physical_error_opportunities",
         };
       }
-    }
-    if (
-      contract.key === "response_ratio" &&
-      signals.request_line_count != null &&
-      signals.request_line_count <= 0
-    ) {
-      return {
-        contractKey: contract.key,
-        available: false,
-        missingFields: [],
-        availabilityReason: "request_line_count must be greater than zero",
-      };
     }
     if (
       contract.key === "residual_syndrome_rate" &&
@@ -484,7 +466,7 @@ function integrityIssuesForSignals(signals: ScientificSignals): ScientificIntegr
     signals.response_line_count > 0
   ) {
     issues.push({
-      code: "response_ratio_denominator_non_positive",
+      code: "response_count_denominator_non_positive",
       message: "request_line_count must be greater than zero when response_line_count is present",
       fields: ["request_line_count", "response_line_count"],
       blocking: true,
@@ -500,8 +482,8 @@ function integrityIssuesForSignals(signals: ScientificSignals): ScientificIntegr
     const derivedRatio = signals.response_line_count / signals.request_line_count;
     if (Math.abs(signals.response_ratio_reported - derivedRatio) > EPSILON) {
       issues.push({
-        code: "response_ratio_conflict",
-        message: "response_ratio conflicts with response_line_count/request_line_count",
+        code: "response_count_conflict",
+        message: "response_line_count conflicts with request_line_count",
         fields: ["response_line_count", "request_line_count"],
         blocking: true,
       });

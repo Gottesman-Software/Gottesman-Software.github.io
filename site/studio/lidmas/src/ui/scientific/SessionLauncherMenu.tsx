@@ -1,28 +1,14 @@
 import { FlaskConical, Gauge, History } from "lucide-react";
 import type { ReactNode } from "react";
-import type { ProviderKind, ProviderStatus } from "../../api/types";
 
 interface SessionLauncherMenuProps {
   open: boolean;
-  providerOptions: Array<{ id: string; name: string; status: ProviderStatus; kind: ProviderKind }>;
-  selectedProviderId: string;
-  onSelectProvider: (providerId: string) => void;
   onStartScientific: () => void;
   onStartBenchmark: () => void;
   onStartReplay: () => void;
   scientificDisabledReason?: string | null;
   benchmarkDisabledReason?: string | null;
   replayDisabledReason?: string | null;
-}
-
-function providerStatusLabel(status: ProviderStatus): string {
-  if (status === "ready") {
-    return "ready";
-  }
-  if (status === "degraded") {
-    return "degraded";
-  }
-  return "offline";
 }
 
 interface MenuActionProps {
@@ -48,9 +34,6 @@ function MenuAction({ icon, title, detail, disabledReason, onClick }: MenuAction
 
 export function SessionLauncherMenu({
   open,
-  providerOptions,
-  selectedProviderId,
-  onSelectProvider,
   onStartScientific,
   onStartBenchmark,
   onStartReplay,
@@ -62,39 +45,8 @@ export function SessionLauncherMenu({
     return null;
   }
 
-  const boundaryProviders = providerOptions.filter((provider) => provider.kind !== "simulated");
-  const simulatorProviders = providerOptions.filter((provider) => provider.kind === "simulated");
-
   return (
     <div className="session-launcher-menu" role="menu" aria-label="Session launcher menu">
-      <div className="session-launcher-menu-provider">
-        <label>Launch Provider</label>
-        <select
-          className="select-field research-select"
-          value={providerOptions.length === 0 ? "" : selectedProviderId}
-          onChange={(event) => onSelectProvider(event.target.value)}
-        >
-          {providerOptions.length === 0 ? <option value="">No providers available</option> : null}
-          {boundaryProviders.length > 0 ? (
-            <optgroup label="Private / Non-simulator Boundary">
-              {boundaryProviders.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.name} · {providerStatusLabel(provider.status)}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-          {simulatorProviders.length > 0 ? (
-            <optgroup label="Simulators">
-              {simulatorProviders.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.name} · {providerStatusLabel(provider.status)}
-                </option>
-              ))}
-            </optgroup>
-          ) : null}
-        </select>
-      </div>
       <MenuAction
         icon={<FlaskConical size={14} aria-hidden="true" />}
         title="Start Scientific Session"

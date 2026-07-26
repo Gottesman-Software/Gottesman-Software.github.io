@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PropsWithChildren } from "react";
 import {
   Activity,
@@ -7,23 +7,12 @@ import {
   Cable,
   FileText,
   FlaskConical,
-  LogOut,
   Server,
   Settings,
   ShieldCheck,
   Workflow,
 } from "lucide-react";
-
-import {
-  AUTH_UPDATED_EVENT,
-  clearAuthSession,
-  loadAuthSession,
-  sessionUserDisplayName,
-  type AuthSession,
-} from "../auth/session";
-import cirqLogo from "../assets/partner-logos/cirq.svg";
-import pennylaneLogo from "../assets/partner-logos/pennylane.svg";
-import qiskitLogo from "../assets/partner-logos/qiskit.svg";
+import { trackStudioPageView } from "../analytics";
 
 const navSections = [
   {
@@ -54,19 +43,6 @@ const navSections = [
   },
 ];
 
-const publicPipelineSteps = [
-  { label: "Circuit" },
-  { label: "Noise" },
-  { label: "Syndrome" },
-  { label: "Decoder" },
-];
-
-const simulatorDataSourceLogos = [
-  { label: "PennyLane", src: pennylaneLogo },
-  { label: "Cirq", src: cirqLogo },
-  { label: "Qiskit", src: qiskitLogo },
-];
-
 const RIGHT_RAIL_WIDTH_STORAGE_KEY = "lidmas.rightRailWidth";
 const RIGHT_RAIL_DEFAULT_WIDTH = 340;
 const RIGHT_RAIL_MIN_WIDTH = 280;
@@ -79,7 +55,6 @@ function clampRailWidth(value: number) {
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
   const showRightRail = location.pathname === "/decoder/scientific";
-  const [session, setSession] = useState<AuthSession | null>(() => loadAuthSession());
   const [rightRailWidth, setRightRailWidth] = useState<number>(() => {
     if (typeof window === "undefined") {
       return RIGHT_RAIL_DEFAULT_WIDTH;
@@ -98,20 +73,8 @@ export function AppShell({ children }: PropsWithChildren) {
   const rightRailDraggingRef = useRef(false);
 
   useEffect(() => {
-    const syncSession = () => {
-      setSession(loadAuthSession());
-    };
-    syncSession();
-    window.addEventListener(AUTH_UPDATED_EVENT, syncSession);
-    window.addEventListener("storage", syncSession);
-    return () => {
-      window.removeEventListener(AUTH_UPDATED_EVENT, syncSession);
-      window.removeEventListener("storage", syncSession);
-    };
-  }, []);
-
-  useEffect(() => {
-    setSession(loadAuthSession());
+    const title = `LiDMaS+ Decoder | ${location.pathname.replace(/^\/+/, "") || "scientific"}`;
+    trackStudioPageView(location.pathname, title);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -159,28 +122,6 @@ export function AppShell({ children }: PropsWithChildren) {
     setRightRailDragging(false);
   }, [showRightRail]);
 
-  const sessionName = sessionUserDisplayName(session?.user);
-  const sessionEmail = session?.user.email ?? "";
-
-  const sessionInitials = useMemo(() => {
-    const parts = sessionName
-      .trim()
-      .split(/\s+/)
-      .filter((part) => part.length > 0);
-    if (parts.length === 0) {
-      return "LD";
-    }
-    if (parts.length === 1) {
-      return parts[0].slice(0, 2).toUpperCase();
-    }
-    return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
-  }, [sessionName]);
-
-  const handleSignOut = () => {
-    clearAuthSession();
-    window.location.reload();
-  };
-
   const handleRightRailResizeStart = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!showRightRail) {
       return;
@@ -221,71 +162,6 @@ export function AppShell({ children }: PropsWithChildren) {
           </div>
         ))}
 
-        <div className="sidebar-data-source">
-          <div className="sidebar-data-source-block">
-            <div className="nav-section-title">Public Pipeline</div>
-            <div className="sidebar-data-source-marquee" aria-label="Public simulator pipeline">
-              <div className="sidebar-data-source-track">
-                <div className="sidebar-data-source-group">
-                  {publicPipelineSteps.map((step) => (
-                    <div key={`pipeline-step-${step.label}`} className="sidebar-data-source-item" title={step.label}>
-                      <span className="sidebar-data-source-label">{step.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="sidebar-data-source-group" aria-hidden="true">
-                  {publicPipelineSteps.map((step) => (
-                    <div key={`pipeline-step-repeat-${step.label}`} className="sidebar-data-source-item">
-                      <span className="sidebar-data-source-label">{step.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="sidebar-data-source-block">
-            <div className="nav-section-title">Simulator Backends</div>
-            <div className="sidebar-data-source-marquee sidebar-data-source-marquee-simulator" aria-label="Simulator data sources">
-              <div className="sidebar-data-source-track">
-                <div className="sidebar-data-source-group">
-                  {simulatorDataSourceLogos.map((logo) => (
-                    <div
-                      key={`simulator-source-${logo.label}`}
-                      className="sidebar-data-source-item sidebar-data-source-item-simulator"
-                      title={logo.label}
-                    >
-                      <img src={logo.src} alt={`${logo.label} logo`} />
-                    </div>
-                  ))}
-                </div>
-                <div className="sidebar-data-source-group" aria-hidden="true">
-                  {simulatorDataSourceLogos.map((logo) => (
-                    <div
-                      key={`simulator-source-repeat-${logo.label}`}
-                      className="sidebar-data-source-item sidebar-data-source-item-simulator"
-                    >
-                      <img src={logo.src} alt="" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="user-profile">
-            <div className="user-avatar">{sessionInitials}</div>
-            <div className="user-info">
-              <div className="user-name">{sessionName}</div>
-              <div className="user-status">{sessionEmail || "Signed in"}</div>
-            </div>
-            <button className="btn-icon sidebar-signout" title="Sign out" onClick={handleSignOut}>
-              <LogOut size={14} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
       </aside>
 
       <main className="main-content">

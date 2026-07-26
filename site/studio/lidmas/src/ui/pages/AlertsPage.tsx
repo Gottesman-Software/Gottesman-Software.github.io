@@ -7,9 +7,9 @@ import { gkpAlertRules, gkpAlerts } from "../../data/gkpFixtures";
 
 type AlertSeverity = "critical" | "warning" | "info";
 type AlertStatus = "open" | "acknowledged" | "resolved" | "suppressed";
-type AlertCategory = "provider" | "jobs" | "runs" | "quality" | "capacity" | "system";
-type AlertsTab = "active" | "history" | "rules" | "notifications";
-type RuleChannel = "pagerduty" | "slack" | "email";
+type AlertCategory = "backend" | "jobs" | "runs" | "quality" | "capacity" | "system";
+type AlertsTab = "active" | "history" | "rules";
+type RuleChannel = "dashboard" | "validation" | "logs";
 
 interface AlertRecord {
   id: string;
@@ -40,64 +40,42 @@ interface TimelineEvent {
   note: string;
 }
 
-interface NotificationPreferences {
-  pagerduty: boolean;
-  slack: boolean;
-  email: boolean;
-  sms: boolean;
-  quietHoursEnabled: boolean;
-  quietHoursStart: string;
-  quietHoursEnd: string;
-  digestCadence: "5m" | "15m" | "1h";
-}
-
 const API_RULES: AlertRule[] = [
   {
     id: 1,
-    name: "Provider Redundancy",
-    condition: "Trigger when configured providers drop below 2",
+    name: "Simulator Registry Coverage",
+    condition: "Show when fewer than two simulator backends are available",
     severity: "warning",
-    channel: "pagerduty",
+    channel: "dashboard",
     enabled: true,
   },
   {
     id: 2,
-    name: "Job Failure Rate Spike",
-    condition: "Trigger when failed jobs exceed 5% in rolling 1 hour window",
+    name: "Public Job Failure",
+    condition: "Show when a public job fails or is cancelled",
     severity: "critical",
-    channel: "pagerduty",
+    channel: "logs",
     enabled: true,
   },
   {
     id: 3,
     name: "Run Warning Rate",
-    condition: "Trigger when warning_rate exceeds 0.15 for active runs",
+    condition: "Show when exact warning_rate exceeds 0.15 for public runs",
     severity: "warning",
-    channel: "slack",
+    channel: "validation",
     enabled: true,
   },
   {
     id: 4,
     name: "Queue Backlog",
-    condition: "Trigger when queued jobs remain above 3 for 10 minutes",
+    condition: "Show when queued public jobs remain above 3",
     severity: "warning",
-    channel: "email",
+    channel: "dashboard",
     enabled: false,
   },
 ];
 
-const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  pagerduty: true,
-  slack: true,
-  email: true,
-  sms: false,
-  quietHoursEnabled: false,
-  quietHoursStart: "22:00",
-  quietHoursEnd: "06:00",
-  digestCadence: "15m",
-};
-
-const OWNERS = ["Unassigned", "Platform SRE", "Provider Ops", "Decoder Team", "Security Response"];
+const OWNERS = ["Unassigned", "Research software", "Decoder review", "Backend review", "Release review"];
 
 function parseTimestampToMs(value: string | null | undefined): number {
   if (!value) {
@@ -179,8 +157,8 @@ function newestUpdatedAtMs(items: Array<{ updated_at: string }>): number {
 
 function inferCategoryFromTitle(title: string): AlertCategory {
   const lower = title.toLowerCase();
-  if (lower.includes("provider")) {
-    return "provider";
+  if (lower.includes("provider") || lower.includes("backend") || lower.includes("simulator")) {
+    return "backend";
   }
   if (lower.includes("job")) {
     return "jobs";
@@ -211,12 +189,12 @@ function inferRuleSeverity(name: string): AlertSeverity {
 function inferRuleChannel(name: string): RuleChannel {
   const lower = name.toLowerCase();
   if (lower.includes("timeout") || lower.includes("failure")) {
-    return "pagerduty";
+    return "logs";
   }
   if (lower.includes("residual") || lower.includes("warning")) {
-    return "slack";
+    return "validation";
   }
-  return "email";
+  return "dashboard";
 }
 
 function deriveMockRules(): AlertRule[] {
@@ -268,8 +246,8 @@ function deriveMockAlerts(): AlertRecord[] {
       source: "mock/gkp-alert-feed",
       suggestedAction:
         alert.level === "critical"
-          ? "Escalate immediately and freeze risky workload transitions."
-          : "Acknowledge and track through on-call queue.",
+          ? "Flag this signal before starting another related run."
+          : "Review the signal and keep it visible until the run context is understood.",
       triggeredAtMs: timestampFromMockTriggered(alert.triggered),
     }))
     .sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.triggeredAtMs - a.triggeredAtMs);
@@ -277,33 +255,29 @@ function deriveMockAlerts(): AlertRecord[] {
 
 function deriveApiAlerts(providers: Provider[], jobs: Job[], runs: Run[]): AlertRecord[] {
   const alerts: AlertRecord[] = [];
+  const hasRuntimeScope = providers.length > 0 || jobs.length > 0 || runs.length > 0;
   const failedJobs = jobs.filter((job) => job.status === "failed" || job.status === "cancelled");
   const failedRuns = runs.filter((run) => run.status === "failed" || run.status === "cancelled");
   const queuedJobs = jobs.filter((job) => job.status === "queued");
-  const highWarningRuns = runs.filter((run) => (run.metrics?.warning_rate ?? 0) > 0.15);
+  const highWarningRuns = runs.filter((run) => {
+    const warningRate = run.metrics?.warning_rate;
+    return typeof warningRate === "number" && warningRate > 0.15;
+  });
 
-  if (providers.length === 0) {
+  if (!hasRuntimeScope) {
+    return [];
+  }
+
+  if (providers.length > 0 && providers.length < 2) {
     alerts.push({
-      id: "provider.none",
-      title: "No Providers Configured",
-      severity: "critical",
-      category: "provider",
-      summary: "No providers are currently registered. Job dispatch is blocked.",
-      impact: "Affected scope: all queued and future jobs",
-      source: "api/providers",
-      suggestedAction: "Register at least one healthy provider and run connectivity validation.",
-      triggeredAtMs: Date.now(),
-    });
-  } else if (providers.length < 2) {
-    alerts.push({
-      id: "provider.low_redundancy",
-      title: "Low Provider Redundancy",
+      id: "backend.limited_coverage",
+      title: "Limited Simulator Coverage",
       severity: "warning",
-      category: "provider",
-      summary: "Only one provider is configured. Any outage can stop active decode pipelines.",
-      impact: `Configured providers: ${providers.length}`,
+      category: "backend",
+      summary: "Only one simulator backend is registered for the current public scope.",
+      impact: `Simulator backends: ${providers.length}`,
       source: "api/providers",
-      suggestedAction: "Add standby provider capacity and enable automatic failover.",
+      suggestedAction: "Keep the backend boundary visible and avoid cross-simulator claims until another simulator is available.",
       triggeredAtMs: newestUpdatedAtMs(providers),
     });
   }
@@ -317,7 +291,7 @@ function deriveApiAlerts(providers: Provider[], jobs: Job[], runs: Run[]): Alert
       summary: `${failedJobs.length} jobs are in failed/cancelled state and need review.`,
       impact: `Failed jobs: ${failedJobs.length}/${jobs.length || 1}`,
       source: "api/jobs",
-      suggestedAction: "Inspect failure reasons, restart recoverable jobs, and quarantine invalid datasets.",
+      suggestedAction: "Open Logs for the affected job and replay only after the failure reason is visible.",
       triggeredAtMs: newestUpdatedAtMs(failedJobs),
     });
   }
@@ -331,7 +305,7 @@ function deriveApiAlerts(providers: Provider[], jobs: Job[], runs: Run[]): Alert
       summary: `${failedRuns.length} runs failed to complete and may have partial artifacts.`,
       impact: `Failed runs: ${failedRuns.length}/${runs.length || 1}`,
       source: "api/runs",
-      suggestedAction: "Review decoder traces and replay affected run batches with guarded rollout.",
+      suggestedAction: "Open the run telemetry and logs before using this run in a public comparison.",
       triggeredAtMs: newestUpdatedAtMs(failedRuns),
     });
   }
@@ -342,10 +316,10 @@ function deriveApiAlerts(providers: Provider[], jobs: Job[], runs: Run[]): Alert
       title: "Queue Backlog Rising",
       severity: "warning",
       category: "capacity",
-      summary: `${queuedJobs.length} jobs remain queued and may breach latency objectives.`,
+      summary: `${queuedJobs.length} jobs remain queued in the current runtime scope.`,
       impact: `Queued jobs: ${queuedJobs.length}`,
       source: "api/jobs",
-      suggestedAction: "Scale workers or activate priority shedding on non-critical workloads.",
+      suggestedAction: "Wait for queued jobs to finish or reduce the run scope before comparing decoder results.",
       triggeredAtMs: newestUpdatedAtMs(queuedJobs),
     });
   }
@@ -356,25 +330,11 @@ function deriveApiAlerts(providers: Provider[], jobs: Job[], runs: Run[]): Alert
       title: "High Warning Rate",
       severity: "warning",
       category: "quality",
-      summary: `${highWarningRuns.length} runs exceed warning_rate threshold (0.15).`,
+      summary: `${highWarningRuns.length} public runs exceed exact warning_rate threshold (0.15).`,
       impact: `Top warning_rate: ${Math.max(...highWarningRuns.map((run) => run.metrics?.warning_rate ?? 0)).toFixed(3)}`,
       source: "api/runs/quality",
-      suggestedAction: "Pause suspect decoder set and compare output integrity against baseline replay.",
+      suggestedAction: "Open Validation for the affected run and compare decoder ranking against exact counters.",
       triggeredAtMs: newestUpdatedAtMs(highWarningRuns),
-    });
-  }
-
-  if (alerts.length === 0) {
-    alerts.push({
-      id: "system.healthy",
-      title: "No Active Incidents",
-      severity: "info",
-      category: "system",
-      summary: "Provider, job, and run signals are currently within defined operating thresholds.",
-      impact: "Status: healthy",
-      source: "api/alerts/inference",
-      suggestedAction: "Maintain monitoring cadence and keep current alert policy.",
-      triggeredAtMs: Math.max(newestUpdatedAtMs(runs), newestUpdatedAtMs(jobs), newestUpdatedAtMs(providers)),
     });
   }
 
@@ -385,13 +345,13 @@ function deriveApiAlerts(providers: Provider[], jobs: Job[], runs: Run[]): Alert
 
 function statusText(status: AlertStatus): string {
   if (status === "acknowledged") {
-    return "Acknowledged";
+    return "Reviewed";
   }
   if (status === "resolved") {
-    return "Resolved";
+    return "Cleared";
   }
   if (status === "suppressed") {
-    return "Suppressed";
+    return "Hidden";
   }
   return "Open";
 }
@@ -408,12 +368,9 @@ export function AlertsPage() {
   const [alertStatusById, setAlertStatusById] = useState<Record<string, AlertStatus>>({});
   const [alertOwnerById, setAlertOwnerById] = useState<Record<string, string>>({});
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
-    DEFAULT_NOTIFICATION_PREFERENCES,
-  );
 
-  const { isApi, isMock, systemOff, systemArmed } = useDataMode();
-  const apiEnabled = isApi && !systemOff && systemArmed;
+  const { isApi, isMock, systemOff } = useDataMode();
+  const apiEnabled = isApi && !systemOff;
 
   const providersQuery = useProviders({ enabled: apiEnabled });
   const jobsQuery = useJobs({ enabled: apiEnabled });
@@ -424,6 +381,12 @@ export function AlertsPage() {
   const runs = systemOff ? [] : runsQuery.data ?? [];
   const hasApiWarning = apiEnabled && (providersQuery.isError || jobsQuery.isError || runsQuery.isError);
   const isApiLoading = apiEnabled && (providersQuery.isLoading || jobsQuery.isLoading || runsQuery.isLoading);
+  const hasActiveApiRuntime = apiEnabled && (jobs.length > 0 || runs.length > 0);
+  const latestRefreshMs = Math.max(
+    newestUpdatedAtMs(providers),
+    newestUpdatedAtMs(jobs),
+    newestUpdatedAtMs(runs),
+  );
 
   const alertFeed = systemOff ? [] : isMock ? deriveMockAlerts() : hasApiWarning ? [] : deriveApiAlerts(providers, jobs, runs);
   const alertFeedSignature = alertFeed.map((alert) => alert.id).join("|");
@@ -492,10 +455,9 @@ export function AlertsPage() {
         );
 
   const tabs: Array<{ id: AlertsTab; label: string }> = [
-    { id: "active", label: `Incident Queue (${filteredAlerts.length})` },
+    { id: "active", label: `Signals (${filteredAlerts.length})` },
     { id: "history", label: `History (${timeline.length})` },
     { id: "rules", label: `Rules (${rules.length})` },
-    { id: "notifications", label: "Notification Policy" },
   ];
 
   const addTimelineEvent = (alertId: string, action: TimelineEvent["action"], note: string) => {
@@ -535,21 +497,48 @@ export function AlertsPage() {
     }
   };
 
-  const hasOnlyHealthyInfo =
-    alertQueue.length === 1 && alertQueue[0].id === "system.healthy" && (statusFilter === "all" || statusFilter === "open");
+  const noRuntimeSignals =
+    apiEnabled && !isApiLoading && !hasApiWarning && !hasActiveApiRuntime && alertQueue.length === 0;
 
   return (
     <>
       <div className="header">
         <h1>Observability</h1>
-        <p>Operational alerting, incident response, and runtime risk tracking.</p>
+        <p>Public simulator signals, validation warnings, and backend health without private hardware controls.</p>
+      </div>
+
+      <div className="trust-strip">
+        <div className="trust-item">
+          <span>Data Source</span>
+          <strong>{systemOff ? "Off" : isMock ? "GKP Mock" : "Live API"}</strong>
+        </div>
+        <div className="trust-item">
+          <span>Simulator Backends</span>
+          <strong>{providers.length}</strong>
+        </div>
+        <div className="trust-item">
+          <span>Runs Observed</span>
+          <strong>{runs.length}</strong>
+        </div>
+        <div className="trust-item">
+          <span>Active Signals</span>
+          <strong>{alertQueue.filter((alert) => alert.status === "open").length}</strong>
+        </div>
+        <div className="trust-item">
+          <span>Last Refresh</span>
+          <strong>{formatRelativeAge(latestRefreshMs)}</strong>
+        </div>
+        <div className="trust-item">
+          <span>Public Boundary</span>
+          <strong>Simulator only</strong>
+        </div>
       </div>
 
       <div className="alerts-kpi-grid">
         <article className="alerts-kpi-card">
           <span>Critical Open</span>
           <strong>{criticalOpenCount}</strong>
-          <p>must-page incidents</p>
+          <p>highest priority signals</p>
         </article>
         <article className="alerts-kpi-card">
           <span>Warning Open</span>
@@ -559,22 +548,22 @@ export function AlertsPage() {
         <article className="alerts-kpi-card">
           <span>Unresolved</span>
           <strong>{unresolvedCount}</strong>
-          <p>open + acknowledged</p>
+          <p>open + reviewed</p>
         </article>
         <article className="alerts-kpi-card">
-          <span>Resolved</span>
+          <span>Cleared</span>
           <strong>{resolvedCount}</strong>
-          <p>closed incidents</p>
+          <p>reviewed signals</p>
         </article>
         <article className="alerts-kpi-card">
-          <span>Suppressed</span>
+          <span>Hidden</span>
           <strong>{suppressedCount}</strong>
-          <p>noise-control suppressions</p>
+          <p>low-value signals</p>
         </article>
         <article className="alerts-kpi-card">
-          <span>Mean Alert Age</span>
+          <span>Mean Signal Age</span>
           <strong>{meanAgeMinutes}m</strong>
-          <p>unresolved queue age</p>
+          <p>open signal age</p>
         </article>
       </div>
 
@@ -583,7 +572,7 @@ export function AlertsPage() {
           <input
             type="text"
             className="search-box alerts-search-box"
-            placeholder="Search incidents (provider, timeout, warning_rate...)"
+            placeholder="Search signals (backend, run, warning_rate...)"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
           />
@@ -604,9 +593,9 @@ export function AlertsPage() {
           >
             <option value="all">All statuses</option>
             <option value="open">Open</option>
-            <option value="acknowledged">Acknowledged</option>
-            <option value="resolved">Resolved</option>
-            <option value="suppressed">Suppressed</option>
+            <option value="acknowledged">Reviewed</option>
+            <option value="resolved">Cleared</option>
+            <option value="suppressed">Hidden</option>
           </select>
           <select
             className="alerts-select"
@@ -614,7 +603,7 @@ export function AlertsPage() {
             onChange={(event) => setCategoryFilter(event.target.value as "all" | AlertCategory)}
           >
             <option value="all">All categories</option>
-            <option value="provider">Provider</option>
+            <option value="backend">Backend</option>
             <option value="jobs">Jobs</option>
             <option value="runs">Runs</option>
             <option value="quality">Quality</option>
@@ -635,14 +624,14 @@ export function AlertsPage() {
           </select>
         </div>
         <div className="alerts-action-row">
-          <button className="btn btn-secondary" onClick={() => applyBulkStatus("acknowledged", "acknowledged", "Bulk acknowledge")}>
-            Acknowledge Visible
+          <button className="btn btn-secondary" onClick={() => applyBulkStatus("acknowledged", "acknowledged", "Bulk review")}>
+            Mark Visible Reviewed
           </button>
-          <button className="btn btn-secondary" onClick={() => applyBulkStatus("resolved", "resolved", "Bulk resolve")}>
-            Resolve Visible
+          <button className="btn btn-secondary" onClick={() => applyBulkStatus("resolved", "resolved", "Bulk clear")}>
+            Clear Visible
           </button>
           <button className="btn btn-primary" onClick={() => setActiveTab("rules")}>
-            + Create Rule
+            View Rules
           </button>
         </div>
       </div>
@@ -686,30 +675,30 @@ export function AlertsPage() {
               <div className="alert-actions">
                 <button
                   className="btn-small"
-                  onClick={() => updateAlertStatus(alert.id, "acknowledged", "acknowledged", "Alert acknowledged")}
+                  onClick={() => updateAlertStatus(alert.id, "acknowledged", "acknowledged", "Signal reviewed")}
                   disabled={alert.status !== "open"}
                 >
-                  Acknowledge
+                  Review
                 </button>
                 <button
                   className="btn-small"
-                  onClick={() => updateAlertStatus(alert.id, "resolved", "resolved", "Alert resolved")}
+                  onClick={() => updateAlertStatus(alert.id, "resolved", "resolved", "Signal cleared")}
                   disabled={alert.status === "resolved"}
                 >
-                  Resolve
+                  Clear
                 </button>
                 <button
                   className="btn-small"
-                  onClick={() => updateAlertStatus(alert.id, "suppressed", "suppressed", "Alert suppressed")}
+                  onClick={() => updateAlertStatus(alert.id, "suppressed", "suppressed", "Signal hidden")}
                   disabled={alert.status === "suppressed"}
                 >
-                  Suppress
+                  Hide
                 </button>
                 <button
                   className="btn-small"
-                  onClick={() => addTimelineEvent(alert.id, "escalated", "Escalated to incident channel")}
+                  onClick={() => addTimelineEvent(alert.id, "escalated", "Flagged for review")}
                 >
-                  Escalate
+                  Flag
                 </button>
                 <button
                   className="btn-small"
@@ -724,25 +713,18 @@ export function AlertsPage() {
                   onChange={(event) => {
                     const nextOwner = event.target.value;
                     setAlertOwnerById((previous) => ({ ...previous, [alert.id]: nextOwner }));
-                    addTimelineEvent(alert.id, "acknowledged", `Assigned to ${nextOwner}`);
+                    addTimelineEvent(alert.id, "acknowledged", `Tagged for ${nextOwner}`);
                   }}
                 >
                   {OWNERS.map((owner) => (
                     <option key={owner} value={owner}>
-                      Owner: {owner}
+                      Track: {owner}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
           ))}
-
-          {hasOnlyHealthyInfo ? (
-            <div className="empty-card section-offset">
-              <strong>No Active Incidents</strong>
-              <p>Current runtime appears healthy under configured alert thresholds.</p>
-            </div>
-          ) : null}
 
           {hasApiWarning ? (
             <div className="empty-card section-offset">
@@ -753,11 +735,19 @@ export function AlertsPage() {
 
           {!hasApiWarning && filteredAlerts.length === 0 ? (
             <div className="empty-card section-offset">
-              <strong>{isApiLoading ? "Loading Incident Feed" : "No Alerts for Current Filters"}</strong>
+              <strong>
+                {isApiLoading
+                  ? "Loading Signal Feed"
+                  : noRuntimeSignals
+                    ? "No Runtime Signals Yet"
+                    : "No Signals for Current Filters"}
+              </strong>
               <p>
                 {isApiLoading
-                  ? "Collecting provider, job, and run signals from the API."
-                  : "Try broadening severity/status filters or clear search terms."}
+                  ? "Collecting simulator backend, job, and run signals from the API."
+                  : noRuntimeSignals
+                    ? "Start a circuit session or replay a run before alert signals are evaluated."
+                    : "Try broadening severity/status filters or clear search terms."}
               </p>
             </div>
           ) : null}
@@ -768,8 +758,8 @@ export function AlertsPage() {
         <>
           <div className="alerts-history-summary">
             <span>Events recorded: {timeline.length}</span>
-            <span>Resolved alerts: {resolvedCount}</span>
-            <span>Suppressed alerts: {suppressedCount}</span>
+            <span>Cleared signals: {resolvedCount}</span>
+            <span>Hidden signals: {suppressedCount}</span>
           </div>
           <div className="alerts-timeline">
             {timeline.map((event) => (
@@ -786,7 +776,7 @@ export function AlertsPage() {
             {timeline.length === 0 ? (
               <div className="empty-card">
                 <strong>No Timeline Events Yet</strong>
-                <p>Alert actions will appear here once incidents are acknowledged or resolved.</p>
+                <p>Signal review actions will appear here once signals are reviewed or cleared.</p>
               </div>
             ) : null}
           </div>
@@ -820,7 +810,7 @@ export function AlertsPage() {
                   <div className="rule-condition">{rule.condition}</div>
                   <div className="alerts-inline-meta">
                     <span className={`alert-badge ${rule.severity}`}>{rule.severity}</span>
-                    <span className="alerts-category-pill">channel: {rule.channel}</span>
+                    <span className="alerts-category-pill">surface: {rule.channel}</span>
                   </div>
                 </div>
                 <div className="rule-actions-row">
@@ -854,96 +844,6 @@ export function AlertsPage() {
               </div>
             ))}
         </>
-      ) : null}
-
-      {activeTab === "notifications" ? (
-        <div className="alerts-notify-grid">
-          <div className="rule-item">
-            <div className="rule-info">
-              <div className="rule-name">Delivery Channels</div>
-              <div className="rule-condition">Choose which channels receive incident notifications.</div>
-            </div>
-            <div className="alerts-channel-toggles">
-              {(["pagerduty", "slack", "email", "sms"] as const).map((channel) => (
-                <button
-                  key={channel}
-                  className={`btn-small ${notificationPreferences[channel] ? "alerts-btn-enabled" : ""}`}
-                  onClick={() =>
-                    setNotificationPreferences((previous) => ({
-                      ...previous,
-                      [channel]: !previous[channel],
-                    }))
-                  }
-                >
-                  {channel} {notificationPreferences[channel] ? "on" : "off"}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="rule-item">
-            <div className="rule-info">
-              <div className="rule-name">Quiet Hours</div>
-              <div className="rule-condition">Suppress non-critical pages during scheduled quiet periods.</div>
-            </div>
-            <div className="alerts-quiet-hours">
-              <button
-                className={`btn-small ${notificationPreferences.quietHoursEnabled ? "alerts-btn-enabled" : ""}`}
-                onClick={() =>
-                  setNotificationPreferences((previous) => ({
-                    ...previous,
-                    quietHoursEnabled: !previous.quietHoursEnabled,
-                  }))
-                }
-              >
-                Quiet Hours {notificationPreferences.quietHoursEnabled ? "On" : "Off"}
-              </button>
-              <input
-                type="time"
-                className="alerts-select"
-                value={notificationPreferences.quietHoursStart}
-                onChange={(event) =>
-                  setNotificationPreferences((previous) => ({
-                    ...previous,
-                    quietHoursStart: event.target.value,
-                  }))
-                }
-              />
-              <input
-                type="time"
-                className="alerts-select"
-                value={notificationPreferences.quietHoursEnd}
-                onChange={(event) =>
-                  setNotificationPreferences((previous) => ({
-                    ...previous,
-                    quietHoursEnd: event.target.value,
-                  }))
-                }
-              />
-            </div>
-          </div>
-          <div className="rule-item">
-            <div className="rule-info">
-              <div className="rule-name">Digest Cadence</div>
-              <div className="rule-condition">Batch low-priority updates to reduce noise during stable periods.</div>
-            </div>
-            <div className="alerts-quiet-hours">
-              <select
-                className="alerts-select"
-                value={notificationPreferences.digestCadence}
-                onChange={(event) =>
-                  setNotificationPreferences((previous) => ({
-                    ...previous,
-                    digestCadence: event.target.value as NotificationPreferences["digestCadence"],
-                  }))
-                }
-              >
-                <option value="5m">Every 5 minutes</option>
-                <option value="15m">Every 15 minutes</option>
-                <option value="1h">Hourly</option>
-              </select>
-            </div>
-          </div>
-        </div>
       ) : null}
     </>
   );

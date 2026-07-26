@@ -1,9 +1,8 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-import { useIntegrationSessions, usePaper04Manifest, useProviders, useRunPaper04, useRuns } from "../../api/hooks";
-import { ApiError } from "../../api/client";
-import type { IntegrationSessionStatus, RunPaper04Response, RunStatus } from "../../api/types";
+import { useIntegrationSessions, useProviders, useRuns } from "../../api/hooks";
+import type { IntegrationSessionStatus, Run, RunStatus } from "../../api/types";
 import { useDataMode } from "../../data/dataMode";
 import { gkpProviders, gkpRuns } from "../../data/gkpFixtures";
 
@@ -58,10 +57,6 @@ function runStatusLabel(status: RunStatus): string {
   return "Failed";
 }
 
-function isTerminalRunStatus(status: RunStatus): boolean {
-  return status === "finished" || status === "failed" || status === "cancelled";
-}
-
 function sessionStatusClass(status: IntegrationSessionStatus): string {
   if (status === "finished") {
     return "status-success";
@@ -91,44 +86,84 @@ function sessionStatusLabel(status: IntegrationSessionStatus): string {
   return "Failed";
 }
 
-function paper04StatusClass(status: string): string {
-  if (status === "succeeded") {
-    return "status-success";
+function formatDecoderName(value: string | null | undefined): string {
+  if (!value) {
+    return "None";
   }
-  if (status === "running") {
-    return "status-running";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "mwpm") {
+    return "MWPM";
   }
-  if (status === "parity_mismatch") {
-    return "status-warning";
+  if (normalized === "bp" || normalized === "bp_osd") {
+    return normalized === "bp_osd" ? "BP-OSD" : "BP";
   }
-  if (status === "timeout") {
-    return "status-warning";
+  if (normalized === "uf" || normalized === "union_find") {
+    return "Union-Find";
   }
-  return "status-failed";
+  if (normalized === "mwpm_gkp") {
+    return "MWPM-GKP";
+  }
+  return value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
-function runWorkflowKey(raw: string | null | undefined): string {
-  const value = (raw ?? "").trim();
-  return value.length > 0 ? value : "unscoped";
+function formatPercent(value: number | null | undefined, digits = 3): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "Pending";
+  }
+  return `${(value * 100).toFixed(digits)}%`;
 }
 
-function workflowLabel(workflowId: string): string {
-  if (workflowId === "unscoped") {
-    return "Unscoped";
+function formatCount(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "Pending";
   }
-  return workflowId;
+  return value.toLocaleString();
+}
+
+function qecLabelFromEncoderState(value: string | null | undefined): string {
+  if (!value) {
+    return "Pending";
+  }
+  const normalized = value.trim().toLowerCase().replace(/[-\s]+/g, "_");
+  if (normalized === "gkp" || normalized === "digitized_gkp") {
+    return "Digitized GKP";
+  }
+  if (normalized === "surface" || normalized === "surface_code") {
+    return "Surface Code";
+  }
+  if (normalized === "surface_gkp" || normalized === "surface__gkp") {
+    return "Surface-GKP";
+  }
+  if (normalized === "repetition" || normalized === "repetition_code") {
+    return "Repetition Code";
+  }
+  if (normalized === "css_ldpc" || normalized === "css_ldpc_code") {
+    return "CSS-LDPC";
+  }
+  return value;
+}
+
+function scientificEvidenceLabel(run: Run): string {
+  if (run.metrics?.scientific_validation_ready) {
+    return "Exact counters ready";
+  }
+  if (run.status === "running" || run.status === "created") {
+    return "Awaiting counters";
+  }
+  return "No exact counters";
 }
 
 export function JobsPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { isApi, isMock, systemOff, systemArmed } = useDataMode();
-  const apiEnabled = isApi && !systemOff && systemArmed;
+  const { isApi, isMock, systemOff } = useDataMode();
+  const apiEnabled = isApi && !systemOff;
   const providersQuery = useProviders({ enabled: apiEnabled });
   const runsQuery = useRuns({ enabled: apiEnabled, refetchInterval: 2_500 });
   const sessionsQuery = useIntegrationSessions({ enabled: apiEnabled, refetchInterval: 2_500 });
-  const paper04ManifestQuery = usePaper04Manifest({ enabled: apiEnabled });
-  const runPaper04Mutation = useRunPaper04();
 
   const providers = systemOff ? [] : isMock ? gkpProviders : providersQuery.data ?? [];
   const runs = systemOff ? [] : isMock ? gkpRuns : runsQuery.data ?? [];
@@ -138,20 +173,8 @@ export function JobsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | RunStatus>("all");
   const [providerFilter, setProviderFilter] = useState("all");
-  const workflowFilter = (searchParams.get("workflow") ?? "all").trim() || "all";
-  const [paper04StrictThreeStack, setPaper04StrictThreeStack] = useState(false);
-  const [paper04EnableParamSweeps, setPaper04EnableParamSweeps] = useState(false);
-  const [paper04TimeoutSeconds, setPaper04TimeoutSeconds] = useState("10800");
-  const [paper04BaselineHash, setPaper04BaselineHash] = useState<string | null>(null);
-  const [paper04BaselineCapturedAt, setPaper04BaselineCapturedAt] = useState<string | null>(null);
-  const [paper04ActionStatus, setPaper04ActionStatus] = useState<"running" | "succeeded" | "failed" | "parity_mismatch">(
-    "running",
-  );
-  const [paper04ActionMessage, setPaper04ActionMessage] = useState("Ready");
-  const [paper04LastRun, setPaper04LastRun] = useState<RunPaper04Response | null>(null);
-  const [analysisWorkflowId, setAnalysisWorkflowId] = useState<string | null>(null);
 
-  const providerScopedRunsForWorkflow = useMemo(() => {
+  const providerScopedRuns = useMemo(() => {
     return runs.filter((run) => {
       if (providerFilter !== "all" && run.provider_id !== providerFilter) {
         return false;
@@ -160,134 +183,10 @@ export function JobsPage() {
     });
   }, [providerFilter, runs]);
 
-  const workflowOptions = useMemo(() => {
-    const ids = new Set<string>(["paper_04"]);
-    for (const run of providerScopedRunsForWorkflow) {
-      ids.add(runWorkflowKey(run.workflow_id));
-    }
-    return Array.from(ids).sort((left, right) => {
-      if (left === "paper_04") {
-        return -1;
-      }
-      if (right === "paper_04") {
-        return 1;
-      }
-      if (left === "unscoped") {
-        return 1;
-      }
-      if (right === "unscoped") {
-        return -1;
-      }
-      return left.localeCompare(right);
-    });
-  }, [providerScopedRunsForWorkflow]);
-
-  const effectiveWorkflowFilter =
-    workflowFilter !== "all" && !workflowOptions.includes(workflowFilter)
-      ? "all"
-      : workflowFilter;
-
-  const setWorkflowFilter = (value: string) => {
-    setSearchParams((current) => {
-      const next = new URLSearchParams(current);
-      if (value === "all") {
-        next.delete("workflow");
-      } else {
-        next.set("workflow", value);
-      }
-      return next;
-    });
-  };
-
-  const workflowSummaries = useMemo(() => {
-    const runIdsByWorkflow = new Map<string, string[]>();
-    for (const run of providerScopedRunsForWorkflow) {
-      const key = runWorkflowKey(run.workflow_id);
-      const existing = runIdsByWorkflow.get(key) ?? [];
-      existing.push(run.id);
-      runIdsByWorkflow.set(key, existing);
-    }
-
-    if (!runIdsByWorkflow.has("paper_04")) {
-      runIdsByWorkflow.set("paper_04", []);
-    }
-
-    const sessionByRunId = new Map<string, IntegrationSessionStatus[]>();
-    for (const session of sessions) {
-      const existing = sessionByRunId.get(session.run_id) ?? [];
-      existing.push(session.status);
-      sessionByRunId.set(session.run_id, existing);
-    }
-
-    return Array.from(runIdsByWorkflow.entries())
-      .map(([workflowId, runIds]) => {
-        const workflowRuns = providerScopedRunsForWorkflow.filter((run) => runIds.includes(run.id));
-        const statusCounts: Record<RunStatus, number> = {
-          created: 0,
-          running: 0,
-          finished: 0,
-          failed: 0,
-          cancelled: 0,
-        };
-        for (const run of workflowRuns) {
-          statusCounts[run.status] += 1;
-        }
-        const activeRuns = workflowRuns.filter((run) => run.status === "created" || run.status === "running").length;
-        const completedRuns = workflowRuns.filter((run) => isTerminalRunStatus(run.status)).length;
-        const completionPct =
-          runIds.length === 0 ? 0 : Math.round((completedRuns / Math.max(1, runIds.length)) * 100);
-        const decoderCoverage = new Set(workflowRuns.flatMap((run) => run.decoders)).size;
-        const providerCoverage = new Set(workflowRuns.map((run) => run.provider_id)).size;
-        const lastUpdatedAt =
-          workflowRuns.length === 0
-            ? null
-            : workflowRuns
-                .map((run) => run.updated_at)
-                .sort((left, right) => new Date(right).getTime() - new Date(left).getTime())[0];
-        const activeSessions = runIds.reduce((count, runId) => {
-          const statuses = sessionByRunId.get(runId) ?? [];
-          return count + statuses.filter((status) => status === "running" || status === "starting").length;
-        }, 0);
-        return {
-          workflowId,
-          runCount: runIds.length,
-          activeRuns,
-          completedRuns,
-          completionPct,
-          activeSessions,
-          statusCounts,
-          decoderCoverage,
-          providerCoverage,
-          lastUpdatedAt,
-        };
-      })
-      .sort((left, right) => {
-        if (left.workflowId === "paper_04") {
-          return -1;
-        }
-        if (right.workflowId === "paper_04") {
-          return 1;
-        }
-        if (left.runCount !== right.runCount) {
-          return right.runCount - left.runCount;
-        }
-        return left.workflowId.localeCompare(right.workflowId);
-      });
-  }, [providerScopedRunsForWorkflow, sessions]);
-
-  const selectedWorkflowSummary = useMemo(
-    () => workflowSummaries.find((entry) => entry.workflowId === analysisWorkflowId) ?? null,
-    [analysisWorkflowId, workflowSummaries],
-  );
-
   const filteredRuns = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    return providerScopedRunsForWorkflow.filter((run) => {
+    return providerScopedRuns.filter((run) => {
       if (statusFilter !== "all" && run.status !== statusFilter) {
-        return false;
-      }
-      const workflowKey = runWorkflowKey(run.workflow_id);
-      if (effectiveWorkflowFilter !== "all" && workflowKey !== effectiveWorkflowFilter) {
         return false;
       }
       if (!query) {
@@ -298,19 +197,10 @@ export function JobsPage() {
         run.id.toLowerCase().includes(query) ||
         run.dataset_label.toLowerCase().includes(query) ||
         providerName.toLowerCase().includes(query) ||
-        workflowLabel(workflowKey).toLowerCase().includes(query) ||
         run.decoders.join(",").toLowerCase().includes(query)
       );
     });
-  }, [effectiveWorkflowFilter, providerById, providerScopedRunsForWorkflow, searchQuery, statusFilter]);
-
-  const workflowCoverageCount = useMemo(() => {
-    const ids = new Set<string>();
-    for (const run of providerScopedRunsForWorkflow) {
-      ids.add(runWorkflowKey(run.workflow_id));
-    }
-    return ids.size;
-  }, [providerScopedRunsForWorkflow]);
+  }, [providerById, providerScopedRuns, searchQuery, statusFilter]);
 
   const filteredSessions = useMemo(() => {
     const runIds = new Set(filteredRuns.map((run) => run.id));
@@ -328,71 +218,13 @@ export function JobsPage() {
     return stamps.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
   }, [filteredRuns, filteredSessions]);
 
-  const handleCapturePaper04Baseline = async () => {
-    if (!apiEnabled) {
-      return;
-    }
-    setPaper04ActionStatus("running");
-    setPaper04ActionMessage("Capturing CLI baseline manifest...");
-    try {
-      const response = await paper04ManifestQuery.refetch();
-      const manifest = response.data;
-      if (!manifest) {
-        setPaper04ActionStatus("failed");
-        setPaper04ActionMessage("Unable to read paper_04 manifest.");
-        return;
-      }
-      setPaper04BaselineHash(manifest.manifest_hash);
-      const now = new Date().toISOString();
-      setPaper04BaselineCapturedAt(now);
-      setPaper04ActionStatus("succeeded");
-      setPaper04ActionMessage(`Baseline captured (${manifest.manifest_hash.slice(0, 12)}…).`);
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Failed to capture baseline manifest.";
-      setPaper04ActionStatus("failed");
-      setPaper04ActionMessage(message);
-    }
-  };
+  const latestScientificRun = useMemo(() => {
+    return [...filteredRuns]
+      .filter((run) => run.metrics?.scientific_validation_ready)
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0];
+  }, [filteredRuns]);
 
-  const handleRunPaper04 = async () => {
-    if (!apiEnabled) {
-      return;
-    }
-    const parsedTimeout = Number.parseInt(paper04TimeoutSeconds.trim(), 10);
-    if (!Number.isFinite(parsedTimeout) || parsedTimeout <= 0) {
-      setPaper04ActionStatus("failed");
-      setPaper04ActionMessage("Timeout must be a positive integer.");
-      return;
-    }
-
-    setPaper04ActionStatus("running");
-    setPaper04ActionMessage("Running paper_04 workflow through LiDMaS+...");
-    try {
-      const response = await runPaper04Mutation.mutateAsync({
-        strict_three_stack: paper04StrictThreeStack,
-        enable_param_sweeps: paper04EnableParamSweeps,
-        timeout_seconds: parsedTimeout,
-        compare_with_manifest_hash: paper04BaselineHash ?? undefined,
-      });
-      setPaper04LastRun(response);
-      if (response.status === "succeeded") {
-        setPaper04ActionStatus("succeeded");
-        setPaper04ActionMessage(
-          `paper_04 completed (manifest ${response.manifest.manifest_hash.slice(0, 12)}…).`,
-        );
-      } else if (response.status === "parity_mismatch") {
-        setPaper04ActionStatus("parity_mismatch");
-        setPaper04ActionMessage("paper_04 completed, but manifest parity differs from CLI baseline.");
-      } else {
-        setPaper04ActionStatus("failed");
-        setPaper04ActionMessage(`paper_04 ended with status '${response.status}'.`);
-      }
-    } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Failed to run paper_04 workflow.";
-      setPaper04ActionStatus("failed");
-      setPaper04ActionMessage(message);
-    }
-  };
+  const exactRunCount = filteredRuns.filter((run) => run.metrics?.scientific_validation_ready).length;
 
   return (
     <>
@@ -404,187 +236,23 @@ export function JobsPage() {
       <div className="trust-strip">
         <div className="trust-item">
           <span>Data Source</span>
-          <strong>{systemOff ? "Off" : !systemArmed ? "Standby" : isMock ? "GKP Mock" : "Live API"}</strong>
+          <strong>{systemOff ? "Off" : isMock ? "GKP Mock" : "Live API"}</strong>
         </div>
         <div className="trust-item">
           <span>Runs in Scope</span>
           <strong>{filteredRuns.length}</strong>
         </div>
         <div className="trust-item">
+          <span>Exact Runs</span>
+          <strong>{exactRunCount}</strong>
+        </div>
+        <div className="trust-item">
           <span>Active Sessions</span>
           <strong>{filteredSessions.filter((session) => session.status === "running" || session.status === "starting").length}</strong>
         </div>
         <div className="trust-item">
-          <span>Decoder Coverage</span>
-          <strong>{new Set(filteredRuns.flatMap((run) => run.decoders)).size} decoders</strong>
-        </div>
-        <div className="trust-item">
-          <span>Workflow Coverage</span>
-          <strong>{workflowCoverageCount} workflows</strong>
-        </div>
-        <div className="trust-item">
           <span>Last Refresh</span>
           <strong>{formatAgo(latestUpdatedAt)}</strong>
-        </div>
-      </div>
-
-      <div className="table-container runs-workflow-panel">
-        <div className="table-wrapper">
-          <div className="section-title">Workflow Stack</div>
-          <div className="panel-subtitle">
-            Workflow protocols are orchestration layers for circuit construction, simulator noise, syndrome extraction, and decoder policy runs.
-          </div>
-          <div className="runs-workflow-stack-grid">
-            {workflowSummaries.map((entry) => {
-              const isActive = effectiveWorkflowFilter === entry.workflowId;
-              return (
-                <div key={entry.workflowId} className={`runs-workflow-stack-item ${isActive ? "is-active" : ""}`}>
-                  <div className="runs-workflow-stack-head">
-                    <span className={`runs-workflow-pill ${entry.workflowId === "paper_04" ? "is-paper" : ""}`}>
-                      {workflowLabel(entry.workflowId)}
-                    </span>
-                    <div className="runs-workflow-stack-actions">
-                      <button
-                        type="button"
-                        className={`btn btn-small runs-workflow-filter-btn ${isActive ? "is-active" : ""}`}
-                        onClick={() => setWorkflowFilter(isActive ? "all" : entry.workflowId)}
-                      >
-                        {isActive ? "Clear Filter" : "Filter"}
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-small runs-workflow-analysis-btn ${
-                          analysisWorkflowId === entry.workflowId ? "is-active" : ""
-                        }`}
-                        onClick={() => setAnalysisWorkflowId(entry.workflowId)}
-                      >
-                        Analysis
-                      </button>
-                    </div>
-                  </div>
-                  <div className="runs-workflow-progress">
-                    <div className="runs-workflow-progress-head">
-                      <span>Completion</span>
-                      <strong>{entry.completionPct}%</strong>
-                    </div>
-                    <div
-                      className="runs-workflow-progress-track"
-                      role="progressbar"
-                      aria-valuenow={entry.completionPct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <span className="runs-workflow-progress-fill" style={{ width: `${entry.completionPct}%` }} />
-                    </div>
-                    <div className="runs-workflow-progress-caption">
-                      {entry.completedRuns} of {entry.runCount} runs completed
-                    </div>
-                  </div>
-                  <div className="runs-workflow-stack-metrics">
-                    <span>Runs: <strong>{entry.runCount}</strong></span>
-                    <span>Active Runs: <strong>{entry.activeRuns}</strong></span>
-                    <span>Active Sessions: <strong>{entry.activeSessions}</strong></span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="table-container runs-parity-panel">
-        <div className="table-wrapper">
-          <div className="section-title">paper_04 Parity</div>
-          <div className="panel-subtitle">
-            Run the same paper workflow used by CLI and compare artifact manifest hashes for IDE/CLI parity.
-          </div>
-          <div className="scope-meta">
-            Canonical CLI command: <code>./examples/paper_runs/paper_04/run_all.sh</code>
-          </div>
-          <div className="paper04-runner-controls">
-            <label className="paper04-runner-check">
-              <input
-                type="checkbox"
-                checked={paper04StrictThreeStack}
-                onChange={(event) => setPaper04StrictThreeStack(event.target.checked)}
-                disabled={!apiEnabled || runPaper04Mutation.isPending}
-              />
-              Strict PennyLane/Qiskit/Cirq required
-            </label>
-            <label className="paper04-runner-check">
-              <input
-                type="checkbox"
-                checked={paper04EnableParamSweeps}
-                onChange={(event) => setPaper04EnableParamSweeps(event.target.checked)}
-                disabled={!apiEnabled || runPaper04Mutation.isPending}
-              />
-              Enable parameter sweeps
-            </label>
-            <label className="paper04-runner-timeout">
-              Timeout (seconds)
-              <input
-                type="text"
-                className="form-input"
-                value={paper04TimeoutSeconds}
-                onChange={(event) => setPaper04TimeoutSeconds(event.target.value)}
-                disabled={!apiEnabled || runPaper04Mutation.isPending}
-              />
-            </label>
-          </div>
-          <div className="paper04-runner-actions">
-            <button
-              className="btn btn-secondary"
-              onClick={handleCapturePaper04Baseline}
-              disabled={!apiEnabled || runPaper04Mutation.isPending || paper04ManifestQuery.isFetching}
-            >
-              Capture CLI Baseline
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleRunPaper04}
-              disabled={!apiEnabled || runPaper04Mutation.isPending}
-            >
-              Run paper_04 In LiDMaS+
-            </button>
-            <span className={`status-badge ${paper04StatusClass(paper04ActionStatus)}`}>● {paper04ActionMessage}</span>
-          </div>
-          <div className="scope-meta">
-            Baseline: {paper04BaselineHash ? `${paper04BaselineHash.slice(0, 16)}…` : "not captured"} · Captured:{" "}
-            {paper04BaselineCapturedAt ? formatAgo(paper04BaselineCapturedAt) : "n/a"} · Current manifest:{" "}
-            {paper04ManifestQuery.data?.manifest_hash ? `${paper04ManifestQuery.data.manifest_hash.slice(0, 16)}…` : "n/a"}
-          </div>
-          {paper04LastRun ? (
-            <>
-              <div className="scope-meta">
-                Last run: status <code>{paper04LastRun.status}</code> · exit{" "}
-                <code>{paper04LastRun.exit_code ?? "none"}</code> · duration{" "}
-                <code>{(paper04LastRun.duration_ms / 1000).toFixed(1)}s</code> · artifacts{" "}
-                <code>{paper04LastRun.manifest.artifact_count}</code>
-              </div>
-              {paper04LastRun.parity ? (
-                <div className="scope-meta">
-                  Parity:{" "}
-                  <strong>{paper04LastRun.parity.match_exact ? "MATCH" : "MISMATCH"}</strong> · expected{" "}
-                  <code>{paper04LastRun.parity.expected_manifest_hash.slice(0, 16)}…</code> · actual{" "}
-                  <code>{paper04LastRun.parity.actual_manifest_hash.slice(0, 16)}…</code>
-                </div>
-              ) : null}
-              <div className="paper04-runner-log-grid">
-                <div>
-                  <div className="scope-meta">stdout tail</div>
-                  <pre className="paper04-runner-log-tail">
-                    {paper04LastRun.stdout_tail.length > 0 ? paper04LastRun.stdout_tail.join("\n") : "(empty)"}
-                  </pre>
-                </div>
-                <div>
-                  <div className="scope-meta">stderr tail</div>
-                  <pre className="paper04-runner-log-tail">
-                    {paper04LastRun.stderr_tail.length > 0 ? paper04LastRun.stderr_tail.join("\n") : "(empty)"}
-                  </pre>
-                </div>
-              </div>
-            </>
-          ) : null}
         </div>
       </div>
 
@@ -596,7 +264,7 @@ export function JobsPage() {
             className="search-box research-search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Run id, dataset, provider, workflow, decoder..."
+            placeholder="Run id, dataset, provider, decoder..."
           />
         </div>
         <div className="filter-group">
@@ -629,20 +297,53 @@ export function JobsPage() {
             ))}
           </select>
         </div>
-        <div className="filter-group">
-          <label>Workflow</label>
-          <select
-            className="select-field research-select"
-            value={effectiveWorkflowFilter}
-            onChange={(event) => setWorkflowFilter(event.target.value)}
+      </div>
+
+      <div className="runs-evidence-panel">
+        <div className="runs-evidence-heading">
+          <div>
+            <span>Latest Scientific Evidence</span>
+            <strong>
+              {latestScientificRun ? `Run ${latestScientificRun.id.slice(0, 8).toUpperCase()}` : "Awaiting exact run"}
+            </strong>
+          </div>
+          <button
+            className="provider-link-btn"
+            disabled={!latestScientificRun}
+            onClick={() => {
+              if (latestScientificRun) {
+                navigate(`/decoder/telemetry?runA=${encodeURIComponent(latestScientificRun.id)}&compare=0`);
+              }
+            }}
           >
-            <option value="all">All Workflows</option>
-            {workflowOptions.map((workflowId) => (
-              <option key={workflowId} value={workflowId}>
-                {workflowLabel(workflowId)}
-              </option>
-            ))}
-          </select>
+            Open Telemetry
+          </button>
+        </div>
+        <div className="runs-evidence-grid">
+          <div className="runs-evidence-card">
+            <span>Recommended Decoder</span>
+            <strong>{formatDecoderName(latestScientificRun?.metrics?.best_decoder)}</strong>
+          </div>
+          <div className="runs-evidence-card">
+            <span>QEC Mapping</span>
+            <strong>{qecLabelFromEncoderState(latestScientificRun?.metrics?.best_encoder_state)}</strong>
+          </div>
+          <div className="runs-evidence-card">
+            <span>Logical Error Rate</span>
+            <strong>{formatPercent(latestScientificRun?.metrics?.logical_error_rate, 3)}</strong>
+          </div>
+          <div className="runs-evidence-card">
+            <span>Exact PER</span>
+            <strong>{formatPercent(latestScientificRun?.metrics?.physical_error_rate, 3)}</strong>
+          </div>
+          <div className="runs-evidence-card">
+            <span>Warning Rate</span>
+            <strong>{formatPercent(latestScientificRun?.metrics?.warning_rate, 2)}</strong>
+          </div>
+          <div className="runs-evidence-card">
+            <span>Expanded Shots</span>
+            <strong>{formatCount(latestScientificRun?.metrics?.expanded_shot_count)}</strong>
+          </div>
         </div>
       </div>
 
@@ -654,7 +355,7 @@ export function JobsPage() {
           <p>Adjust filters or execute a replay session.</p>
         </div>
       ) : (
-        <div className="table-container">
+        <div className="table-container runs-table-container">
           <div className="table-wrapper">
             <table>
               <thead>
@@ -662,9 +363,12 @@ export function JobsPage() {
                   <th>Run</th>
                   <th>Dataset</th>
                   <th>Provider</th>
-                  <th>Workflow</th>
-                  <th>Decoders</th>
+                  <th>Recommendation</th>
+                  <th>QEC</th>
+                  <th>LER</th>
+                  <th>Exact PER</th>
                   <th>Status</th>
+                  <th>Evidence</th>
                   <th>Updated</th>
                   <th>Telemetry</th>
                 </tr>
@@ -676,25 +380,23 @@ export function JobsPage() {
                     <td>{run.dataset_label}</td>
                     <td>{providerById.get(run.provider_id)?.name ?? run.provider_id}</td>
                     <td>
-                      <span
-                        className={`runs-workflow-pill ${
-                          runWorkflowKey(run.workflow_id) === "paper_04" ? "is-paper" : ""
-                        }`}
-                      >
-                        {workflowLabel(runWorkflowKey(run.workflow_id))}
-                      </span>
-                    </td>
-                    <td>
+                      <strong className="runs-table-strong">{formatDecoderName(run.metrics?.best_decoder)}</strong>
                       <div className="runs-decoder-list">
                         {run.decoders.map((decoder) => (
                           <span key={`${run.id}-${decoder}`} className="runs-decoder-pill">
-                            {decoder}
+                            {formatDecoderName(decoder)}
                           </span>
                         ))}
                       </div>
                     </td>
+                    <td>{qecLabelFromEncoderState(run.metrics?.best_encoder_state)}</td>
+                    <td className="runs-table-number">{formatPercent(run.metrics?.logical_error_rate, 3)}</td>
+                    <td className="runs-table-number">{formatPercent(run.metrics?.physical_error_rate, 3)}</td>
                     <td>
                       <span className={`status-badge ${runStatusClass(run.status)}`}>● {runStatusLabel(run.status)}</span>
+                    </td>
+                    <td>
+                      <span className="runs-evidence-badge">{scientificEvidenceLabel(run)}</span>
                     </td>
                     <td>{formatAgo(run.updated_at)}</td>
                     <td>
@@ -714,7 +416,7 @@ export function JobsPage() {
       )}
 
       <div className="section-title section-offset">Adapter Sessions</div>
-      <div className="panel-subtitle">Operational session history for simulator and replay adapters.</div>
+      <div className="panel-subtitle">Runtime session history for simulator and replay adapters.</div>
       {filteredSessions.length === 0 ? (
         <div className="scientific-muted-note">No adapter sessions in the current run scope.</div>
       ) : (
@@ -751,101 +453,6 @@ export function JobsPage() {
           </div>
         </div>
       )}
-
-      {selectedWorkflowSummary ? (
-        <div className="modal-overlay" onClick={() => setAnalysisWorkflowId(null)}>
-          <div className="modal runs-analysis-modal" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <div className="modal-title">{workflowLabel(selectedWorkflowSummary.workflowId)} Analysis</div>
-                <div className="modal-subtitle">Run completion and execution breakdown for the selected workflow.</div>
-              </div>
-              <button type="button" className="modal-close" onClick={() => setAnalysisWorkflowId(null)}>
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="runs-analysis-progress-head">
-                <span>Completion</span>
-                <strong>{selectedWorkflowSummary.completionPct}%</strong>
-              </div>
-              <div
-                className="runs-analysis-progress-track"
-                role="progressbar"
-                aria-valuenow={selectedWorkflowSummary.completionPct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              >
-                <span
-                  className="runs-analysis-progress-fill"
-                  style={{ width: `${selectedWorkflowSummary.completionPct}%` }}
-                />
-              </div>
-              <div className="runs-analysis-progress-caption">
-                {selectedWorkflowSummary.completedRuns} completed / {selectedWorkflowSummary.runCount} total
-              </div>
-
-              <div className="runs-analysis-figures-grid">
-                <div className="runs-analysis-figure-card">
-                  <span>Active Runs</span>
-                  <strong>{selectedWorkflowSummary.activeRuns}</strong>
-                </div>
-                <div className="runs-analysis-figure-card">
-                  <span>Active Sessions</span>
-                  <strong>{selectedWorkflowSummary.activeSessions}</strong>
-                </div>
-                <div className="runs-analysis-figure-card">
-                  <span>Provider Coverage</span>
-                  <strong>{selectedWorkflowSummary.providerCoverage}</strong>
-                </div>
-                <div className="runs-analysis-figure-card">
-                  <span>Decoder Coverage</span>
-                  <strong>{selectedWorkflowSummary.decoderCoverage}</strong>
-                </div>
-                <div className="runs-analysis-figure-card">
-                  <span>Last Updated</span>
-                  <strong>{formatAgo(selectedWorkflowSummary.lastUpdatedAt)}</strong>
-                </div>
-                <div className="runs-analysis-figure-card">
-                  <span>Total Runs</span>
-                  <strong>{selectedWorkflowSummary.runCount}</strong>
-                </div>
-              </div>
-
-              <div className="runs-analysis-status-list">
-                {(["created", "running", "finished", "failed", "cancelled"] as RunStatus[]).map((status) => {
-                  const count = selectedWorkflowSummary.statusCounts[status];
-                  const pct =
-                    selectedWorkflowSummary.runCount === 0
-                      ? 0
-                      : Math.round((count / selectedWorkflowSummary.runCount) * 100);
-                  return (
-                    <div key={status} className="runs-analysis-status-row">
-                      <div className="runs-analysis-status-head">
-                        <span>{runStatusLabel(status)}</span>
-                        <strong>
-                          {count} ({pct}%)
-                        </strong>
-                      </div>
-                      <div className="runs-analysis-status-track">
-                        <span
-                          className={`runs-analysis-status-fill runs-analysis-status-fill-${status}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-secondary" onClick={() => setAnalysisWorkflowId(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

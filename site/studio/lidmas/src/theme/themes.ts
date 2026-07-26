@@ -12,7 +12,12 @@ interface ThemePalette {
   bg: string;
   bgSecondary: string;
   bgTertiary: string;
+  surface?: string;
+  surfaceElevated?: string;
+  surfaceMuted?: string;
   line: string;
+  lineSoft?: string;
+  lineStrong?: string;
   text: string;
   textSecondary: string;
   textMuted: string;
@@ -21,13 +26,20 @@ interface ThemePalette {
   green: string;
   orange: string;
   red: string;
+  accentSoft?: string;
+  accentSoftStrong?: string;
+  successSoft?: string;
+  warningSoft?: string;
+  dangerSoft?: string;
+  shadowPanel?: string;
+  shadowSubtle?: string;
   colorScheme: "dark" | "light";
 }
 
 interface ThemeDefinition {
   id: Exclude<ThemeId, "system-auto">;
   label: string;
-  family: "core" | "gerry";
+  family: "core" | "research";
   description: string;
   palette: ThemePalette;
 }
@@ -35,7 +47,7 @@ interface ThemeDefinition {
 export interface ThemeOption {
   id: ThemeId;
   label: string;
-  family: "core" | "gerry" | "auto";
+  family: "core" | "research" | "auto";
   description: string;
 }
 
@@ -57,7 +69,12 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
       bg: "#000000",
       bgSecondary: "#080808",
       bgTertiary: "#101010",
+      surface: "#0b1017",
+      surfaceElevated: "#101722",
+      surfaceMuted: "#070a0f",
       line: "#1f1f1f",
+      lineSoft: "rgba(141, 155, 174, 0.13)",
+      lineStrong: "rgba(141, 155, 174, 0.34)",
       text: "#f3f4f6",
       textSecondary: "#c4cad4",
       textMuted: "#818b99",
@@ -66,6 +83,13 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
       green: "#26b36b",
       orange: "#f0982f",
       red: "#e25564",
+      accentSoft: "rgba(63, 137, 234, 0.12)",
+      accentSoftStrong: "rgba(63, 137, 234, 0.2)",
+      successSoft: "rgba(38, 179, 107, 0.16)",
+      warningSoft: "rgba(240, 152, 47, 0.16)",
+      dangerSoft: "rgba(226, 85, 100, 0.16)",
+      shadowPanel: "0 18px 42px rgba(0, 0, 0, 0.28)",
+      shadowSubtle: "0 1px 0 rgba(255, 255, 255, 0.035) inset",
       colorScheme: "dark",
     },
   },
@@ -78,7 +102,12 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
       bg: "#f5f7fa",
       bgSecondary: "#ffffff",
       bgTertiary: "#f0f3f8",
+      surface: "#ffffff",
+      surfaceElevated: "#f9fbfe",
+      surfaceMuted: "#eef3f8",
       line: "#d6dce8",
+      lineSoft: "rgba(75, 92, 120, 0.14)",
+      lineStrong: "rgba(75, 92, 120, 0.36)",
       text: "#1a2334",
       textSecondary: "#33415c",
       textMuted: "#5b6b88",
@@ -87,13 +116,20 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
       green: "#198f58",
       orange: "#cc7a1f",
       red: "#c43f52",
+      accentSoft: "rgba(47, 111, 205, 0.1)",
+      accentSoftStrong: "rgba(47, 111, 205, 0.18)",
+      successSoft: "rgba(25, 143, 88, 0.12)",
+      warningSoft: "rgba(204, 122, 31, 0.12)",
+      dangerSoft: "rgba(196, 63, 82, 0.12)",
+      shadowPanel: "0 18px 42px rgba(20, 30, 48, 0.1)",
+      shadowSubtle: "0 1px 0 rgba(255, 255, 255, 0.82) inset",
       colorScheme: "light",
     },
   },
   "gerry-noctis": {
     id: "gerry-noctis",
-    label: "Gerry Noctis",
-    family: "gerry",
+    label: "Noctis",
+    family: "research",
     description: "Deep navy with high-contrast telemetry accents.",
     palette: {
       bg: "#060914",
@@ -113,8 +149,8 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
   },
   "gerry-lagoon": {
     id: "gerry-lagoon",
-    label: "Gerry Lagoon",
-    family: "gerry",
+    label: "Lagoon",
+    family: "research",
     description: "Cool teal-operational palette for long monitoring sessions.",
     palette: {
       bg: "#041318",
@@ -134,8 +170,8 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
   },
   "gerry-ember": {
     id: "gerry-ember",
-    label: "Gerry Ember",
-    family: "gerry",
+    label: "Ember",
+    family: "research",
     description: "Graphite background with warm amber interaction tone.",
     palette: {
       bg: "#121111",
@@ -155,8 +191,8 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
   },
   "gerry-sage": {
     id: "gerry-sage",
-    label: "Gerry Sage",
-    family: "gerry",
+    label: "Sage",
+    family: "research",
     description: "Muted evergreen theme tuned for reduced eye strain.",
     palette: {
       bg: "#08110d",
@@ -176,14 +212,19 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
   },
   "gerry-parchment": {
     id: "gerry-parchment",
-    label: "Gerry Parchment",
-    family: "gerry",
+    label: "Parchment",
+    family: "research",
     description: "Soft paper-like light theme for report review workflows.",
     palette: {
       bg: "#f5f1e8",
       bgSecondary: "#fffaf1",
       bgTertiary: "#efe7d8",
+      surface: "#fffaf1",
+      surfaceElevated: "#fbf4e8",
+      surfaceMuted: "#efe7d8",
       line: "#d7c8ad",
+      lineSoft: "rgba(113, 96, 68, 0.16)",
+      lineStrong: "rgba(113, 96, 68, 0.38)",
       text: "#2d2a22",
       textSecondary: "#5a5243",
       textMuted: "#877a63",
@@ -192,6 +233,13 @@ const THEMES: Record<Exclude<ThemeId, "system-auto">, ThemeDefinition> = {
       green: "#3f8a5d",
       orange: "#c1863c",
       red: "#b55555",
+      accentSoft: "rgba(76, 111, 159, 0.12)",
+      accentSoftStrong: "rgba(76, 111, 159, 0.2)",
+      successSoft: "rgba(63, 138, 93, 0.12)",
+      warningSoft: "rgba(193, 134, 60, 0.14)",
+      dangerSoft: "rgba(181, 85, 85, 0.13)",
+      shadowPanel: "0 18px 42px rgba(88, 72, 45, 0.13)",
+      shadowSubtle: "0 1px 0 rgba(255, 255, 255, 0.75) inset",
       colorScheme: "light",
     },
   },
@@ -246,10 +294,26 @@ function writeCssVariables(palette: ThemePalette): void {
     return;
   }
   const root = document.documentElement;
+  const shadowPanel =
+    palette.shadowPanel ??
+    (palette.colorScheme === "light"
+      ? "0 18px 42px rgba(20, 30, 48, 0.1)"
+      : "0 18px 42px rgba(0, 0, 0, 0.28)");
+  const shadowSubtle =
+    palette.shadowSubtle ??
+    (palette.colorScheme === "light"
+      ? "0 1px 0 rgba(255, 255, 255, 0.82) inset"
+      : "0 1px 0 rgba(255, 255, 255, 0.035) inset");
+
   root.style.setProperty("--bg", palette.bg);
   root.style.setProperty("--bg-secondary", palette.bgSecondary);
   root.style.setProperty("--bg-tertiary", palette.bgTertiary);
+  root.style.setProperty("--surface", palette.surface ?? palette.bgSecondary);
+  root.style.setProperty("--surface-elevated", palette.surfaceElevated ?? palette.bgTertiary);
+  root.style.setProperty("--surface-muted", palette.surfaceMuted ?? palette.bg);
   root.style.setProperty("--line", palette.line);
+  root.style.setProperty("--line-soft", palette.lineSoft ?? `color-mix(in srgb, ${palette.line} 58%, transparent)`);
+  root.style.setProperty("--line-strong", palette.lineStrong ?? `color-mix(in srgb, ${palette.line} 78%, ${palette.textMuted} 22%)`);
   root.style.setProperty("--text", palette.text);
   root.style.setProperty("--text-secondary", palette.textSecondary);
   root.style.setProperty("--text-muted", palette.textMuted);
@@ -258,7 +322,18 @@ function writeCssVariables(palette: ThemePalette): void {
   root.style.setProperty("--green", palette.green);
   root.style.setProperty("--orange", palette.orange);
   root.style.setProperty("--red", palette.red);
+  root.style.setProperty("--accent-soft", palette.accentSoft ?? `color-mix(in srgb, ${palette.blue} 18%, transparent)`);
+  root.style.setProperty(
+    "--accent-soft-strong",
+    palette.accentSoftStrong ?? `color-mix(in srgb, ${palette.blue} 26%, transparent)`,
+  );
+  root.style.setProperty("--success-soft", palette.successSoft ?? `color-mix(in srgb, ${palette.green} 18%, transparent)`);
+  root.style.setProperty("--warning-soft", palette.warningSoft ?? `color-mix(in srgb, ${palette.orange} 18%, transparent)`);
+  root.style.setProperty("--danger-soft", palette.dangerSoft ?? `color-mix(in srgb, ${palette.red} 18%, transparent)`);
+  root.style.setProperty("--shadow-panel", shadowPanel);
+  root.style.setProperty("--shadow-subtle", shadowSubtle);
   root.style.setProperty("color-scheme", palette.colorScheme);
+  root.dataset.colorScheme = palette.colorScheme;
 }
 
 export function getStoredThemeId(): ThemeId | null {

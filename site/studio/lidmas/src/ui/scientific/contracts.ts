@@ -22,7 +22,6 @@ export type ScientificField =
 export type ScientificCardKey =
   | "ler"
   | "per"
-  | "response_ratio"
   | "rounds"
   | "stabilizer_count"
   | "syndrome_opportunities"
@@ -78,7 +77,7 @@ export const SCIENTIFIC_FIELD_LABELS: Record<ScientificField, string> = {
 export const SCIENTIFIC_CARD_CONTRACTS: Record<ScientificCardKey, ScientificCardContract> = {
   ler: {
     key: "ler",
-    label: "Active Decoder LER",
+    label: "Recommended Decoder LER",
     requiredFields: ["logical_failures", "logical_trials"],
     exactness: "exact",
     stateEligibility: ["PARTIAL", "EXACT", "VALIDATED"],
@@ -87,13 +86,6 @@ export const SCIENTIFIC_CARD_CONTRACTS: Record<ScientificCardKey, ScientificCard
     key: "per",
     label: "Physical Error Rate (PER)",
     requiredFields: ["physical_error_events", "physical_error_opportunities"],
-    exactness: "exact",
-    stateEligibility: ["PARTIAL", "EXACT", "VALIDATED"],
-  },
-  response_ratio: {
-    key: "response_ratio",
-    label: "Decoder Response Ratio",
-    requiredFields: ["request_line_count", "response_line_count"],
     exactness: "exact",
     stateEligibility: ["PARTIAL", "EXACT", "VALIDATED"],
   },
@@ -158,7 +150,6 @@ export const SCIENTIFIC_CARD_CONTRACTS: Record<ScientificCardKey, ScientificCard
 export const SCIENTIFIC_PRIMARY_CARD_ORDER: ScientificCardKey[] = [
   "ler",
   "per",
-  "response_ratio",
   "rounds",
   "stabilizer_count",
   "syndrome_opportunities",
@@ -175,7 +166,6 @@ export const SCIENTIFIC_SECONDARY_CARD_ORDER: ScientificCardKey[] = [
 export const SCIENTIFIC_REQUIRED_CONTRACT_KEYS: ScientificCardKey[] = [
   "ler",
   "per",
-  "response_ratio",
   "rounds",
   "stabilizer_count",
   "syndrome_opportunities",

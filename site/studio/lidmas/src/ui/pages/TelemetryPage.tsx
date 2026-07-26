@@ -9,7 +9,6 @@ import {
   Legend,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -20,12 +19,12 @@ import { useProviders, useRunTelemetry, useRuns } from "../../api/hooks";
 import type { ProviderKind, Run, RunStatus, RunTelemetry } from "../../api/types";
 import { useDataMode } from "../../data/dataMode";
 import { useSessionControl } from "../../data/sessionControl";
-import { DECODER_PROFILES, decoderLabel, parseDecoderKey } from "../../data/decoders";
+import { DECODER_PROFILES, PUBLIC_DECODER_KEYS, decoderLabel, parseDecoderKey } from "../../data/decoders";
 import type { DecoderKey } from "../../data/decoders";
 import { GKP_SCENARIO_NAME, gkpProviders, gkpRunTelemetry, gkpRuns } from "../../data/gkpFixtures";
 
 type TelemetryWindow = "1h" | "6h" | "24h";
-type TelemetrySortMode = "updated" | "warning" | "stability" | "throughput";
+type TelemetrySortMode = "updated" | "warning" | "syndrome" | "throughput";
 type TelemetryRole = "viewer" | "operator" | "admin";
 type HardwareFilter = "all" | ProviderKind;
 
@@ -50,12 +49,10 @@ interface KpiCardModel {
   key: string;
   label: string;
   value: string;
-  trendText: string;
-  trendDelta: number;
-  trendUpGood: boolean;
+  detail: string;
 }
 
-interface WorkflowAlertItem {
+interface TelemetrySignalItem {
   id: string;
   level: "critical" | "warning" | "info";
   title: string;
@@ -63,15 +60,8 @@ interface WorkflowAlertItem {
   metric: string;
 }
 
-interface AlertWorkflowState {
-  acknowledged: boolean;
-  owner: string;
-  notes: string;
-}
-
 interface DecoderScorePoint {
   decoder: string;
-  score: number;
   meanFlips: number;
   meanResidual: number;
 }
@@ -89,17 +79,13 @@ interface TelemetrySummary {
   displacementSigma: number;
   triggerRatePct: number;
   warningRatePct: number;
-  p95LatencyMs: number;
-  p99LatencyMs: number;
   throughputPerRound: number;
   logicalErrorRatePct: number;
-  stabilityScore: number;
   syndromeSatisfactionPct: number;
   bestDecoder: string;
   bestQec: string;
   overheadMapping: string;
   missingSignals: string[];
-  latencySamples: number[];
   syndromeByRound: SyndromeRoundPoint[];
   decoderScores: DecoderScorePoint[];
 }
@@ -110,7 +96,6 @@ interface TelemetryDrilldownState {
     perPct: number;
     lerPct: number;
     warningPct: number;
-    p95LatencyMs: number;
     throughput: number;
     bestDecoder: string;
     bestQec: string;
@@ -129,12 +114,6 @@ interface NoiseChartPoint {
   compareDisplacementSigma: number | null;
 }
 
-interface LatencyChartPoint {
-  sample: number;
-  latencyMs: number;
-  compareLatencyMs: number | null;
-}
-
 interface SyndromeChartPoint {
   round: number;
   triggerRatePct: number;
@@ -143,12 +122,8 @@ interface SyndromeChartPoint {
   compareTriggerRatePct: number | null;
 }
 
-interface DecoderChartPoint {
-  decoder: string;
-  score: number;
-  meanFlips: number;
-  meanResidual: number;
-  compareScore: number | null;
+interface DecoderChartPoint extends DecoderScorePoint {
+  compareMeanResidual: number | null;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -160,28 +135,6 @@ function average(values: number[]): number {
     return 0;
   }
   return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
-function percentile(values: number[], p: number): number {
-  if (values.length === 0) {
-    return 0;
-  }
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.floor((p / 100) * sorted.length)));
-  return sorted[index];
-}
-
-function percentDelta(current: number, previous: number): number {
-  if (!Number.isFinite(current) || !Number.isFinite(previous)) {
-    return 0;
-  }
-  const baseline = Math.max(1e-9, Math.abs(previous));
-  return ((current - previous) / baseline) * 100;
-}
-
-function formatTrend(deltaPct: number): string {
-  const direction = deltaPct >= 0 ? "▲" : "▼";
-  return `${direction} ${Math.abs(deltaPct).toFixed(1)}%`;
 }
 
 function numericValue(value: unknown): number {
@@ -210,7 +163,7 @@ function parseWindow(value: string | null): TelemetryWindow {
 }
 
 function parseSortMode(value: string | null): TelemetrySortMode {
-  if (value === "warning" || value === "stability" || value === "throughput") {
+  if (value === "warning" || value === "syndrome" || value === "throughput") {
     return value;
   }
   return "updated";
@@ -266,6 +219,29 @@ function bestQecByHardware(kind: ProviderKind): string {
     return "Reference Surface Code";
   }
   return "N/A";
+}
+
+function qecLabelFromEncoderState(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase().replace(/[-\s]+/g, "_");
+  if (normalized === "gkp" || normalized === "digitized_gkp") {
+    return "Digitized GKP";
+  }
+  if (normalized === "surface" || normalized === "surface_code") {
+    return "Surface Code";
+  }
+  if (normalized === "surface_gkp" || normalized === "surface__gkp") {
+    return "Surface-GKP";
+  }
+  if (normalized === "repetition" || normalized === "repetition_code") {
+    return "Repetition Code";
+  }
+  if (normalized === "css_ldpc" || normalized === "css_ldpc_code") {
+    return "CSS-LDPC";
+  }
+  return null;
 }
 
 function runStatusBadgeClass(status: RunStatus): string {
@@ -460,22 +436,6 @@ function summarizeTelemetry(
 
   const warningRatePct = clamp((telemetry.warning_rate ?? triggerRatePct / 100) * 100, 0, 100);
 
-  const latencySamples = telemetry.noise_samples.map((sample, index) => {
-    const wave = Math.sin(index * 0.43) * 5.8 + Math.cos(index * 0.19) * 2.4;
-    return clamp(
-      18 +
-        sample.physical_error_rate * 2_400 +
-        sample.displacement_sigma * 180 +
-        sample.photon_loss_rate * 1_200 +
-        decoderProfile.latencyBias * 0.9 +
-        wave,
-      8,
-      320,
-    );
-  });
-
-  const p95LatencyMs = percentile(latencySamples, 95);
-  const p99LatencyMs = percentile(latencySamples, 99);
   const throughputPerRound = telemetry.request_count / Math.max(1, telemetry.rounds);
   const syndromeSatisfactionPct =
     run.raw.metrics?.syndrome_satisfaction_rate != null
@@ -483,7 +443,16 @@ function summarizeTelemetry(
       : clamp(100 - triggerRatePct * 0.65, 0, 100);
 
   const exactEntries = (telemetry.decoder_exact_metrics ?? [])
-    .filter((entry) => entry.trials > 0 && entry.logical_failures >= 0 && entry.logical_failures <= entry.trials)
+    .filter((entry) => {
+      const decoderKey = parseDecoderKey(entry.decoder);
+      return (
+        decoderKey != null &&
+        PUBLIC_DECODER_KEYS.includes(decoderKey) &&
+        entry.trials > 0 &&
+        entry.logical_failures >= 0 &&
+        entry.logical_failures <= entry.trials
+      );
+    })
     .sort(
       (left, right) =>
         left.logical_failures / left.trials - right.logical_failures / right.trials,
@@ -508,13 +477,11 @@ function summarizeTelemetry(
     exactLerPct ??
     (allowEstimatedLogicalError ? estimatedLogicalErrorRatePct : 0);
 
-  const stabilityScore = clamp(
-    100 - warningRatePct * 0.8 - logicalErrorRatePct * 1.3 - p95LatencyMs * 0.04,
-    0,
-    99.9,
-  );
-
-  const groupedInterventions = telemetry.decoder_interventions.reduce(
+  const publicInterventions = telemetry.decoder_interventions.filter((intervention) => {
+    const decoderKey = parseDecoderKey(intervention.decoder);
+    return decoderKey != null && PUBLIC_DECODER_KEYS.includes(decoderKey);
+  });
+  const groupedInterventions = publicInterventions.reduce(
     (acc, intervention) => {
       const key = intervention.decoder;
       const previous = acc.get(key) ?? { flips: 0, residual: 0, count: 0 };
@@ -532,29 +499,13 @@ function summarizeTelemetry(
       const meanFlips = aggregates.flips / Math.max(1, aggregates.count);
       const meanResidual = aggregates.residual / Math.max(1, aggregates.count);
       const normalizedDecoder = parseDecoderKey(decoderKey);
-      const profile = normalizedDecoder ? DECODER_PROFILES[normalizedDecoder] : DECODER_PROFILES[activeDecoder];
-      const score = clamp(
-        100 - meanResidual * 7.5 - meanFlips * 2.2 + profile.successBias * 1.8 - profile.latencyBias * 0.4,
-        40,
-        99.8,
-      );
       return {
         decoder: normalizedDecoder ? decoderLabel(normalizedDecoder) : decoderKey.toUpperCase(),
-        score: Number(score.toFixed(2)),
         meanFlips: Number(meanFlips.toFixed(2)),
         meanResidual: Number(meanResidual.toFixed(2)),
       };
     })
-    .sort((a, b) => b.score - a.score);
-
-  if (decoderScores.length === 0) {
-    decoderScores.push({
-      decoder: decoderLabel(activeDecoder),
-      score: 74,
-      meanFlips: 0,
-      meanResidual: 0,
-    });
-  }
+    .sort((a, b) => a.meanResidual - b.meanResidual || a.meanFlips - b.meanFlips);
 
   const syndromeByRoundMap = telemetry.syndrome_samples.reduce(
     (acc, sample) => {
@@ -580,12 +531,15 @@ function summarizeTelemetry(
 
   const backendBestDecoder = run.raw.metrics?.best_decoder?.trim() ?? bestExactEntry?.decoder?.trim() ?? "";
   const parsedBackendBestDecoder = parseDecoderKey(backendBestDecoder);
-  const bestDecoder = parsedBackendBestDecoder
-    ? decoderLabel(parsedBackendBestDecoder)
-    : backendBestDecoder
-      ? backendBestDecoder.toUpperCase()
-      : decoderScores[0]?.decoder ?? decoderLabel(activeDecoder);
-  const bestQec = bestQecByHardware(run.hardwareKind);
+  const publicBackendBestDecoder =
+    parsedBackendBestDecoder && PUBLIC_DECODER_KEYS.includes(parsedBackendBestDecoder) ? parsedBackendBestDecoder : null;
+  const bestDecoder = publicBackendBestDecoder
+    ? decoderLabel(publicBackendBestDecoder)
+    : decoderScores[0]?.decoder ?? decoderLabel(activeDecoder);
+  const bestQec =
+    qecLabelFromEncoderState(run.raw.metrics?.best_encoder_state) ??
+    qecLabelFromEncoderState(bestExactEntry?.encoder_state) ??
+    bestQecByHardware(run.hardwareKind);
   const overheadMapping =
     run.hardwareKind === "photonic"
       ? `${Math.round(telemetry.stabilizer_count * telemetry.rounds * 1.4)} CV states / logical mode`
@@ -598,7 +552,7 @@ function summarizeTelemetry(
   if (telemetry.syndrome_samples.length === 0) {
     missingSignals.push("syndrome-stream");
   }
-  if (telemetry.decoder_interventions.length === 0) {
+  if (publicInterventions.length === 0) {
     missingSignals.push("decoder-interventions");
   }
   if (exactLerPct == null) {
@@ -611,32 +565,27 @@ function summarizeTelemetry(
     displacementSigma: Number(displacementSigma.toFixed(5)),
     triggerRatePct: Number(triggerRatePct.toFixed(3)),
     warningRatePct: Number(warningRatePct.toFixed(3)),
-    p95LatencyMs: Number(p95LatencyMs.toFixed(2)),
-    p99LatencyMs: Number(p99LatencyMs.toFixed(2)),
     throughputPerRound: Number(throughputPerRound.toFixed(2)),
     logicalErrorRatePct: Number(logicalErrorRatePct.toFixed(4)),
-    stabilityScore: Number(stabilityScore.toFixed(2)),
     syndromeSatisfactionPct: Number(syndromeSatisfactionPct.toFixed(2)),
     bestDecoder,
     bestQec,
     overheadMapping,
     missingSignals,
-    latencySamples,
     syndromeByRound,
     decoderScores,
   };
 }
 
 export function TelemetryPage() {
-  const { mode, isApi, isMock, systemOff, systemArmed, activeDecoder } = useDataMode();
-  const apiEnabled = isApi && !systemOff && systemArmed;
+  const { mode, isApi, isMock, systemOff, activeDecoder } = useDataMode();
+  const apiEnabled = isApi && !systemOff;
   const {
     state: { activeRunId: sessionRunId },
   } = useSessionControl();
   const runsQuery = useRuns({ enabled: apiEnabled, refetchInterval: 2_500 });
   const providersQuery = useProviders({ enabled: apiEnabled, refetchInterval: 15_000 });
   const [searchParams, setSearchParams] = useSearchParams();
-  const [alertWorkflow, setAlertWorkflow] = useState<Record<string, AlertWorkflowState>>({});
   const [drilldown, setDrilldown] = useState<TelemetryDrilldownState | null>(null);
 
   const searchQuery = searchParams.get("q") ?? "";
@@ -726,7 +675,7 @@ export function TelemetryPage() {
     const sorted = [...byFilter];
     if (sortMode === "warning") {
       sorted.sort((a, b) => b.warningRatePct - a.warningRatePct);
-    } else if (sortMode === "stability") {
+    } else if (sortMode === "syndrome") {
       sorted.sort((a, b) => b.satisfactionPct - a.satisfactionPct);
     } else if (sortMode === "throughput") {
       sorted.sort((a, b) => b.throughputBase - a.throughputBase);
@@ -816,73 +765,55 @@ export function TelemetryPage() {
   if (compareMode && runB && !summaryB) {
     missingSignals.push("compare-telemetry");
   }
-  const confidenceScore = clamp(
-    100 - missingSignals.length * 14 - (runsError ? 20 : 0) - (telemetryError ? 16 : 0),
-    0,
-    99,
-  );
-
   const kpiCards: KpiCardModel[] = summaryA
     ? [
         {
           key: "per",
-          label: "Physical Error Rate (PER)",
+          label: "Average Telemetry PER",
           value: `${summaryA.perPct.toFixed(3)}%`,
-          trendText: formatTrend(percentDelta(summaryA.perPct, summaryA.perPct + 0.13)),
-          trendDelta: percentDelta(summaryA.perPct, summaryA.perPct + 0.13),
-          trendUpGood: false,
+          detail: "mean of telemetry noise samples",
         },
         {
           key: "ler",
           label: "Logical Error Rate (LER)",
           value: `${summaryA.logicalErrorRatePct.toFixed(3)}%`,
-          trendText: formatTrend(percentDelta(summaryA.logicalErrorRatePct, summaryA.logicalErrorRatePct + 0.22)),
-          trendDelta: percentDelta(summaryA.logicalErrorRatePct, summaryA.logicalErrorRatePct + 0.22),
-          trendUpGood: false,
+          detail: "from run metrics or exact decoder rows",
         },
         {
           key: "warning",
           label: "Warning Rate",
           value: `${summaryA.warningRatePct.toFixed(2)}%`,
-          trendText: formatTrend(percentDelta(summaryA.warningRatePct, summaryA.warningRatePct + 1.2)),
-          trendDelta: percentDelta(summaryA.warningRatePct, summaryA.warningRatePct + 1.2),
-          trendUpGood: false,
-        },
-        {
-          key: "latency",
-          label: "P95 Decoder Latency",
-          value: `${summaryA.p95LatencyMs.toFixed(1)} ms`,
-          trendText: formatTrend(percentDelta(summaryA.p95LatencyMs, summaryA.p95LatencyMs + 7.5)),
-          trendDelta: percentDelta(summaryA.p95LatencyMs, summaryA.p95LatencyMs + 7.5),
-          trendUpGood: false,
+          detail: "from telemetry warning_rate",
         },
         {
           key: "throughput",
           label: "Throughput",
           value: `${summaryA.throughputPerRound.toFixed(1)} req/round`,
-          trendText: formatTrend(percentDelta(summaryA.throughputPerRound, Math.max(0.1, summaryA.throughputPerRound * 0.93))),
-          trendDelta: percentDelta(summaryA.throughputPerRound, Math.max(0.1, summaryA.throughputPerRound * 0.93)),
-          trendUpGood: true,
+          detail: "request_count divided by rounds",
         },
         {
-          key: "stability",
-          label: "Stability Score",
-          value: `${summaryA.stabilityScore.toFixed(1)}`,
-          trendText: formatTrend(percentDelta(summaryA.stabilityScore, Math.max(0.1, summaryA.stabilityScore - 2.1))),
-          trendDelta: percentDelta(summaryA.stabilityScore, Math.max(0.1, summaryA.stabilityScore - 2.1)),
-          trendUpGood: true,
+          key: "decoder",
+          label: "Recommended Decoder",
+          value: summaryA.bestDecoder,
+          detail: "selected from decoder-policy evidence",
+        },
+        {
+          key: "qec",
+          label: "QEC Mapping",
+          value: summaryA.bestQec,
+          detail: summaryA.overheadMapping,
         },
       ]
     : [];
 
-  const workflowAlerts = useMemo<WorkflowAlertItem[]>(() => {
-    const alerts: WorkflowAlertItem[] = [];
+  const telemetrySignals = useMemo<TelemetrySignalItem[]>(() => {
+    const alerts: TelemetrySignalItem[] = [];
     if (runsError || telemetryError) {
       alerts.push({
         id: "api",
         level: "critical",
         title: "Telemetry API unavailable",
-        detail: "Live telemetry endpoints failed. Decision confidence is reduced.",
+        detail: "Live telemetry endpoints failed. Only visible cached or empty-state values are shown.",
         metric: "API connectivity",
       });
     }
@@ -901,30 +832,9 @@ export function TelemetryPage() {
           id: "ler",
           level: "warning",
           title: "Logical error-rate drift",
-          detail: "Logical error rate exceeded the soft SLA threshold.",
+          detail: "Logical error rate exceeded the selected evidence threshold.",
           metric: `${summaryA.logicalErrorRatePct.toFixed(3)}% LER`,
         });
-      }
-      if (summaryA.p95LatencyMs > 95) {
-        alerts.push({
-          id: "latency",
-          level: "warning",
-          title: "Decoder latency breach",
-          detail: "P95 decode latency is above 95 ms target.",
-          metric: `${summaryA.p95LatencyMs.toFixed(1)} ms p95`,
-        });
-      }
-      if (compareMode && summaryB) {
-        const deltaStability = summaryA.stabilityScore - summaryB.stabilityScore;
-        if (deltaStability < -2.5) {
-          alerts.push({
-            id: "compare",
-            level: "warning",
-            title: "Run A underperforms compare run",
-            detail: "Selected baseline run is less stable than comparator.",
-            metric: `${deltaStability.toFixed(2)} stability delta`,
-          });
-        }
       }
     }
     if (alerts.length === 0) {
@@ -932,12 +842,12 @@ export function TelemetryPage() {
         id: "clear",
         level: "info",
         title: "Telemetry stream healthy",
-        detail: "No active telemetry SLA violations in current scope.",
-        metric: "Operational",
+        detail: "No active telemetry threshold violations in current scope.",
+        metric: "Runtime",
       });
     }
     return alerts;
-  }, [compareMode, runA?.hardwareLabel, runsError, summaryA, summaryB, telemetryError]);
+  }, [runA?.hardwareLabel, runsError, summaryA, telemetryError]);
 
   const maxPoints = windowPointLimit(windowFilter);
 
@@ -961,19 +871,6 @@ export function TelemetryPage() {
     return downsampleSeries(series, maxPoints);
   }, [maxPoints, telemetryA, telemetryB]);
 
-  const latencySeries = useMemo<LatencyChartPoint[]>(() => {
-    if (!summaryA) {
-      return [];
-    }
-    const compareLatency = summaryB?.latencySamples ?? [];
-    const series = summaryA.latencySamples.map((latency, index) => ({
-      sample: index + 1,
-      latencyMs: Number(latency.toFixed(3)),
-      compareLatencyMs: compareLatency[index] != null ? Number(compareLatency[index].toFixed(3)) : null,
-    }));
-    return downsampleSeries(series, maxPoints);
-  }, [maxPoints, summaryA, summaryB]);
-
   const syndromeSeries = useMemo<SyndromeChartPoint[]>(() => {
     if (!summaryA) {
       return [];
@@ -993,52 +890,27 @@ export function TelemetryPage() {
     if (!summaryA) {
       return [];
     }
-    const compareScores = new Map((summaryB?.decoderScores ?? []).map((score) => [score.decoder, score.score]));
+    const compareResiduals = new Map((summaryB?.decoderScores ?? []).map((score) => [score.decoder, score.meanResidual]));
     return summaryA.decoderScores.map((score) => ({
       decoder: score.decoder,
-      score: score.score,
       meanFlips: score.meanFlips,
       meanResidual: score.meanResidual,
-      compareScore: compareScores.get(score.decoder) ?? null,
+      compareMeanResidual: compareResiduals.get(score.decoder) ?? null,
     }));
   }, [summaryA, summaryB]);
-
-  const p50Latency = summaryA ? percentile(summaryA.latencySamples, 50) : 0;
-  const p95Latency = summaryA ? percentile(summaryA.latencySamples, 95) : 0;
-  const p99Latency = summaryA ? percentile(summaryA.latencySamples, 99) : 0;
-
-  const updateWorkflowState = (alertId: string, patch: Partial<AlertWorkflowState>) => {
-    setAlertWorkflow((current) => {
-      const previous = current[alertId] ?? {
-        acknowledged: false,
-        owner: "Unassigned",
-        notes: "",
-      };
-      return {
-        ...current,
-        [alertId]: {
-          ...previous,
-          ...patch,
-        },
-      };
-    });
-  };
 
   const openDrilldown = (run: RunRow) => {
     const fallbackBestDecoderRaw = run.raw.metrics?.best_decoder?.trim() ?? "";
     const fallbackBestDecoderKey = parseDecoderKey(fallbackBestDecoderRaw);
+    const publicFallbackDecoder =
+      fallbackBestDecoderKey && PUBLIC_DECODER_KEYS.includes(fallbackBestDecoderKey) ? fallbackBestDecoderKey : activeDecoder;
     const fallbackSummary = {
       perPct: clamp((run.raw.metrics?.physical_error_rate ?? 0) * 100, 0, 100),
       logicalErrorRatePct: clamp((run.raw.metrics?.logical_error_rate ?? 0) * 100, 0, 100),
       warningRatePct: run.warningRatePct,
-      p95LatencyMs: 0,
       throughputPerRound: 0,
-      bestDecoder: fallbackBestDecoderKey
-        ? decoderLabel(fallbackBestDecoderKey)
-        : fallbackBestDecoderRaw
-          ? fallbackBestDecoderRaw.toUpperCase()
-          : decoderLabel(activeDecoder),
-      bestQec: bestQecByHardware(run.hardwareKind),
+      bestDecoder: decoderLabel(publicFallbackDecoder),
+      bestQec: qecLabelFromEncoderState(run.raw.metrics?.best_encoder_state) ?? bestQecByHardware(run.hardwareKind),
       overheadMapping: "N/A (exact telemetry unavailable)",
     };
     const rowSummary = (run.id === runA?.id ? summaryA : run.id === runB?.id ? summaryB : null) ?? fallbackSummary;
@@ -1047,9 +919,7 @@ export function TelemetryPage() {
       `Run ${run.id.slice(0, 12)} status changed to ${run.status.toUpperCase()}.`,
       `Simulator stream classified as ${run.hardwareLabel}.`,
       `PER ${rowSummary.perPct.toFixed(3)}%, LER ${rowSummary.logicalErrorRatePct.toFixed(3)}%.`,
-      `Decoder latency p95 ${rowSummary.p95LatencyMs.toFixed(1)} ms, throughput ${rowSummary.throughputPerRound.toFixed(
-        1,
-      )} req/round.`,
+      `Throughput ${rowSummary.throughputPerRound.toFixed(1)} req/round.`,
       `Best decoder candidate ${rowSummary.bestDecoder}, best QEC ${rowSummary.bestQec}.`,
     ];
 
@@ -1059,7 +929,6 @@ export function TelemetryPage() {
         perPct: rowSummary.perPct,
         lerPct: rowSummary.logicalErrorRatePct,
         warningPct: rowSummary.warningRatePct,
-        p95LatencyMs: rowSummary.p95LatencyMs,
         throughput: rowSummary.throughputPerRound,
         bestDecoder: rowSummary.bestDecoder,
         bestQec: rowSummary.bestQec,
@@ -1098,7 +967,6 @@ export function TelemetryPage() {
       },
       trust: {
         source: mode === "api" ? "live-api" : "gkp-mock",
-        confidence_score: confidenceScore,
         last_refresh: latestUpdatedAt,
         missing_signals: missingSignals,
       },
@@ -1114,7 +982,7 @@ export function TelemetryPage() {
         warning_rate_pct: run.warningRatePct,
         satisfaction_pct: run.satisfactionPct,
       })),
-      workflow_alerts: workflowAlerts,
+      telemetry_signals: telemetrySignals,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1140,7 +1008,7 @@ export function TelemetryPage() {
       <div className="trust-strip">
         <div className="trust-item">
           <span>Data Source</span>
-          <strong>{systemOff ? "Off" : !systemArmed ? "Standby" : isMock ? "GKP Mock" : "Live API"}</strong>
+          <strong>{systemOff ? "Off" : isMock ? "GKP Mock" : "Live API"}</strong>
         </div>
         <div className="trust-item">
           <span>Last Refresh</span>
@@ -1151,8 +1019,8 @@ export function TelemetryPage() {
           <strong>{filteredRuns.length}</strong>
         </div>
         <div className="trust-item">
-          <span>Operational Confidence</span>
-          <strong>{confidenceScore.toFixed(1)}%</strong>
+          <span>Telemetry State</span>
+          <strong>{summaryA ? "Linked" : "No telemetry"}</strong>
         </div>
         <div className="trust-item">
           <span>Missing Signals</span>
@@ -1195,7 +1063,7 @@ export function TelemetryPage() {
           >
             <option value="updated">Latest Update</option>
             <option value="warning">Warning Rate</option>
-            <option value="stability">Stability</option>
+            <option value="syndrome">Syndrome Satisfaction</option>
             <option value="throughput">Throughput</option>
           </select>
         </div>
@@ -1292,19 +1160,16 @@ export function TelemetryPage() {
 
       {summaryA && runA ? (
         <>
-          <div className="section-title">Operational Telemetry Diagnostics</div>
-          <div className="panel-subtitle">Heuristic and runtime indicators; scientific rates remain on Decoder/Scientific.</div>
+          <div className="section-title">Telemetry Diagnostics</div>
+          <div className="panel-subtitle">Exact telemetry values for the selected run and decoder context.</div>
           <div className="kpi-grid">
-            {kpiCards.map((card) => {
-              const trendPositive = card.trendUpGood ? card.trendDelta >= 0 : card.trendDelta <= 0;
-              return (
-                <div key={card.key} className="kpi-card">
-                  <div className="kpi-label">{card.label}</div>
-                  <div className="kpi-value">{card.value}</div>
-                  <div className={`kpi-trend ${trendPositive ? "good" : "bad"}`}>{card.trendText} vs previous window</div>
-                </div>
-              );
-            })}
+            {kpiCards.map((card) => (
+              <div key={card.key} className="kpi-card">
+                <div className="kpi-label">{card.label}</div>
+                <div className="kpi-value">{card.value}</div>
+                <div className="kpi-trend">{card.detail}</div>
+              </div>
+            ))}
           </div>
 
           <div className="provider-compare-panel">
@@ -1324,9 +1189,9 @@ export function TelemetryPage() {
               </div>
               <div className="provider-compare-card">
                 <div className="provider-compare-title">Interpretation</div>
-                <div className="provider-compare-metric">PER indicates physical channel quality before decoding.</div>
+                <div className="provider-compare-metric">Average telemetry PER indicates physical channel quality before decoding.</div>
                 <div className="provider-compare-metric">LER indicates post-decoder logical reliability.</div>
-                <div className="provider-compare-metric">Stability score combines error, latency, and warning pressure.</div>
+                <div className="provider-compare-metric">Syndrome satisfaction is read from the selected run metrics.</div>
               </div>
             </div>
           </div>
@@ -1340,14 +1205,12 @@ export function TelemetryPage() {
                   <div className="provider-compare-metric">{runA.dataset}</div>
                   <div className="provider-compare-metric">PER: {summaryA.perPct.toFixed(3)}%</div>
                   <div className="provider-compare-metric">LER: {summaryA.logicalErrorRatePct.toFixed(3)}%</div>
-                  <div className="provider-compare-metric">P95: {summaryA.p95LatencyMs.toFixed(1)} ms</div>
                 </div>
                 <div className="provider-compare-card">
                   <div className="provider-compare-title">Run B · {runB.id.slice(0, 10)}</div>
                   <div className="provider-compare-metric">{runB.dataset}</div>
                   <div className="provider-compare-metric">PER: {summaryB.perPct.toFixed(3)}%</div>
                   <div className="provider-compare-metric">LER: {summaryB.logicalErrorRatePct.toFixed(3)}%</div>
-                  <div className="provider-compare-metric">P95: {summaryB.p95LatencyMs.toFixed(1)} ms</div>
                 </div>
                 <div className="provider-compare-card">
                   <div className="provider-compare-title">Delta (A - B)</div>
@@ -1364,13 +1227,6 @@ export function TelemetryPage() {
                     }`}
                   >
                     LER: {(summaryA.logicalErrorRatePct - summaryB.logicalErrorRatePct).toFixed(3)} pp
-                  </div>
-                  <div
-                    className={`provider-compare-metric ${
-                      summaryA.p95LatencyMs - summaryB.p95LatencyMs <= 0 ? "good" : "bad"
-                    }`}
-                  >
-                    Latency: {(summaryA.p95LatencyMs - summaryB.p95LatencyMs).toFixed(1)} ms
                   </div>
                 </div>
               </div>
@@ -1421,7 +1277,7 @@ export function TelemetryPage() {
                       yAxisId="rate"
                       type="monotone"
                       dataKey="physicalErrorPct"
-                      name="Physical Error Rate (PER, %)"
+                      name="Telemetry PER (%)"
                       stroke="#3f89ea"
                       strokeWidth={2.2}
                       dot={false}
@@ -1449,7 +1305,7 @@ export function TelemetryPage() {
                         yAxisId="rate"
                         type="monotone"
                         dataKey="comparePhysicalErrorPct"
-                        name="Compare Physical Error Rate (PER, %)"
+                        name="Compare Telemetry PER (%)"
                         stroke="#8aa5cf"
                         strokeDasharray="5 4"
                         strokeWidth={1.8}
@@ -1530,11 +1386,10 @@ export function TelemetryPage() {
                       label={{ value: "Decoder", position: "insideBottom", fill: "#8f9eb4", fontSize: 11 }}
                     />
                     <YAxis
-                      yAxisId="score"
-                      domain={[40, 100]}
+                      yAxisId="residual"
                       tick={{ fill: "#8f9eb4", fontSize: 11 }}
                       label={{
-                        value: "Effectiveness Score (0-100)",
+                        value: "Mean Residual Weight",
                         angle: -90,
                         position: "insideLeft",
                         fill: "#8f9eb4",
@@ -1554,20 +1409,15 @@ export function TelemetryPage() {
                       }}
                     />
                     <Tooltip
-                      formatter={(value, name) => {
-                        if (String(name).toLowerCase().includes("score")) {
-                          return [numericValue(value).toFixed(2), name];
-                        }
-                        return [numericValue(value).toFixed(2), name];
-                      }}
+                      formatter={(value, name) => [numericValue(value).toFixed(2), name]}
                       contentStyle={{ background: "#0f0f0f", border: "1px solid #1f1f1f", borderRadius: 8 }}
                       labelStyle={{ color: "#c8d0db" }}
                     />
                     <Legend verticalAlign="top" align="center" wrapperStyle={{ color: "#c8d0db", fontSize: 11 }} />
                     <Bar
-                      yAxisId="score"
-                      dataKey="score"
-                      name="Decoder Effectiveness Score (0-100)"
+                      yAxisId="residual"
+                      dataKey="meanResidual"
+                      name="Mean Residual Weight"
                       fill="#26b36b"
                       radius={[4, 4, 0, 0]}
                     />
@@ -1580,10 +1430,10 @@ export function TelemetryPage() {
                     />
                     {compareMode && summaryB ? (
                       <Line
-                        yAxisId="score"
+                        yAxisId="residual"
                         type="monotone"
-                        dataKey="compareScore"
-                        name="Compare Effectiveness Score (0-100)"
+                        dataKey="compareMeanResidual"
+                        name="Compare Mean Residual"
                         stroke="#f0982f"
                         strokeWidth={2}
                         dot={false}
@@ -1594,125 +1444,57 @@ export function TelemetryPage() {
               </div>
             </div>
 
-            <div className="chart-container">
-              <div className="chart-title">Realtime Decoder Latency</div>
-              <div className="chart-placeholder">
-                <ResponsiveContainer width="100%" height={240}>
-                  <LineChart data={latencySeries} margin={{ top: 24, right: 12, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.12)" />
-                    <XAxis
-                      dataKey="sample"
-                      tick={{ fill: "#8f9eb4", fontSize: 11 }}
-                      label={{ value: "Sample Index", position: "insideBottom", fill: "#8f9eb4", fontSize: 11 }}
-                    />
-                    <YAxis
-                      tick={{ fill: "#8f9eb4", fontSize: 11 }}
-                      label={{
-                        value: "Decode Latency (ms)",
-                        angle: -90,
-                        position: "insideLeft",
-                        fill: "#8f9eb4",
-                        fontSize: 11,
-                      }}
-                    />
-                    <Tooltip
-                      formatter={(value, name) => [`${numericValue(value).toFixed(2)} ms`, name]}
-                      contentStyle={{ background: "#0f0f0f", border: "1px solid #1f1f1f", borderRadius: 8 }}
-                      labelStyle={{ color: "#c8d0db" }}
-                    />
-                    <Legend verticalAlign="top" align="center" wrapperStyle={{ color: "#c8d0db", fontSize: 11 }} />
-                    <ReferenceLine
-                      y={p50Latency}
-                      stroke="#26b36b"
-                      strokeDasharray="4 4"
-                      label={{ value: "P50", fill: "#26b36b", fontSize: 10 }}
-                    />
-                    <ReferenceLine
-                      y={p95Latency}
-                      stroke="#f0982f"
-                      strokeDasharray="4 4"
-                      label={{ value: "P95", fill: "#f0982f", fontSize: 10 }}
-                    />
-                    <ReferenceLine
-                      y={p99Latency}
-                      stroke="#e25564"
-                      strokeDasharray="4 4"
-                      label={{ value: "P99", fill: "#e25564", fontSize: 10 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="latencyMs"
-                      name="Decode Latency (ms)"
-                      stroke="#3f89ea"
-                      strokeWidth={2.3}
-                      dot={false}
-                    />
-                    {compareMode && summaryB ? (
-                      <Line
-                        type="monotone"
-                        dataKey="compareLatencyMs"
-                        name="Compare Decode Latency (ms)"
-                        stroke="#8aa5cf"
-                        strokeDasharray="5 4"
-                        strokeWidth={1.8}
-                        dot={false}
-                      />
-                    ) : null}
-                  </LineChart>
-                </ResponsiveContainer>
+            <div className="chart-container telemetry-evidence-card">
+              <div className="chart-title">Run Evidence Summary</div>
+              <div className="telemetry-evidence-grid">
+                <div className="telemetry-evidence-item">
+                  <span>Run</span>
+                  <strong>#{runA.id.slice(0, 8).toUpperCase()}</strong>
+                </div>
+                <div className="telemetry-evidence-item">
+                  <span>Provider</span>
+                  <strong>{runA.providerName}</strong>
+                </div>
+                <div className="telemetry-evidence-item">
+                  <span>Rounds</span>
+                  <strong>{summaryA.syndromeByRound.length}</strong>
+                </div>
+                <div className="telemetry-evidence-item">
+                  <span>Request / response</span>
+                  <strong>{summaryA.throughputPerRound.toFixed(0)} / round</strong>
+                </div>
+                <div className="telemetry-evidence-item">
+                  <span>Decoder policy</span>
+                  <strong>{summaryA.bestDecoder}</strong>
+                </div>
+                <div className="telemetry-evidence-item">
+                  <span>QEC state</span>
+                  <strong>{summaryA.bestQec}</strong>
+                </div>
+              </div>
+              <div className="telemetry-evidence-note">
+                The panels above read from the same selected run and telemetry payload. Empty or missing backend fields stay visible
+                as missing signals instead of being replaced with heuristic estimates.
               </div>
             </div>
+
           </div>
 
           <div className="workflow-section section-offset">
-            <div className="panel-title">Telemetry Alert Workflow</div>
+            <div className="panel-title">Telemetry Signals</div>
             <div className="workflow-grid">
-              {workflowAlerts.map((alert) => {
-                const state = alertWorkflow[alert.id] ?? {
-                  acknowledged: false,
-                  owner: "Unassigned",
-                  notes: "",
-                };
-                return (
-                  <div key={alert.id} className={`workflow-card ${alert.level}`}>
-                    <div className="workflow-head">
-                      <div>
-                        <div className="workflow-title">{alert.title}</div>
-                        <div className="workflow-detail">{alert.detail}</div>
-                      </div>
-                      <span className={`status-badge alert-badge ${alert.level}`}>{alert.level}</span>
+              {telemetrySignals.map((alert) => (
+                <div key={alert.id} className={`workflow-card ${alert.level}`}>
+                  <div className="workflow-head">
+                    <div>
+                      <div className="workflow-title">{alert.title}</div>
+                      <div className="workflow-detail">{alert.detail}</div>
                     </div>
-                    <div className="workflow-metric">{alert.metric}</div>
-                    <div className="workflow-controls">
-                      <button
-                        className={`btn btn-secondary ${state.acknowledged ? "active" : ""}`}
-                        onClick={() => updateWorkflowState(alert.id, { acknowledged: !state.acknowledged })}
-                        disabled={!canOperate}
-                      >
-                        {state.acknowledged ? "Acknowledged" : "Acknowledge"}
-                      </button>
-                      <select
-                        className="select-field"
-                        value={state.owner}
-                        onChange={(event) => updateWorkflowState(alert.id, { owner: event.target.value })}
-                        disabled={!canOperate}
-                      >
-                        <option value="Unassigned">Unassigned</option>
-                        <option value="On-call SRE">On-call SRE</option>
-                        <option value="Decoder Ops">Decoder Ops</option>
-                        <option value="Research Lead">Research Lead</option>
-                      </select>
-                    </div>
-                    <textarea
-                      className="form-textarea workflow-notes"
-                      placeholder="Escalation notes..."
-                      value={state.notes}
-                      onChange={(event) => updateWorkflowState(alert.id, { notes: event.target.value })}
-                      disabled={!canOperate}
-                    />
+                    <span className={`status-badge alert-badge ${alert.level}`}>{alert.level}</span>
                   </div>
-                );
-              })}
+                  <div className="workflow-metric">{alert.metric}</div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1726,7 +1508,7 @@ export function TelemetryPage() {
                     <th>Status</th>
                     <th>Provider</th>
                     <th>Simulator</th>
-                    <th>PER</th>
+                    <th>Avg PER</th>
                     <th>LER</th>
                     <th>Warning Rate</th>
                     <th>Best Decoder</th>
@@ -1748,12 +1530,10 @@ export function TelemetryPage() {
                       : clamp((run.raw.metrics?.logical_error_rate ?? 0) * 100, 0, 100);
                     const rowBestDecoderRaw = run.raw.metrics?.best_decoder?.trim() ?? "";
                     const rowBestDecoderKey = parseDecoderKey(rowBestDecoderRaw);
+                    const publicRowBestDecoder =
+                      rowBestDecoderKey && PUBLIC_DECODER_KEYS.includes(rowBestDecoderKey) ? rowBestDecoderKey : activeDecoder;
                     const rowBestDecoder = rowSummary?.bestDecoder
-                      ?? (rowBestDecoderKey
-                        ? decoderLabel(rowBestDecoderKey)
-                        : rowBestDecoderRaw
-                          ? rowBestDecoderRaw.toUpperCase()
-                          : decoderLabel(activeDecoder));
+                      ?? decoderLabel(publicRowBestDecoder);
                     return (
                       <tr key={run.id}>
                         <td>{run.id.slice(0, 12)}</td>
@@ -1835,7 +1615,7 @@ export function TelemetryPage() {
             </div>
             <div className="drilldown-kv">
               <div className="drilldown-kv-row">
-                <span>Physical Error Rate (PER)</span>
+                <span>Average Telemetry PER</span>
                 <strong>{drilldown.summary.perPct.toFixed(3)}%</strong>
               </div>
               <div className="drilldown-kv-row">
@@ -1845,10 +1625,6 @@ export function TelemetryPage() {
               <div className="drilldown-kv-row">
                 <span>Warning Rate</span>
                 <strong>{drilldown.summary.warningPct.toFixed(2)}%</strong>
-              </div>
-              <div className="drilldown-kv-row">
-                <span>P95 Decoder Latency</span>
-                <strong>{drilldown.summary.p95LatencyMs.toFixed(1)} ms</strong>
               </div>
               <div className="drilldown-kv-row">
                 <span>Throughput</span>
