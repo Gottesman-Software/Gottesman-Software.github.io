@@ -5,7 +5,6 @@ import { AlertsPage } from "../ui/pages/AlertsPage";
 import { DecoderDashboard } from "../ui/pages/DecoderDashboard";
 import { EnhancedProvidersPage } from "../ui/pages/EnhancedProvidersPage";
 import { HelpPage } from "../ui/pages/HelpPage";
-import { HardwareApiPage } from "../ui/pages/HardwareApiPage";
 import { JobsPage } from "../ui/pages/JobsPage";
 import { LogsPage } from "../ui/pages/LogsPage";
 import { SettingsPage } from "../ui/pages/SettingsPage";
@@ -28,7 +27,7 @@ export function AppRouter() {
           <Route path="/providers" element={<EnhancedProvidersPage />} />
           <Route path="/observability" element={<AlertsPage />} />
           <Route path="/jobs" element={<Navigate to="/runs" replace />} />
-          <Route path="/hardware-api" element={<HardwareApiPage />} />
+          <Route path="/hardware-api" element={<Navigate to="/providers" replace />} />
           <Route path="/dashboard" element={<Navigate to="/decoder/scientific" replace />} />
           <Route path="/validation" element={<Navigate to="/decoder/validation" replace />} />
           <Route path="/telemetry" element={<Navigate to="/decoder/telemetry" replace />} />

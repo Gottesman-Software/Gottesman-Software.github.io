@@ -4,7 +4,6 @@ import type { CSSProperties, MouseEvent as ReactMouseEvent, PropsWithChildren } 
 import {
   Activity,
   Bell,
-  Cable,
   FileText,
   FlaskConical,
   Server,
@@ -38,7 +37,6 @@ const navSections = [
     className: "nav-section-divider",
     items: [
       { to: "/settings", label: "Settings", icon: Settings },
-      { to: "/hardware-api", label: "API Boundary", icon: Cable },
     ],
   },
 ];

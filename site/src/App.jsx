@@ -767,9 +767,9 @@ const lidmasLiveTourSteps = [
     route: "/decoder/logs",
   },
   {
-    title: "Review hardware API boundary",
-    body: "Hardware API remains a local authenticated surface for sessions, frames, and completion calls.",
-    route: "/hardware-api",
+    title: "Review the public simulator boundary",
+    body: "Providers should remain simulator-only in public mode, with credentials and lab hardware controls outside the hosted Studio.",
+    route: "/providers",
   },
   {
     title: "Close the live loop",

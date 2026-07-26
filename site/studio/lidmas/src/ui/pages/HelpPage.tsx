@@ -22,10 +22,10 @@ const helpCards: HelpCard[] = [
     href: `${DOCUMENTATION_URL}getting-started/`,
   },
   {
-    title: "API Documentation",
-    description: "Reference for integrating LiDMaS+ with external systems and automations.",
-    cta: "View API Docs →",
-    href: `${DOCUMENTATION_URL}hardware-integration/`,
+    title: "Public API Boundary",
+    description: "Understand the simulator-only API surface used by the hosted Studio.",
+    cta: "View Boundary →",
+    href: `${DOCUMENTATION_URL}examples-workflows/`,
   },
   {
     title: "Configuration Reference",
@@ -55,9 +55,9 @@ const helpCards: HelpCard[] = [
 
 const faqs: FaqItem[] = [
   {
-    question: "How do I add a new provider to the decoder?",
+    question: "Which providers are available in public mode?",
     answer:
-      "Go to Providers, click Add Provider, configure host, credentials, and region, then run Test Connection before saving.",
+      "Public mode exposes read-only simulator providers for circuit construction, noise injection, syndrome extraction, and decoder-policy comparison.",
   },
   {
     question: "What does the success rate metric represent?",

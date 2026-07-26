@@ -70,10 +70,10 @@
   <text x="72" y="216" class="tiny">Simulation, dynamics, sampling, and CI parity.</text>
 
   <rect x="704" y="112" width="448" height="118" rx="8" fill="#ffffff" class="panel"/>
-  <text x="728" y="143" class="label">Hardware targets</text>
-  <text x="728" y="171" class="small">Xanadu, Quandela, ORCA Computing, PsiQuantum</text>
-  <text x="728" y="194" class="small">PCIe / DMA, Ethernet, USB, vendor SDKs</text>
-  <text x="728" y="216" class="tiny">Adapter-dependent control path for real devices and FPGA boards.</text>
+  <text x="728" y="143" class="label">Adapter targets</text>
+  <text x="728" y="171" class="small">Simulator, loopback, and FPGA mailbox stubs</text>
+  <text x="728" y="194" class="small">Capability checks, traces, fixtures, and replay packets</text>
+  <text x="728" y="216" class="tiny">Public mode validates software contracts before private lab control.</text>
 
   <rect x="452" y="266" width="296" height="58" rx="8" class="node core-node"/>
   <text x="600" y="290" text-anchor="middle" class="label">Python API</text>
