@@ -30,8 +30,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install site dependencies
+        run: npm ci
+
+      - name: Install Studio dependencies
+        run: npm --prefix studio/lidmas ci
 
       - name: Build
         env:
