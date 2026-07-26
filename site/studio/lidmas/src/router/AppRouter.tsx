@@ -27,7 +27,6 @@ export function AppRouter() {
           <Route path="/providers" element={<EnhancedProvidersPage />} />
           <Route path="/observability" element={<AlertsPage />} />
           <Route path="/jobs" element={<Navigate to="/runs" replace />} />
-          <Route path="/hardware-api" element={<Navigate to="/providers" replace />} />
           <Route path="/dashboard" element={<Navigate to="/decoder/scientific" replace />} />
           <Route path="/validation" element={<Navigate to="/decoder/validation" replace />} />
           <Route path="/telemetry" element={<Navigate to="/decoder/telemetry" replace />} />
