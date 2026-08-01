@@ -1503,8 +1503,8 @@ const qecDefectIndexes = new Set([3, 9, 14, 22, 28, 35, 41]);
 
 const teamLeadership = [
   {
-    name: "Dennis Wayo, PhD",
-    role: "Founder and Principal Investigator",
+    name: "Dennis Wayo",
+    role: "Founder and Research Lead",
     initials: "DW",
     status: "Leadership",
     tone: "tone-cyan",
