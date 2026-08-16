@@ -1497,7 +1497,7 @@ const teamLeadership = [
     initials: "DW",
     status: "Founder",
     tone: "tone-cyan",
-    image: "/assets/team/dennis-wayo.jpeg",
+    image: "/assets/team/dennis-wayo-editorial.webp",
     imageAlt: "Dennis Wayo portrait",
     profiles: [
       { icon: "github", label: "Dennis Wayo on GitHub", href: "https://github.com/DennisWayo" },
