@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  getAnalyticsConsent,
   hasAnalyticsMeasurementId,
   initializeAnalytics,
   setAnalyticsConsent,
@@ -273,9 +272,9 @@ const pageItems = [
     label: "Software",
     path: "/software",
     eyebrow: "Software Stack",
-    title: "Integrated software for photonic quantum research.",
+    title: "Design circuits. Compare decoders. Route experiments.",
     copy:
-      "SchroSIM, LiDMaS+, and Photon-QDrivers provide coordinated capabilities for circuit modeling, decoder validation, and lab-oriented execution.",
+      "One open-source stack connects SchroSIM, LiDMaS+, and Photon-QDrivers—from circuit definition to replayable decoder runs and validated execution paths.",
     heroCode: softwareHeroCode,
     heroPosition: "right center",
   },
@@ -293,9 +292,9 @@ const pageItems = [
     label: "Lab",
     path: "/lab",
     eyebrow: "Prototype Lab",
-    title: "Prototype pathways for photonic circuit and control-system validation.",
+    title: "Test control paths before optical hardware.",
     copy:
-      "The lab program connects SchroSIM design studies, LiDMaS+ overhead analysis, and Photon-QDrivers control validation for university and collaborating research environments.",
+      "The Lab program connects SchroSIM designs, LiDMaS+ replay, and Photon-QDrivers bench measurements. Equipment shown below is reference hardware for planned validation—not current inventory.",
     heroImage: "/assets/headers/lab-voltera-vone.webp",
     heroVideo: "/assets/headers/VOneAnatomyDispenserOverview.mp4",
     heroPlaybackRate: 0.45,
@@ -305,9 +304,9 @@ const pageItems = [
     label: "Research",
     path: "/research",
     eyebrow: "Quantum Research",
-    title: "Research Foundations",
+    title: "Research that connects models, decoders, and hardware.",
     copy:
-      "The publication set covers continuous-variable photonic circuits, differentiable mitigation, decoder benchmarking, GKP photonic QEC, simulator architecture, and physics-informed scientific modeling.",
+      "Selected publications and active studies behind SchroSIM, LiDMaS+, and Photon-QDrivers—with the evidence path attached.",
     heroImage: "/assets/headers/research-original-quantum.png",
     heroPosition: "center",
   },
@@ -315,11 +314,9 @@ const pageItems = [
     label: "Team",
     path: "/team",
     eyebrow: "Team",
-    title: "Leadership and research group development.",
+    title: "A focused team for quantum software research.",
     copy:
-      "Gottesman Software is organized around research leadership, scientific software engineering, photonic simulation, decoder validation, and lab-facing hardware control.",
-    heroImage: "/assets/headers/team-ligo-scientists.jpg",
-    heroPosition: "center 45%",
+      "Leadership spans systems architecture, quantum artificial intelligence, and quantum machine learning—connected through reproducible software and research.",
   },
   {
     label: "Support",
@@ -393,20 +390,24 @@ const routeMeta = {
 };
 
 const socialLinks = [
-  { label: "X", icon: "x", href: "/404.html" },
+  { label: "GitHub", icon: "github", href: "https://github.com/Gottesman-Software" },
   {
     label: "LinkedIn",
     icon: "linkedin",
-    href: "/404.html",
+    href: "https://www.linkedin.com/in/dennis-wayo-765a38b1/",
   },
-  { label: "GitHub", icon: "github", href: "https://github.com/Gottesman-Software" },
-  { label: "Medium", icon: "medium", href: "/404.html" },
+  {
+    label: "Email Gottesman Software",
+    icon: "mail",
+    href: "mailto:dwayo3@gatech.edu?subject=Gottesman%20Software%20collaboration",
+  },
 ];
 
 const socialIconPaths = {
   x: "M18.901 1.153h3.68l-8.04 9.19L24 22.847h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.153h7.594l5.243 6.932Zm-1.292 19.492h2.039L6.486 3.24H4.298Z",
   linkedin:
     "M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286ZM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065Zm1.782 13.019H3.555V9h3.564v11.452ZM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0Z",
+  mail: "M2 4.75A2.75 2.75 0 0 1 4.75 2h14.5A2.75 2.75 0 0 1 22 4.75v14.5A2.75 2.75 0 0 1 19.25 22H4.75A2.75 2.75 0 0 1 2 19.25V4.75Zm2.3-.25L12 10.27l7.7-5.77H4.3Zm15.2 2.38-6.6 4.95a1.5 1.5 0 0 1-1.8 0L4.5 6.88V19.5h15V6.88Z",
   github:
     "M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.744.083-.729.083-.729 1.205.085 1.838 1.237 1.838 1.237 1.07 1.835 2.807 1.305 3.492.998.108-.775.418-1.305.762-1.605-2.665-.303-5.466-1.332-5.466-5.93 0-1.31.468-2.381 1.235-3.221-.123-.303-.535-1.523.117-3.176 0 0 1.008-.322 3.3 1.23A11.52 11.52 0 0 1 12 6.097c1.02.005 2.045.138 3.003.404 2.29-1.552 3.296-1.23 3.296-1.23.653 1.653.241 2.873.118 3.176.77.84 1.233 1.911 1.233 3.221 0 4.61-2.805 5.624-5.475 5.921.43.371.823 1.102.823 2.222 0 1.605-.015 2.898-.015 3.293 0 .322.216.697.825.579C20.565 22.092 24 17.597 24 12.297c0-6.627-5.373-12-12-12Z",
   scholar:
@@ -473,16 +474,17 @@ const softwareShowcases = [
     logo: "/assets/software/schrosim-logo.png",
     media: "/assets/software/schrosim-ui-preview.gif",
     mediaAlt: "SchroSIM public UI preview from the project README",
+    mediaCaption: "Actual SchroSIM circuit workspace from the public project interface.",
     role: "Continuous-variable photonic circuit design, compilation, and simulation.",
     summary:
-      "SchroSIM is the circuit-facing layer. It enables researchers to define photonic workloads, check backend policy, and run model-exact or controlled-approximation simulation paths before hardware access.",
+      "Build photonic workloads, check backend policy, and choose model-exact or controlled-approximation simulation paths before hardware access.",
     fit: [
       "Design CV photonic circuits and project-scoped workflows",
       "Compile into backend-aware runtime configuration",
       "Inspect failure modes such as unsupported operations, numerical limits, and policy mismatch",
     ],
     boundary:
-      "The public UI, core workflows, docs, examples, and reproducibility guidance are part of the open-source research surface.",
+      "Open today: public UI, core workflows, documentation, examples, and reproducibility guidance.",
     repo: {
       label: "Gottesman-Software/SchroSIM",
       url: "https://github.com/Gottesman-Software/SchroSIM",
@@ -495,16 +497,17 @@ const softwareShowcases = [
     logo: "/assets/software/lidmas-logo.png",
     media: "/assets/software/lidmas-ui-active-development.png",
     mediaAlt: "LiDMaS+ UI preview from the project README",
+    mediaCaption: "Actual LiDMaS+ control-plane preview; the full interface remains in active development.",
     role: "Reproducible quantum error-correction simulation, decoder benchmarking, and hardware-to-decoder replay.",
     summary:
-      "LiDMaS+ is the evidence layer. It preserves run scope, decoder settings, seeds, input streams, version identity, and result artifacts so QEC studies can be replayed and compared under consistent assumptions.",
+      "Preserve run scope, decoder settings, seeds, input streams, versions, and result artifacts so QEC studies can be replayed and compared consistently.",
     fit: [
       "Run surface, CSS-family, LDPC, and GKP-aware workflows",
       "Compare MWPM, UF, BP, neural MWPM, and reference decoders",
       "Convert simulator or hardware streams into scoped decoder experiments",
     ],
     boundary:
-      "Stable workflows are CLI-first; the control-plane UI remains under active development.",
+      "Open today: stable CLI workflows and public replay examples. The full control-plane UI is still evolving.",
     repo: {
       label: "Gottesman-Software/lidmas_cpp",
       url: "https://github.com/Gottesman-Software/lidmas_cpp",
@@ -518,18 +521,19 @@ const softwareShowcases = [
     name: "Photon-QDrivers",
     eyebrow: "Lab and hardware control",
     logo: "/assets/software/photon-qdrivers-logo.png",
-    media: "/assets/software/photon-qdrivers-execution-animation.svg",
-    mediaAlt: "Photon-QDrivers animated emulator and hardware execution path from the project README",
+    media: "/assets/software/photon-qdrivers-compile-run-flow.png",
+    mediaAlt: "Photon-QDrivers compile and run sequence from the public project documentation",
+    mediaCaption: "Actual compile-and-run sequence documented in the Photon-QDrivers repository.",
     role: "A universal driver layer for photonic workloads across emulators, native runtime paths, FPGA boundaries, and hardware adapters.",
     summary:
-      "Photon-QDrivers is the execution boundary. It validates a PhotonicCircuit IR, checks backend capabilities, routes jobs to the selected target, and normalizes results for downstream analysis.",
+      "Validate a PhotonicCircuit IR, check backend capabilities, route jobs to the selected target, and normalize results for downstream analysis.",
     fit: [
       "Expose one Python API for emulator and hardware-like targets",
       "Attach backend capability metadata before execution",
       "Bridge to native runtime, HAL contracts, FPGA mailboxes, and vendor adapters",
     ],
     boundary:
-      "The driver layer validates software and control pathways; it does not imply access to complete photonic quantum hardware by itself.",
+      "Open today: emulator, native runtime, FPGA mailbox, and Red Pitaya host paths. Complete photonic hardware remains outside this project.",
     repo: {
       label: "Gottesman-Software/photon-qdrivers",
       url: "https://github.com/Gottesman-Software/photon-qdrivers",
@@ -916,48 +920,39 @@ const softwareMaturityBoundaries = [
   },
 ];
 
-const homeSoftware = [
-  {
-    name: "SchroSIM",
-    path: "/software",
-    role: "Photonic circuit design and simulation",
-    copy:
-      "A design environment for defining photonic circuits, checking backend policy, and producing reproducible simulation paths.",
-  },
-  {
-    name: "LiDMaS+",
-    path: "/software",
-    role: "Fault-tolerance and decoder validation",
-    copy:
-      "A research framework for quantum error-correction studies, decoder benchmarking, threshold evidence, and replayable result artifacts.",
-  },
-  {
-    name: "Photon-QDrivers",
-    path: "/lab",
-    role: "Prototype lab and hardware control",
-    copy:
-      "A driver layer for translating validated workloads into emulator, adapter, and preliminary bench-control workflows.",
-  },
-];
-
 const researchThesisItems = [
   {
     signal: "model",
-    title: "Design photonic circuits as inspectable workloads.",
+    name: "SchroSIM",
+    path: "/software",
+    image: "/assets/home/schrosim-workstation.webp",
+    imageAlt:
+      "Illustrative research workstation showing photonic circuit simulation beside an optical bench",
+    role: "Photonic circuit design and simulation",
     copy:
-      "SchroSIM keeps circuit definitions, backend policy, numerical limits, and simulator assumptions visible before results are trusted.",
+      "Define continuous-variable photonic circuits, expose numerical assumptions, check backend policy, and produce reproducible simulator-ready workloads.",
   },
   {
     signal: "decode",
-    title: "Treat decoder evidence as part of the experiment.",
+    name: "LiDMaS+",
+    path: "/software",
+    image: "/assets/home/lidmas-decoder-evidence.webp",
+    imageAlt:
+      "Illustrative decoder-validation workstation with syndrome maps, benchmark curves, and experiment notes",
+    role: "Fault-tolerance and decoder validation",
     copy:
-      "LiDMaS+ preserves seeds, decoder settings, noise assumptions, and run identity so threshold and logical-error claims can be replayed.",
+      "Preserve decoder settings, noise models, seeds, run identity, and output artifacts so QEC studies can be replayed and compared.",
   },
   {
     signal: "drive",
-    title: "Move toward lab control without losing provenance.",
+    name: "Photon-QDrivers",
+    path: "/lab",
+    image: "/assets/home/photon-qdrivers-control.webp",
+    imageAlt:
+      "Illustrative prototype control board connected to fiber and measurement hardware on an optical bench",
+    role: "Prototype control and execution boundaries",
     copy:
-      "Photon-QDrivers turns validated workloads into emulator, adapter, and bench-control paths with explicit capability boundaries.",
+      "Route validated workloads through emulators, native runtime paths, FPGA contracts, and hardware adapters without losing provenance.",
   },
 ];
 
@@ -1143,38 +1138,37 @@ const researchSpotlight = {
   href: "https://onlinelibrary.wiley.com/doi/full/10.1002/prop.70124",
   venue: "Fortschritte der Physik 74(6), e70124, 2026",
   summary:
-    "This paper provides a central reference for LiDMaS+ research: decoder choice, estimator resolution, fallback diagnostics, and hybrid CV-discrete noise all influence threshold analysis. It is presented as the spotlight publication before the broader selected paper set.",
+    "Decoder choice and estimator resolution can shift threshold conclusions under hybrid CV-discrete noise. This paper anchors the LiDMaS+ decoder-evidence program.",
   facts: ["LiDMaS+ workflow", "hybrid CV-discrete sweeps", "accepted 4 June 2026"],
 };
 
 const researchAgenda = [
   {
     signal: "SIM",
-    title: "Photonic circuit design and simulation",
+    title: "Model photonic circuits.",
     body:
-      "Use SchroSIM to turn photonic circuit ideas into runtime artifacts, validation gates, and benchmarkable simulator workloads.",
-    outputs: ["PhotonicCircuit IR", "validation suites", "runtime snapshots"],
+      "Use SchroSIM to test circuit assumptions, runtime policy, and simulator behavior.",
+    outputs: ["circuit IR", "validation gates"],
+    image: "/assets/software/schrosim-ui-preview.gif",
+    imageAlt: "Actual SchroSIM circuit simulation workspace",
   },
   {
     signal: "QEC",
-    title: "Hardware-to-decoder quantum error correction",
+    title: "Test decoder claims.",
     body:
-      "Use LiDMaS+ to compare decoder behavior under synthetic, hybrid, and hardware-derived syndrome streams.",
-    outputs: ["decoder requests", "threshold sweeps", "trace artifacts"],
-  },
-  {
-    signal: "GKP",
-    title: "Hybrid CV-DV fault tolerance",
-    body:
-      "Study how GKP digitization, surface-code distance, finite squeezing, and decoder choice affect auditable threshold claims.",
-    outputs: ["GKP studies", "surface-code runs", "crossing summaries"],
+      "Use LiDMaS+ to compare thresholds, estimators, and replayed syndrome streams.",
+    outputs: ["decoder traces", "threshold studies"],
+    image: "/assets/research/decoder-dependence-spotlight.png",
+    imageAlt: "First page of the published decoder-dependence study",
   },
   {
     signal: "LAB",
-    title: "Lab-facing control and validation",
+    title: "Translate evidence to control.",
     body:
-      "Move only clearly labeled artifacts from simulation into Photon-QDrivers control paths, loopback benches, and partner-lab evaluation.",
-    outputs: ["board profiles", "timing logs", "claim labels"],
+      "Use Photon-QDrivers to carry validated workloads toward board and partner-lab checks.",
+    outputs: ["timing evidence", "claim labels"],
+    image: "/assets/software/photon-qdrivers-compile-run-flow.png",
+    imageAlt: "Photon-QDrivers compile and run workflow",
   },
 ];
 
@@ -1182,32 +1176,32 @@ const claimEvidencePipeline = [
   {
     step: "01",
     label: "Question",
-    copy: "State the physical, decoder, or control claim before running the workflow.",
+    copy: "Define the claim.",
   },
   {
     step: "02",
     label: "Artifact",
-    copy: "Generate a circuit, runtime, or decoder fixture with source and version context attached.",
+    copy: "Attach source, version, and seed.",
   },
   {
     step: "03",
     label: "Replay",
-    copy: "Run the same artifact through simulator, decoder, emulator, or board-facing contracts.",
+    copy: "Run the same fixture.",
   },
   {
     step: "04",
     label: "Benchmark",
-    copy: "Measure latency, threshold behavior, warning rates, replay integrity, or residual quality.",
+    copy: "Measure thresholds or timing.",
   },
   {
     step: "05",
-    label: "Publication",
-    copy: "Promote scripts, tables, figures, and failure diagnostics into paper-ready evidence.",
+    label: "Publish",
+    copy: "Release scripts and figures.",
   },
   {
     step: "06",
-    label: "Translation",
-    copy: "Feed validated findings back into SchroSIM, LiDMaS+, Photon-QDrivers, or lab protocols.",
+    label: "Translate",
+    copy: "Feed results back into software.",
   },
 ];
 
@@ -1327,14 +1321,11 @@ const labSteps = [
 ];
 
 const labAssets = {
-  volteraVone: "https://www.voltera.io/images/vone/largeVone.webp",
-  redPitaya:
-    "https://redpitaya.com/wp-content/uploads/elementor/thumbs/Red_Pitaya_STEMlab_125-14-1-qsxg9izwg7w9l4k9vgfy7rprako7dnj8bc7nugbe00.jpg",
-  artyA7:
-    "https://cdn11.bigcommerce.com/s-7gavg/images/stencil/1280x1280/products/471/3908/Arty_obl_2_600__25304.1670980518.png?c=2",
-  kriaKv260: "https://www.amd.com/content/dam/amd/en/images/products/som/2362834-kv260-product.jpg",
-  eclypseZ7:
-    "https://cdn11.bigcommerce.com/s-7gavg/images/stencil/1280x1280/products/650/5474/Eclypse-obl-1000__98266.1670984787.jpg?c=2",
+  volteraVone: "/assets/headers/lab-voltera-vone.webp",
+  redPitaya: "/assets/lab/red-pitaya-stemlab-125-14.png",
+  artyA7: "/assets/lab/digilent-arty-a7.png",
+  kriaKv260: "/assets/lab/amd-kria-kv260.jpg",
+  eclypseZ7: "/assets/lab/digilent-eclypse-z7.jpg",
 };
 
 const prototypingSteps = [
@@ -1354,43 +1345,43 @@ const qdriverValidationSteps = [
 
 const qdriverHardwareOptions = [
   {
-    label: "Primary evaluation board",
+    label: "Primary reference target",
     name: "Red Pitaya STEMlab 125-14",
     image: labAssets.redPitaya,
     source: "https://redpitaya.com/stemlab-125-14/",
     alt: "Red Pitaya STEMlab 125-14 board",
     copy:
-      "Closest common-market target for photonic lab control, including pulse generation, detector-pulse emulation, readout experiments, and coincidence-counter validation.",
+      "Reference target for pulse generation, detector-pulse emulation, readout tests, and coincidence-counter validation.",
     specs: ["Zynq 7010", "2 RF inputs / 2 RF outputs", "125 MS/s, 14-bit ADC/DAC", "Ethernet, Wi-Fi option, digital IO"],
   },
   {
-    label: "RTL validation",
+    label: "Alternative · RTL validation",
     name: "Digilent Arty A7-100T",
     image: labAssets.artyA7,
     source: "https://digilent.com/shop/arty-a7-100t-artix-7-fpga-development-board/",
     alt: "Digilent Arty A7-100T FPGA development board",
     copy:
-      "Lower-cost FPGA platform for GPIO pulse scheduling, counter logic, timing fixtures, and CI-style board tests before lab instrumentation is involved.",
+      "Lower-cost FPGA option for GPIO scheduling, counter logic, timing fixtures, and board tests.",
     specs: ["Artix-7 FPGA", "256MB DDR3L", "JTAG and Quad-SPI programming", "Counter and GPIO timing validation"],
   },
   {
-    label: "Host runtime",
+    label: "Alternative · host runtime",
     name: "AMD Kria KV260",
     image: labAssets.kriaKv260,
     source: "https://www.amd.com/en/products/system-on-modules/kria/k26/kv260-vision-starter-kit.html",
     alt: "AMD Kria KV260 Vision AI Starter Kit board",
     copy:
-      "A stronger Linux-plus-FPGA runtime target for transport, Ethernet/USB integration, and production-style host orchestration with expansion hardware.",
+      "Linux-plus-FPGA option for transport, Ethernet or USB integration, and host orchestration.",
     specs: ["Zynq UltraScale+ MPSoC", "4 GB DDR", "1 Gb Ethernet", "USB 3.0 / 2.0"],
   },
   {
-    label: "Instrumentation",
+    label: "Alternative · instrumentation",
     name: "Digilent Eclypse Z7",
     image: labAssets.eclypseZ7,
     source: "https://digilent.com/shop/eclypse-z7/",
     alt: "Digilent Eclypse Z7 modular instrumentation board",
     copy:
-      "Instrumentation-oriented Zynq board when Zmod/SYZYGY ADC, DAC, Scope, AWG, SDR, or Digitizer expansion is the right bench interface.",
+      "Instrumentation-oriented option when modular ADC, DAC, scope, AWG, or digitizer expansion is needed.",
     specs: ["Zynq-7000", "2 SYZYGY/Zmod ports", "Gigabit Ethernet", "Zmod Scope, AWG, Digitizer support"],
   },
 ];
@@ -1498,74 +1489,63 @@ const labArtifactBundle = [
   "Claim label: simulated, loopback, bench, or partner-lab",
 ];
 
-const qecHeaderCells = Array.from({ length: 48 }, (_, index) => index);
-const qecDefectIndexes = new Set([3, 9, 14, 22, 28, 35, 41]);
-
 const teamLeadership = [
   {
-    name: "Dennis Wayo",
-    role: "Founder and Research Lead",
+    name: "Dennis Wayo, PhD",
+    role: "Founder & Research Lead",
+    focus: "Quantum Software Engineer / System Architect",
     initials: "DW",
-    status: "Leadership",
+    status: "Founder",
     tone: "tone-cyan",
     image: "/assets/team/dennis-wayo.jpeg",
     imageAlt: "Dennis Wayo portrait",
-    github: "https://github.com/DennisWayo",
-    scholar: "https://scholar.google.com/citations?hl=en&user=YCXIi1wAAAAJ&view_op=list_works&sortby=pubdate",
+    profiles: [
+      { icon: "github", label: "Dennis Wayo on GitHub", href: "https://github.com/DennisWayo" },
+      { icon: "linkedin", label: "Dennis Wayo on LinkedIn", href: "https://www.linkedin.com/in/dennis-wayo-765a38b1/" },
+      { icon: "scholar", label: "Dennis Wayo on Google Scholar", href: "https://scholar.google.com/citations?hl=en&user=YCXIi1wAAAAJ" },
+    ],
     bio:
-      "Leads the research direction, technical boundaries, public technical claims, and the transition from prototype software to institutional development.",
+      "Leads Gottesman Software's research direction, system architecture, and translation of photonic quantum methods into reproducible software.",
   },
   {
-    name: "Research Lead",
-    role: "Quantum Error-Correction Strategy",
-    initials: "QL",
-    status: "Placeholder",
-    tone: "tone-violet",
-    bio:
-      "Guides LiDMaS+ decoder experiments, threshold methodology, GKP assumptions, and review standards for publishable QEC evidence.",
-  },
-  {
-    name: "Prof. Dr Sven Groppe",
-    role: "Simulation and Systems Architecture",
+    name: "Prof. Dr. habil. Sven Groppe",
+    role: "Professorship in Artificial Intelligence",
+    focus: "Quantum Artificial Intelligence",
     initials: "SG",
-    status: "Architecture",
+    status: "Professor",
     tone: "tone-green",
-    image: "/assets/team/sven-groppe.png",
-    imageAlt: "Prof. Dr Sven Groppe portrait",
-    scholar: "https://scholar.google.com/citations?hl=en&user=drGVVY0AAAAJ&view_op=list_works&sortby=pubdate",
+    image: "/assets/team/sven-groppe-editorial.webp",
+    imageAlt: "Prof. Dr. habil. Sven Groppe portrait",
+    profiles: [
+      { icon: "linkedin", label: "Sven Groppe on LinkedIn", href: "https://de.linkedin.com/in/sven-groppe-32373016b" },
+      { icon: "scholar", label: "Sven Groppe on Google Scholar", href: "https://scholar.google.com/citations?hl=en&user=drGVVY0AAAAJ" },
+    ],
     bio:
-      "Supports simulator architecture, system design, API boundaries, artifact formats, and the transition from research code to usable open-source software.",
+      "Contributes expertise in quantum artificial intelligence, scalable systems, and rigorous research methods across the software and publication program.",
   },
   {
-    name: "Lab Lead",
-    role: "Photonic Controls and Prototyping",
-    initials: "PL",
-    status: "Placeholder",
-    tone: "tone-blue",
+    name: "Prof. Leonardo Goliatt",
+    role: "Professorship in Computational Mechanics",
+    focus: "Quantum Machine Learning",
+    initials: "LG",
+    status: "Professor",
+    tone: "tone-violet",
+    image: "/assets/team/leonardo-goliatt-editorial.webp",
+    imageAlt: "Prof. Leonardo Goliatt portrait",
+    profiles: [
+      { icon: "linkedin", label: "Leonardo Goliatt on LinkedIn", href: "https://br.linkedin.com/in/leonardo-goliatt" },
+      { icon: "scholar", label: "Leonardo Goliatt on Google Scholar", href: "https://scholar.google.com/citations?hl=en&user=OyIo0IUAAAAJ" },
+    ],
     bio:
-      "Connects SchroSIM studies, Photon-QDrivers, bench instrumentation, and prototype board validation for partner lab workflows.",
+      "Contributes expertise in computational modeling, machine learning, and quantum machine learning for scientific research.",
+  },
+  {
+    placeholder: true,
+    initials: "",
   },
 ];
 
 const groupMembers = [
-  {
-    name: "Postdoctoral Researcher",
-    role: "Independent research lead",
-    initials: "PD",
-    status: "Planned role",
-    tone: "tone-violet",
-    bio:
-      "Leads focused projects in photonic QEC, decoder benchmarking, hardware replay, or photonic circuit simulation while mentoring junior group members.",
-  },
-  {
-    name: "Graduate Researcher",
-    role: "Thesis-aligned project",
-    initials: "GR",
-    status: "Planned role",
-    tone: "tone-cyan",
-    bio:
-      "Develops a publishable research track across SchroSIM, LiDMaS+, Photon-QDrivers, GKP workflows, or PER-to-LER overhead studies.",
-  },
   {
     name: "Undergraduate Researcher",
     role: "Training and reproducibility",
@@ -1605,24 +1585,6 @@ const groupMembers = [
 ];
 
 const openResearchRoles = [
-  {
-    title: "Postdoctoral Researcher",
-    track: "Photonic QEC and decoder evidence",
-    status: "Planned role",
-    copy:
-      "Lead a focused research track across GKP assumptions, decoder dependence, hardware replay, or photonic circuit validation.",
-    artifact: "Expected artifact: a paper-ready benchmark, validation package, or reproducible research workflow.",
-    evidence: ["first-author paper path", "benchmark suite", "student mentorship"],
-  },
-  {
-    title: "Graduate Researcher",
-    track: "Thesis-aligned software and physics",
-    status: "Recruiting fit",
-    copy:
-      "Develop a thesis-scale project connected to SchroSIM, LiDMaS+, Photon-QDrivers, or lab-facing validation protocols.",
-    artifact: "Expected artifact: a thesis module with scripts, tests, examples, and paper-facing figures or tables.",
-    evidence: ["reproducible workflows", "paper artifacts", "software ownership"],
-  },
   {
     title: "Undergraduate Researcher",
     track: "Training and reproducibility",
@@ -2004,7 +1966,7 @@ function Header({ route, onNavigate }) {
   return (
     <header className="site-header">
       <PageLink className="brand" to="/" onNavigate={onNavigate} aria-label="Gottesman Software home">
-        <img src="/assets/gottesman-software-emblem-concept-v3.svg" alt="" />
+        <span className="brand-mark" aria-hidden="true" />
         <span className="brand-wordmark">
           <span>Gottesman</span>
           <span>Software</span>
@@ -2027,43 +1989,32 @@ function Header({ route, onNavigate }) {
   );
 }
 
-function Hero() {
+function Hero({ onNavigate }) {
   return (
     <section className="hero" id="top">
       <div className="hero-bg" aria-hidden="true" />
-      <div className="formula-field" aria-hidden="true">
-        <span>H|psi&gt; = E|psi&gt;</span>
-        <span>rho -&gt; D(rho)</span>
-        <span>pL &lt; pth</span>
-        <span>Sx = 0</span>
-      </div>
       <div className="hero-inner">
-        <p className="eyebrow">University Research Group Initiative</p>
-        <h1>Gottesman Software</h1>
+        <p className="eyebrow">Open-source photonic quantum research software</p>
+        <h1>One photonic workflow. Every result traceable.</h1>
         <p className="hero-copy">
-          Open-source research software for designing, decoding, and driving fault-tolerant
-          photonic quantum computing experiments from simulation to lab-facing validation.
+          Gottesman Software develops SchroSIM, LiDMaS+, and Photon-QDrivers—a coordinated stack
+          for photonic circuit simulation, quantum error-correction studies, and lab-facing
+          control validation.
+        </p>
+        <div className="hero-actions">
+          <PageLink className="hero-action hero-action-primary" to="/software" onNavigate={onNavigate}>
+            Explore the software
+          </PageLink>
+          <PageLink className="hero-action" to="/research" onNavigate={onNavigate}>
+            Review the research
+          </PageLink>
+        </div>
+        <p className="hero-boundary">
+          Public claims are limited to software, simulation, replay, and documented prototype
+          workflows unless hardware evidence is explicitly identified.
         </p>
       </div>
     </section>
-  );
-}
-
-function PageTabs({ route, onNavigate }) {
-  return (
-    <nav className="page-tabs" aria-label="Page tabs">
-      {navItems.map((item) => (
-        <PageLink
-          key={item.path}
-          className={route === item.path ? "active" : undefined}
-          to={item.path}
-          onNavigate={onNavigate}
-          aria-current={route === item.path ? "page" : undefined}
-        >
-          {item.label}
-        </PageLink>
-      ))}
-    </nav>
   );
 }
 
@@ -2071,62 +2022,72 @@ function HomeIntro() {
   return (
     <section className="section home-intro-section">
       <div className="home-intro-grid">
-        <div>
-          <p className="eyebrow">Institutional Overview</p>
-          <h2>A research software lab for fault-tolerant photonic quantum computing.</h2>
-        </div>
         <div className="home-intro-copy">
+          <p className="eyebrow">Research group</p>
+          <h2>A university-led software effort for fault-tolerant photonics.</h2>
           <p className="status-note">
-            Gottesman Software is a university research-group initiative developing open research
-            software for photonic quantum computing.
+            We build inspectable research tools—not a black-box platform.
           </p>
           <p>
-            Gottesman Software builds the software layer for photonic quantum research: circuit
-            modeling, decoder validation, experiment replay, and lab-facing control.
+            Circuit sources, numerical assumptions, decoder settings, seeds, backend policies, and
+            artifact locations remain connected to each result.
           </p>
           <p>
-            The name honors the stabilizer and fault-tolerance tradition that made large-scale
-            quantum computing intellectually concrete. The work carries that standard into
-            photonic architectures, where credible progress depends on reproducible software and
-            careful evidence.
+            The name references the stabilizer and fault-tolerance tradition that shaped modern
+            quantum error correction. The work carries that discipline into photonic research
+            software and carefully bounded prototype workflows.
           </p>
         </div>
+        <figure className="home-intro-visual">
+          <img
+            src="/assets/home/research-collaboration.webp"
+            alt="Illustrative university research team collaborating around a photonics optical bench"
+            loading="lazy"
+          />
+          <figcaption>
+            Illustrative research environment. Hardware access and institutional partnerships are
+            identified separately where applicable.
+          </figcaption>
+        </figure>
       </div>
     </section>
   );
 }
 
-function ResearchThesis() {
+function ResearchThesis({ onNavigate }) {
   return (
     <section className="section thesis-section">
-      <div className="thesis-grid">
-        <div className="thesis-copy">
-          <p className="eyebrow">Research Thesis</p>
-          <h2>Fault-tolerant photonic research needs one evidence trail.</h2>
-          <p>
-            Gottesman Software treats simulation, decoding, and lab control as one research
-            workflow. The goal is not only to run experiments, but to preserve enough context that
-            each claim can be inspected, replayed, and improved.
-          </p>
-        </div>
-        <div className="thesis-diagram" aria-label="Research thesis formula diagram">
-          <p>circuit</p>
-          <span>ψ</span>
-          <p>decoder</p>
-          <span>|GS⟩</span>
-          <p>control</p>
-          <strong>evidence</strong>
-        </div>
+      <div className="section-heading compact">
+        <p className="eyebrow">Software stack</p>
+        <h2>Three tools. One traceable workflow.</h2>
+        <p>
+          Each project owns a clear layer of the research process and passes its assumptions,
+          configuration, and artifacts to the next.
+        </p>
       </div>
       <div className="thesis-list">
         {researchThesisItems.map((item) => (
-          <article className="thesis-item" key={item.signal}>
-            <p className="mono-label">{item.signal}</p>
-            <h3>{item.title}</h3>
-            <p>{item.copy}</p>
-          </article>
+          <PageLink
+            className="thesis-item"
+            key={item.signal}
+            to={item.path}
+            onNavigate={onNavigate}
+          >
+            <img src={item.image} alt={item.imageAlt} loading="lazy" />
+            <div className="thesis-item-copy">
+              <p className="mono-label">{item.signal}</p>
+              <h3>{item.name}</h3>
+              <p className="thesis-role">{item.role}</p>
+              <p>{item.copy}</p>
+              <span className="thesis-link-label">Explore {item.name}</span>
+            </div>
+          </PageLink>
         ))}
       </div>
+      <p className="home-visual-disclaimer">
+        Homepage imagery is illustrative and does not represent a claim of owned photonic quantum
+        hardware.
+      </p>
     </section>
   );
 }
@@ -2136,10 +2097,10 @@ function IntegratedWorkflow({ onNavigate }) {
     <section className="section workflow-section">
       <div className="section-heading compact">
         <p className="eyebrow">Integrated Workflow</p>
-        <h2>From photonic circuit intent to reproducible lab-facing evidence.</h2>
+        <h2>A defined path from circuit intent to reviewable evidence.</h2>
         <p>
-          The stack is organized as a research pipeline. Each step has a defined input, output,
-          validation boundary, and route back to the software or lab layer that produced it.
+          Every step has a defined input, output, validation boundary, and route back to the source
+          or software layer that produced it.
         </p>
       </div>
       <div className="workflow-track" aria-label="Gottesman Software research workflow">
@@ -2167,11 +2128,10 @@ function EvidenceStandards() {
     <section className="section evidence-section">
       <div className="evidence-head">
         <p className="eyebrow cyan">Evidence Standards</p>
-        <h2>Research software should make claims easier to audit.</h2>
+        <h2>Make claims easier to audit—and harder to overstate.</h2>
         <p>
-          Gottesman Software is built around the idea that scientific progress in photonic quantum
-          computing depends on clear assumptions, reproducible outputs, and careful technical
-          boundaries.
+          Public results should distinguish simulation, replay, prototype control, and partner-lab
+          evidence without blurring the boundaries between them.
         </p>
       </div>
       <div className="evidence-grid">
@@ -2181,58 +2141,6 @@ function EvidenceStandards() {
             <h3>{item.label}</h3>
             <p>{item.copy}</p>
           </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function MissionVision() {
-  return (
-    <section className="mission-section">
-      <div className="mission-grid">
-        <article>
-          <p className="mono-label">mission</p>
-          <h2>Make photonic quantum research reproducible from model to measurement.</h2>
-          <p>
-            The mission connects circuit definitions, simulator policy, decoder settings,
-            hardware-control boundaries, and result artifacts so experiments can be inspected,
-            replayed, and improved.
-          </p>
-        </article>
-        <article>
-          <p className="mono-label">vision</p>
-          <h2>Turn fault-tolerant photonic computing into a testable engineering discipline.</h2>
-          <p>
-            The long-term vision is a transparent software stack where researchers can design
-            photonic circuits, evaluate fault-tolerance assumptions, validate decoders, and move
-            toward lab execution without losing the evidence trail.
-          </p>
-        </article>
-      </div>
-    </section>
-  );
-}
-
-function HostedSoftware({ onNavigate }) {
-  return (
-    <section className="section hosted-section">
-      <div className="section-heading">
-        <p className="eyebrow">Hosted Software</p>
-        <h2>Integrated tools for fault-tolerant photonic quantum research.</h2>
-        <p>
-          Gottesman Software hosts research tools that connect photonic circuit design, decoder
-          validation, and prototype lab control.
-        </p>
-      </div>
-      <div className="hosted-grid">
-        {homeSoftware.map((item, index) => (
-          <PageLink className="hosted-card" key={item.name} to={item.path} onNavigate={onNavigate}>
-            <span>{String(index + 1).padStart(2, "0")}</span>
-            <h3>{item.name}</h3>
-            <p className="hosted-role">{item.role}</p>
-            <p>{item.copy}</p>
-          </PageLink>
         ))}
       </div>
     </section>
@@ -2387,10 +2295,10 @@ function SoftwareQuickStartFolder() {
     <section className="section quickstart-section">
       <div className="section-heading compact">
         <p className="eyebrow">Quick Start</p>
-        <h2>Start from code, then move into the full research workflows.</h2>
+        <h2>Try the APIs.</h2>
         <p>
-          A small set of entry scripts shows the Python driver API, the C++ native runtime
-          boundary, and a Swift SchroSIM circuit simulation path.
+          Three small entry points show the Python driver API, C++ runtime boundary, and a Swift
+          SchroSIM circuit path.
         </p>
       </div>
       <div className="quickstart-folder">
@@ -2445,10 +2353,9 @@ function SoftwareCurrentState() {
     <section className="section software-maturity-section">
       <div className="section-heading compact">
         <p className="eyebrow">Current State</p>
-        <h2>Use precise claims for each tool.</h2>
+        <h2>What is ready now.</h2>
         <p>
-          Each tool is presented by its current working surface, its active development track,
-          and the boundary between research software and lab-facing validation.
+          Each project states its working surface, active development track, and current limits.
         </p>
       </div>
       <div className="software-maturity-grid">
@@ -2469,11 +2376,11 @@ function SoftwarePage() {
     <>
       <section className="section software-suite-section flush-top">
         <div className="section-heading">
-          <p className="eyebrow">Hosted Research Software</p>
-          <h2>Hosted software for photonic quantum research and validation.</h2>
+          <p className="eyebrow">Three open-source tools</p>
+          <h2>Follow one workflow from model to execution.</h2>
           <p>
-            Gottesman Software maintains distinct tools within a coordinated pipeline for circuit
-            design, decoder validation, and emulator or lab-oriented execution.
+            Each project owns one stage of the workflow and exposes the repository, languages,
+            working interface, and current boundary behind its claims.
           </p>
         </div>
         <div className="software-map" aria-label="Software flow">
@@ -2486,8 +2393,6 @@ function SoftwarePage() {
         </div>
       </section>
 
-      <SoftwareImportantResults />
-
       {softwareShowcases.map((tool, index) => (
         <section
           className={`software-showcase${index % 2 === 1 ? " reverse" : ""}`}
@@ -2495,11 +2400,12 @@ function SoftwarePage() {
         >
           <div className="software-media">
             <div className="software-logo-band">
-              <img src={tool.logo} alt={`${tool.name} logo`} />
+              <img src={tool.logo} alt={`${tool.name} logo`} loading="lazy" />
             </div>
-            <div className="software-preview">
-              <img src={tool.media} alt={tool.mediaAlt} />
-            </div>
+            <figure className="software-preview">
+              <img src={tool.media} alt={tool.mediaAlt} loading="lazy" />
+              <figcaption>{tool.mediaCaption}</figcaption>
+            </figure>
           </div>
           <div className="software-copy-panel">
             <p className="eyebrow">{tool.eyebrow}</p>
@@ -2882,38 +2788,19 @@ function LabRoadmap() {
   );
 }
 
-function StreamingDecoderPanel() {
+function LidmasReplayMedia() {
   return (
-    <div className="streaming-decoder-panel" role="img" aria-label="Animated streaming decoder panel">
-      <div className="decoder-panel-top">
-        <span>PER stream</span>
-        <span>syndrome bus</span>
-        <span>decoder replay</span>
-        <span>LER estimate</span>
-      </div>
-      <div className="decoder-lattice">
-        {qecHeaderCells.map((cell) => (
-          <span
-            className={qecDefectIndexes.has(cell) ? "decoder-cell is-defect" : "decoder-cell"}
-            key={cell}
-            style={{ "--pulse-delay": `${(cell % 8) * 0.13}s` }}
-          />
-        ))}
-        <span className="decoder-path path-one" />
-        <span className="decoder-path path-two" />
-        <span className="decoder-path path-three" />
-      </div>
-      <div className="decoder-metrics">
-        <p>
-          <span>PER</span>
-          <strong>model + measured stream</strong>
-        </p>
-        <p>
-          <span>LER</span>
-          <strong>logical outcome with replay key</strong>
-        </p>
-      </div>
-    </div>
+    <figure className="lidmas-replay-media">
+      <img
+        src="/assets/lab/lidmas-control-plane-replay.gif"
+        alt="Animated view of the actual LiDMaS+ control-plane interface"
+        loading="lazy"
+      />
+      <figcaption>
+        Actual LiDMaS+ control-plane preview from the public project interface. The full UI remains
+        in active development.
+      </figcaption>
+    </figure>
   );
 }
 
@@ -2921,11 +2808,10 @@ function LabValidationLadder() {
   return (
     <section className="section lab-ladder-section">
       <div className="section-heading compact">
-        <p className="eyebrow">Validation Ladder</p>
-        <h2>Move from emulator confidence to bench evidence in controlled steps.</h2>
+        <p className="eyebrow">Validation Path</p>
+        <h2>Promote evidence one controlled step at a time.</h2>
         <p>
-          The lab path should not jump straight from software to hardware claims. Each rung produces
-          one artifact that can be inspected before the next environment is trusted.
+          Each stage produces an inspectable artifact before the next environment is trusted.
         </p>
       </div>
       <div className="lab-ladder-track">
@@ -2947,10 +2833,10 @@ function LabProofBoundary() {
       <div className="lab-proof-grid">
         <div className="lab-proof-copy">
           <p className="eyebrow cyan">Proof Boundary</p>
-          <h2>Bench validation is powerful only when its limits are visible.</h2>
+          <h2>What the bench can—and cannot—prove.</h2>
           <p>
-            The lab program separates software-controlled instrumentation evidence from optical
-            hardware claims that depend on calibrated equipment and collaborating lab conditions.
+            Bench evidence covers control and measurement paths. Optical-hardware claims still
+            depend on calibrated equipment and a collaborating lab.
           </p>
         </div>
         <div className="lab-proof-panels">
@@ -2974,12 +2860,10 @@ function FirstBenchProtocol() {
   return (
     <section className="section bench-protocol-section">
       <div className="section-heading compact">
-        <p className="eyebrow">First Bench Protocol</p>
-        <h2>A repeatable Red Pitaya loopback should produce a replayable lab artifact.</h2>
+        <p className="eyebrow">Bench Protocol</p>
+        <h2>One loopback run. One replayable artifact.</h2>
         <p>
-          The first bench is not about spectacle. It is about proving that a controlled command
-          path, timing path, capture path, and decoder replay path can survive contact with
-          instrumented hardware.
+          A valid run records command, timing, capture, and replay evidence under a clear claim label.
         </p>
       </div>
       <div className="bench-protocol-board">
@@ -2999,8 +2883,8 @@ function LabMeasurementArtifacts() {
     <section className="section lab-artifact-section">
       <div className="lab-artifact-grid">
         <div className="lab-measurement-panel">
-          <p className="eyebrow">Measurement Targets</p>
-          <h2>Measure the bench like a system, not like a demo.</h2>
+          <p className="eyebrow">Evidence Captured</p>
+          <h2>Measure the system, not the demo.</h2>
           <div className="measurement-table">
             {measurementTargets.map((item) => (
               <article className="measurement-row" key={item.name}>
@@ -3013,7 +2897,7 @@ function LabMeasurementArtifacts() {
         </div>
         <div className="artifact-bundle-panel">
           <p className="eyebrow cyan">Artifact Bundle</p>
-          <h2>Every collaborator handoff should carry evidence, not just a result.</h2>
+          <h2>Hand off evidence, not just a result.</h2>
           <ul>
             {labArtifactBundle.map((item) => (
               <li key={item}>{item}</li>
@@ -3030,13 +2914,15 @@ function LabPage() {
     <>
       <section className="lab-workstream">
         <div className="lab-workstream-copy">
-          <p className="eyebrow">SchroSIM &rarr; Voltera V-One</p>
-          <h2>Circuit prototype fabrication from photonic design studies.</h2>
+          <p className="eyebrow">Reference workflow · SchroSIM &rarr; Voltera V-One</p>
+          <h2>Turn circuit studies into bench-ready electronics.</h2>
           <p>
-            SchroSIM provides the design surface for photonic circuit studies. The lab extension
-            translates those studies into rapid in-house electronics prototypes, including routing
-            boards, fixtures, sensor and control traces, and adapter circuits for academic and
-            collaborating lab evaluation before longer fabrication cycles.
+            The proposed workflow translates SchroSIM studies into routing boards, fixtures,
+            control traces, and adapter circuits for evaluation before longer fabrication cycles.
+          </p>
+          <p className="lab-stage-note">
+            <strong>Current stage:</strong> reference architecture and planned validation. Product
+            images show target equipment, not Gottesman Software inventory.
           </p>
           <ol className="lab-step-list">
             {prototypingSteps.map((step) => (
@@ -3045,10 +2931,13 @@ function LabPage() {
           </ol>
         </div>
         <figure className="lab-media-panel">
-          <img src={labAssets.volteraVone} alt="Voltera V-One desktop PCB printer" />
+          <img
+            src={labAssets.volteraVone}
+            alt="Voltera V-One desktop PCB printer"
+            loading="lazy"
+          />
           <figcaption>
-            Voltera V-One reference media. Used here to show the intended in-house PCB prototype
-            pathway; this reference does not indicate current lab inventory.
+            Vendor reference image of the Voltera V-One. Target workflow; no current-inventory claim.
           </figcaption>
         </figure>
       </section>
@@ -3058,35 +2947,25 @@ function LabPage() {
 
       <section className="lab-workstream dark">
         <div className="lab-workstream-copy">
-          <p className="eyebrow cyan">LiDMaS+ Decoder Lab</p>
-          <h2>Reducing overhead from physical-error evidence to logical-error outcomes.</h2>
+          <p className="eyebrow cyan">LiDMaS+ · Replay Evidence</p>
+          <h2>Connect measured errors to reproducible decoder outcomes.</h2>
           <p>
-            The LiDMaS+ lab track investigates how photonic quantum systems can move from raw
-            physical-error evidence to trustworthy logical-error reporting with less overhead. The
-            practical target is a one-to-one audit trail: each PER model or measured syndrome
-            stream should map to one reproducible LER estimate, with decoder choices, seeds,
-            distance, loss model, and replay identity preserved.
-          </p>
-          <p>
-            This track evaluates decoder policy, GKP and surface-code assumptions, measurement
-            schedules, and hardware-to-decoder replay so overhead claims are supported by comparable
-            artifacts rather than isolated plots.
+            Each physical-error model or measured syndrome stream should map to one replayable
+            logical-error estimate, preserving decoder choice, seed, code distance, loss model, and
+            run identity.
           </p>
         </div>
-        <StreamingDecoderPanel />
+        <LidmasReplayMedia />
       </section>
 
       <section className="lab-workstream">
         <div className="lab-workstream-copy">
-          <p className="eyebrow">Photon-QDrivers &rarr; Red Pitaya</p>
-          <h2>Validating quantum control software before collaborating lab evaluation.</h2>
+          <p className="eyebrow">Reference workflow · Photon-QDrivers &rarr; Red Pitaya</p>
+          <h2>Test timing and readout before an optical-lab handoff.</h2>
           <p>
-            Photon-QDrivers turns validated photonic workloads into a board-tested control stack.
-            The first target is Red Pitaya STEMlab 125-14 because it is close enough to an optical
-            bench workflow for RF pulse generation, detector-pulse emulation, readout experiments,
-            and coincidence-counter validation. The supporting boards provide lower-cost FPGA
-            validation, stronger host/runtime integration, and modular instrumentation paths before
-            collaborating lab use.
+            Red Pitaya STEMlab 125-14 is the primary reference target for pulse generation,
+            detector emulation, readout tests, and coincidence counting. The additional boards are
+            alternative vendor references, not owned equipment.
           </p>
           <ol className="lab-step-list">
             {qdriverValidationSteps.map((step) => (
@@ -3107,7 +2986,7 @@ function LabPage() {
                 rel="noreferrer"
                 aria-label={`${board.name} source reference`}
               >
-                <img src={board.image} alt={board.alt} />
+                <img src={board.image} alt={board.alt} loading="lazy" />
               </a>
               <div className="qdriver-board-copy">
                 <div className="qdriver-board-kicker">
@@ -3139,25 +3018,29 @@ function ResearchProgramOverview() {
   return (
     <section className="section research-program-section flush-top">
       <div className="section-heading">
-        <p className="eyebrow">Research Program</p>
-        <h2>Research software should turn claims into auditable evidence.</h2>
+        <p className="eyebrow">Research in three views</p>
+        <h2>See the program before reading the papers.</h2>
         <p>
-          Gottesman Software is organized as a university research-group program around a
-          simple question: can photonic quantum circuit ideas move from design, to decoder
-          evidence, to controlled lab prototypes without losing provenance?
+          The work moves from photonic models, to decoder evidence, to controlled execution—with
+          the working interface or publication shown beside each theme.
         </p>
       </div>
       <div className="research-agenda-grid">
         {researchAgenda.map((item) => (
           <article className="research-agenda-card" key={item.title}>
-            <span>{item.signal}</span>
-            <h3>{item.title}</h3>
-            <p>{item.body}</p>
-            <ul>
-              {item.outputs.map((output) => (
-                <li key={output}>{output}</li>
-              ))}
-            </ul>
+            <figure className="research-agenda-media">
+              <img src={item.image} alt={item.imageAlt} loading="lazy" />
+            </figure>
+            <div className="research-agenda-card-body">
+              <span>{item.signal}</span>
+              <h3>{item.title}</h3>
+              <p>{item.body}</p>
+              <ul>
+                {item.outputs.map((output) => (
+                  <li key={output}>{output}</li>
+                ))}
+              </ul>
+            </div>
           </article>
         ))}
       </div>
@@ -3169,8 +3052,8 @@ function ClaimEvidencePipeline() {
   return (
     <section className="section research-pipeline-section">
       <div className="section-heading compact">
-        <p className="eyebrow cyan">Claim-To-Evidence Pipeline</p>
-        <h2>A result is not mature until the evidence path is visible.</h2>
+        <p className="eyebrow cyan">Evidence Path</p>
+        <h2>Six steps from question to usable result.</h2>
       </div>
       <div className="research-pipeline-track" aria-label="Research claim to evidence pipeline">
         {claimEvidencePipeline.map((item) => (
@@ -3300,12 +3183,10 @@ function ResearchArtifacts({ standalone = false }) {
   return (
     <section className={`section research-section${standalone ? " flush-top" : ""}`}>
       <div className="section-heading">
-        <p className="eyebrow">Selected Paper Set</p>
-        <h2>Selected publications supporting the research program.</h2>
+        <p className="eyebrow">Selected Publications</p>
+        <h2>Start with the paper, then follow the research thread.</h2>
         <p>
-          This publication set documents the technical foundation for Gottesman Software, including
-          photonic simulation, differentiable mitigation, LiDMaS+ decoder studies, GKP fault
-          tolerance, coherent-state encoding, and physics-informed scientific modeling.
+          Explore the featured study, then browse the wider research program by topic.
         </p>
       </div>
       <article className="research-spotlight">
@@ -3316,19 +3197,8 @@ function ResearchArtifacts({ standalone = false }) {
           rel="noreferrer"
           aria-label={`Open spotlight paper: ${researchSpotlight.title}`}
         >
-          <img src={researchSpotlight.image} alt={researchSpotlight.imageAlt} />
+          <img src={researchSpotlight.image} alt={researchSpotlight.imageAlt} loading="lazy" />
         </a>
-        <div className="research-spotlight-visual" aria-hidden="true">
-          <span>{researchSpotlight.signal}</span>
-          <div>
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-            <i />
-          </div>
-        </div>
         <div className="research-spotlight-copy">
           <p className="research-theme-index">00</p>
           <p className="eyebrow">{researchSpotlight.eyebrow}</p>
@@ -3351,26 +3221,13 @@ function ResearchArtifacts({ standalone = false }) {
       <div className="research-theme-grid">
         {quantumResearchThemes.map((item, index) => (
           <article className="research-theme-card" key={item.title}>
-            <div className="research-theme-visual" aria-hidden="true">
-              <span>{item.signal}</span>
-              <div>
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-                <i />
-              </div>
-            </div>
             <div className="research-theme-copy">
               <p className="research-theme-index">{String(index + 1).padStart(2, "0")}</p>
               <p className="eyebrow">{item.theme}</p>
               <h3>{item.title}</h3>
-              <p className="research-authors">{item.authors}</p>
               <p className="research-venue">{item.venue}</p>
-              <p>{item.summary}</p>
               <div className="research-tags">
-                {item.tags.map((tag) => (
+                {item.tags.slice(0, 2).map((tag) => (
                   <span key={tag}>{tag}</span>
                 ))}
               </div>
@@ -3410,24 +3267,32 @@ function TeamPage() {
       <section className="team-leadership-section flush-top">
         <div className="team-section-head">
           <div>
-            <p className="eyebrow cyan">Leadership</p>
-            <h2>Research leadership across software, physics, and lab validation.</h2>
+            <p className="eyebrow cyan">Core team</p>
+            <h2>Three disciplines. One research program.</h2>
           </div>
           <p>
-            Gottesman Software is currently structured as a focused university research group.
-            Leadership is responsible for scientific claims, software boundaries, evidence
-            standards, and partner-facing lab pathways as the group expands into permanent roles.
+            Leadership connects quantum software architecture, artificial intelligence, and
+            computational modeling around a shared standard: research should be inspectable,
+            reproducible, and useful beyond a single paper.
           </p>
         </div>
         <div className="team-person-grid is-leadership">
-          {teamLeadership.map((member) => (
+          {teamLeadership.map((member, index) => member.placeholder ? (
+            <article
+              className="team-person-card is-placeholder"
+              key={`leadership-placeholder-${index}`}
+              aria-label="Reserved fourth leadership profile"
+            >
+              <span aria-hidden="true">{member.initials}</span>
+            </article>
+          ) : (
             <article className="team-person-card" key={member.name}>
               <div
                 className={`team-portrait ${member.tone}${member.image ? " has-image" : ""}`}
                 aria-hidden={member.image ? undefined : "true"}
               >
                 {member.image ? (
-                  <img src={member.image} alt={member.imageAlt} />
+                  <img src={member.image} alt={member.imageAlt} loading="lazy" />
                 ) : (
                   <span>{member.initials}</span>
                 )}
@@ -3436,30 +3301,21 @@ function TeamPage() {
               <div className="team-person-copy">
                 <h3>{member.name}</h3>
                 <p className="team-role">{member.role}</p>
-                {(member.github || member.scholar) && (
+                <p className="team-focus">{member.focus}</p>
+                {member.profiles?.length > 0 && (
                   <div className="team-profile-links" aria-label={`${member.name} profile links`}>
-                    {member.github && (
+                    {member.profiles.map((profile) => (
                       <a
                         className="team-profile-link"
-                        href={member.github}
+                        href={profile.href}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label={`${member.name} GitHub profile`}
+                        aria-label={profile.label}
+                        key={profile.href}
                       >
-                        <SocialIcon icon="github" />
+                        <SocialIcon icon={profile.icon} />
                       </a>
-                    )}
-                    {member.scholar && (
-                      <a
-                        className="team-profile-link is-scholar"
-                        href={member.scholar}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`${member.name} Google Scholar profile`}
-                      >
-                        <span aria-hidden="true">G</span>
-                      </a>
-                    )}
+                    ))}
                   </div>
                 )}
                 <p>{member.bio}</p>
@@ -3471,13 +3327,12 @@ function TeamPage() {
 
       <section className="section team-members-section">
         <div className="section-heading compact">
-          <p className="eyebrow">Group Member Tracks</p>
-          <h2>Each role track has a clear research and development path.</h2>
+          <p className="eyebrow">Contribution paths</p>
+          <h2>Participation stays deliberately small and scoped.</h2>
           <p>
-            The group is designed as a mentorship pipeline. A postdoctoral researcher can lead a
-            research track, a graduate researcher can develop a thesis-aligned project, and an
-            undergraduate researcher can build skill through reproducible experiments, software
-            tasks, and paper artifacts.
+            Current paths focus on undergraduate projects, short research visits, software
+            fellowships, and external collaboration, with each contribution tied to one clear
+            artifact.
           </p>
         </div>
         <div className="team-person-grid is-members">
@@ -3500,14 +3355,13 @@ function TeamPage() {
       <section className="section team-recruiting-section">
         <div className="team-recruiting-head">
           <div>
-            <p className="eyebrow">We Are Hiring</p>
-            <h2>We are recruiting the first research cohort.</h2>
+            <p className="eyebrow">Work with us</p>
+            <h2>Selected paths for focused contributions.</h2>
           </div>
           <p>
-            The group is looking for people who want to build serious research software, publish
-            careful quantum-computing evidence, and help translate photonic circuit prototypes
-            toward lab validation. Exact appointments depend on research fit, supervision
-            structure, funding, and university pathways.
+            These paths are for people who can take ownership of a clearly bounded artifact—from
+            software tests and documentation to hardware notes, reproducible examples, or joint
+            technical review.
           </p>
         </div>
         <div className="team-open-role-grid">
@@ -3655,55 +3509,30 @@ function SupportPage() {
   );
 }
 
-function FooterPageLinks({ route, onNavigate, className = "" }) {
-  return (
-    <nav className={`footer-page-links ${className}`.trim()} aria-label="Footer page navigation">
-      {navItems.map((item) => (
-        <PageLink
-          key={item.path}
-          className={route === item.path ? "active" : undefined}
-          to={item.path}
-          onNavigate={onNavigate}
-          aria-current={route === item.path ? "page" : undefined}
-        >
-          {item.label}
-        </PageLink>
-      ))}
-    </nav>
-  );
-}
-
-function Contact({ route, onNavigate }) {
+function Contact() {
   return (
     <section className="cta-section" id="contact">
       <img src="/assets/gottesman-software-emblem-v3-black-background.png" alt="Gottesman Software emblem" />
       <div className="cta-copy">
         <div className="cta-text">
-          <p className="eyebrow cyan">Contact and Newsletter</p>
-          <h2>Receive research updates or discuss collaboration.</h2>
+          <p className="eyebrow cyan">Open research and collaboration</p>
+          <h2>Build reproducible photonic research with us.</h2>
           <p>
-            Sign up for updates on SchroSIM, LiDMaS+, Photon-QDrivers, photonic QEC papers,
-            prototype lab milestones, and opportunities for students, collaborators, and research
-            supporters.
+            Explore the public repositories, review the evidence boundaries, or contact the
+            research group about software, publications, prototype validation, and collaboration.
           </p>
         </div>
         <div className="cta-actions">
-          <FooterPageLinks route={route} onNavigate={onNavigate} className="footer-top-page-links" />
-          <form
-            className="newsletter-form"
-            action="mailto:dwayo3@gatech.edu"
-            method="post"
-            encType="text/plain"
-          >
-            <label htmlFor="newsletter-email">Email address</label>
-            <div>
-              <input id="newsletter-email" name="email" type="email" placeholder="name@example.com" required />
-              <button type="submit">Sign up</button>
-            </div>
-          </form>
-          <a className="contact-link" href="mailto:dwayo3@gatech.edu">
-            Contact us directly
-          </a>
+          <div className="cta-action-row">
+            <a
+              className="contact-link contact-link-primary"
+              href="https://github.com/Gottesman-Software"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Explore GitHub
+            </a>
+          </div>
         </div>
       </div>
     </section>
@@ -3721,13 +3550,13 @@ function SocialIcon({ icon }) {
 function Footer({ route, onNavigate }) {
   return (
     <footer className="footer">
-      <Contact route={route} onNavigate={onNavigate} />
+      <Contact />
       <div className="footer-main">
         <div className="footer-left">
           <div className="footer-brand-block">
             <div>
               <p>&copy; 2026 Gottesman Software Research Group.</p>
-              <p className="footer-legal">Terms / Privacy Policy</p>
+              <p className="footer-legal">Open-source research software and public documentation.</p>
               <div className="footer-socials" aria-label="Social media links">
                 {socialLinks.map((item) => {
                   const isExternal = item.href.startsWith("http");
@@ -3745,6 +3574,13 @@ function Footer({ route, onNavigate }) {
                   );
                 })}
               </div>
+              <button
+                className="footer-cookie-settings"
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("gottesman:open-cookie-preferences"))}
+              >
+                Cookie settings
+              </button>
             </div>
           </div>
         </div>
@@ -3771,48 +3607,141 @@ function Footer({ route, onNavigate }) {
   );
 }
 
-function CookieBanner({ route }) {
-  const analyticsAvailable = hasAnalyticsMeasurementId();
-  const [choice, setChoice] = React.useState(() => {
-    const analyticsChoice = getAnalyticsConsent();
-    if (analyticsChoice !== "pending") {
-      return analyticsChoice;
-    }
-    if (!analyticsAvailable) {
-      return window.localStorage.getItem("gottesman-cookie-choice");
-    }
-    return null;
-  });
+const COOKIE_PREFERENCES_KEY = "gottesman-cookie-preferences-v2";
+const COOKIE_PREFERENCES_LIFETIME = 1000 * 60 * 60 * 24 * 180;
 
-  function choose(nextChoice) {
-    window.localStorage.setItem("gottesman-cookie-choice", nextChoice);
-    if (analyticsAvailable) {
-      setAnalyticsConsent(nextChoice);
-      if (nextChoice === "accepted") {
-        initializeAnalytics();
-        trackRouteView(route);
-      }
-    }
-    setChoice(nextChoice);
+function readCookiePreferences() {
+  if (typeof window === "undefined") {
+    return null;
   }
 
-  if (choice) {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(COOKIE_PREFERENCES_KEY));
+    if (!stored || stored.version !== 2 || stored.expiresAt <= Date.now()) {
+      return null;
+    }
+    return stored;
+  } catch {
+    return null;
+  }
+}
+
+function CookieBanner({ route }) {
+  const analyticsAvailable = hasAnalyticsMeasurementId();
+  const [isReady, setIsReady] = React.useState(false);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [showDetails, setShowDetails] = React.useState(false);
+  const [analyticsEnabled, setAnalyticsEnabled] = React.useState(false);
+
+  React.useEffect(() => {
+    const saved = readCookiePreferences();
+    setAnalyticsEnabled(Boolean(saved?.analytics));
+    setIsOpen(!saved);
+    setIsReady(true);
+
+    function openPreferences() {
+      const current = readCookiePreferences();
+      setAnalyticsEnabled(Boolean(current?.analytics));
+      setShowDetails(true);
+      setIsOpen(true);
+    }
+
+    window.addEventListener("gottesman:open-cookie-preferences", openPreferences);
+    return () => window.removeEventListener("gottesman:open-cookie-preferences", openPreferences);
+  }, []);
+
+  function savePreferences(nextAnalyticsChoice) {
+    const preferences = {
+      version: 2,
+      necessary: true,
+      analytics: nextAnalyticsChoice,
+      savedAt: Date.now(),
+      expiresAt: Date.now() + COOKIE_PREFERENCES_LIFETIME,
+    };
+
+    window.localStorage.setItem(COOKIE_PREFERENCES_KEY, JSON.stringify(preferences));
+    setAnalyticsConsent(nextAnalyticsChoice ? "accepted" : "declined");
+
+    if (nextAnalyticsChoice && analyticsAvailable) {
+      initializeAnalytics();
+      trackRouteView(route);
+    }
+
+    setAnalyticsEnabled(nextAnalyticsChoice);
+    setShowDetails(false);
+    setIsOpen(false);
+  }
+
+  if (!isReady || !isOpen) {
     return null;
   }
 
   return (
-    <div className="cookie-banner" role="region" aria-label="Cookie notice">
-      <p>
-        {analyticsAvailable
-          ? "This site can use optional Google Analytics to count page views and Studio interactions. Basic reading works without analytics."
-          : "This site stores only your cookie preference in this browser. It does not require tracking cookies for basic reading."}
-      </p>
-      <div>
-        <button type="button" onClick={() => choose("declined")}>
-          Dismiss
+    <div
+      className={`cookie-banner${showDetails ? " is-expanded" : ""}`}
+      role="dialog"
+      aria-labelledby="cookie-preferences-title"
+      aria-describedby="cookie-preferences-summary"
+    >
+      <div className="cookie-banner-copy">
+        <p className="eyebrow cyan">Privacy choices</p>
+        <h2 id="cookie-preferences-title">Choose how this site stores data.</h2>
+        <p id="cookie-preferences-summary">
+          Necessary storage remembers your choice. Optional analytics runs only when you allow it.
+          You can change this later through Cookie settings in the footer.
+        </p>
+      </div>
+
+      {showDetails && (
+        <div className="cookie-preference-list">
+          <label className="cookie-preference-row" htmlFor="necessary-storage">
+            <span>
+              <strong>Necessary storage</strong>
+              <small>
+                Saves this consent choice in local storage for up to six months. It is required
+                for the preference control to work.
+              </small>
+            </span>
+            <input id="necessary-storage" type="checkbox" checked disabled />
+          </label>
+          <label className="cookie-preference-row" htmlFor="analytics-storage">
+            <span>
+              <strong>Analytics</strong>
+              <small>
+                Google Analytics can receive page views and selected Studio interactions. Google
+                Signals, advertising storage, and ad personalisation stay disabled.
+                {!analyticsAvailable && " Analytics is not currently active on this deployment."}
+              </small>
+            </span>
+            <input
+              id="analytics-storage"
+              type="checkbox"
+              checked={analyticsEnabled}
+              onChange={(event) => setAnalyticsEnabled(event.target.checked)}
+            />
+          </label>
+          <p className="cookie-provider-note">
+            Analytics data is handled under Google's privacy terms. No optional analytics script
+            is loaded before consent.
+          </p>
+        </div>
+      )}
+
+      <div className="cookie-actions">
+        <button className="cookie-action-secondary" type="button" onClick={() => savePreferences(false)}>
+          Reject optional
         </button>
-        <button type="button" onClick={() => choose("accepted")}>
-          {analyticsAvailable ? "Allow analytics" : "OK"}
+        {showDetails ? (
+          <button className="cookie-action-settings" type="button" onClick={() => savePreferences(analyticsEnabled)}>
+            Save choices
+          </button>
+        ) : (
+          <button className="cookie-action-settings" type="button" onClick={() => setShowDetails(true)}>
+            Choose settings
+          </button>
+        )}
+        <button className="cookie-action-primary" type="button" onClick={() => savePreferences(true)}>
+          Accept analytics
         </button>
       </div>
     </div>
@@ -3864,11 +3793,9 @@ function ScrollEnhancements({ route }) {
       document.querySelectorAll(
         [
           ".section",
-          ".mission-section",
           ".thesis-item",
           ".workflow-step",
           ".evidence-standard",
-          ".hosted-card",
           ".software-showcase",
           ".software-result-card",
           ".quickstart-file-card",
@@ -3909,7 +3836,7 @@ function ScrollEnhancements({ route }) {
 
     revealTargets.forEach((element, index) => {
       element.classList.add("spring-reveal");
-      element.style.setProperty("--spring-delay", `${Math.min((index % 5) * 45, 180)}ms`);
+      element.style.setProperty("--spring-delay", `${Math.min((index % 4) * 24, 72)}ms`);
     });
 
     if (prefersReducedMotion()) {
@@ -3927,8 +3854,8 @@ function ScrollEnhancements({ route }) {
         });
       },
       {
-        rootMargin: "0px 0px -12% 0px",
-        threshold: 0.12,
+        rootMargin: "0px 0px -4% 0px",
+        threshold: 0.04,
       },
     );
 
@@ -3969,14 +3896,11 @@ function ScrollEnhancements({ route }) {
 function HomePage({ route, onNavigate }) {
   return (
     <>
-      <Hero />
-      <PageTabs route={route} onNavigate={onNavigate} />
+      <Hero onNavigate={onNavigate} />
       <HomeIntro />
-      <ResearchThesis />
+      <ResearchThesis onNavigate={onNavigate} />
       <IntegratedWorkflow onNavigate={onNavigate} />
       <EvidenceStandards />
-      <MissionVision />
-      <HostedSoftware onNavigate={onNavigate} />
     </>
   );
 }
@@ -3995,19 +3919,13 @@ function RoutedPage({ route, onNavigate }) {
   return (
     <>
       <PageHero page={page} />
-      <PageTabs route={route} onNavigate={onNavigate} />
       {route === "/software" && <SoftwarePage />}
       {route === "/lab" && <LabPage />}
       {route === "/research" && (
         <>
           <ResearchProgramOverview />
-          <ClaimEvidencePipeline />
-          <ActiveResearchTracks />
-          <ReproducibilityStandard />
-          <PublicationMatrix />
           <ResearchArtifacts />
-          <OpenResearchQuestions />
-          <ResearchBrief />
+          <ClaimEvidencePipeline />
         </>
       )}
       {route === "/team" && <TeamPage />}
