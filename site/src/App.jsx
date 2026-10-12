@@ -1501,6 +1501,7 @@ const teamLeadership = [
     tone: "tone-cyan",
     image: "/assets/team/dennis-wayo-personal.jpg",
     imageAlt: "Dennis Wayo portrait",
+    portraitClass: "is-founder-portrait",
     profiles: [
       { icon: "github", label: "Dennis Wayo on GitHub", href: "https://github.com/DennisWayo" },
       { icon: "linkedin", label: "Dennis Wayo on LinkedIn", href: "https://www.linkedin.com/in/dennis-wayo-765a38b1/" },
@@ -3406,7 +3407,7 @@ function TeamPage() {
           ) : (
             <article className="team-person-card" key={member.name}>
               <div
-                className={`team-portrait ${member.tone}${member.image ? " has-image" : ""}`}
+                className={`team-portrait ${member.tone}${member.image ? " has-image" : ""}${member.portraitClass ? ` ${member.portraitClass}` : ""}`}
                 aria-hidden={member.image ? undefined : "true"}
               >
                 {member.image ? (
