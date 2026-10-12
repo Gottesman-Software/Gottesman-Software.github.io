@@ -2005,10 +2005,28 @@ function HomeIntro() {
   );
 }
 
-const benchmarkEvidence = [
-  { value: benchmarkSummary.publishedResults, label: "published studies", tone: "published" },
-  { value: benchmarkSummary.peerReviewedResults, label: "peer reviewed", tone: "reviewed" },
-  { value: benchmarkSummary.verifiedResults, label: "independently verified", tone: "verified" },
+const benchmarkLiterature = [
+  {
+    field: "Hardware timing",
+    source: "Arabul et al.",
+    reference: "IEEE Photonics Journal, 2020",
+    figure: "8.9 ps",
+    figureLabel: "RMS timing resolution",
+  },
+  {
+    field: "QEC decoding",
+    source: "Higgott and Gidney",
+    reference: "Sparse Blossom, 2023",
+    figure: "< 1 µs",
+    figureLabel: "reported per round",
+  },
+  {
+    field: "Photonic simulation",
+    source: "Killoran et al.",
+    reference: "Quantum 3, 129, 2019",
+    figure: "CV",
+    figureLabel: "photonic simulation",
+  },
 ];
 
 function BenchmarkPulse() {
@@ -2045,17 +2063,24 @@ function BenchmarkHighlights() {
         </a>
       </div>
 
-      <div className="home-benchmark-evidence" aria-label="Current evidence status">
-        <div className="home-benchmark-evidence-heading">
-          <span>Current register</span>
-          <small>Build-time snapshot</small>
+      <div className="home-benchmark-literature">
+        <div className="home-benchmark-literature-heading">
+          <span>Literature evidence</span>
+          <strong>{benchmarkSummary.literatureAnchors} published anchors</strong>
         </div>
-        {benchmarkEvidence.map((item) => (
-          <div className={`home-benchmark-stat is-${item.tone}`} key={item.label}>
-            <strong>{item.value}</strong>
-            <span>{item.label}</span>
-          </div>
-        ))}
+        <div className="home-benchmark-literature-list">
+          {benchmarkLiterature.map((item) => (
+            <a className="home-benchmark-reference" href="/benchmarks/#literature" key={item.field}>
+              <span>{item.field}</span>
+              <div className="home-benchmark-reference-figure">
+                <b>{item.figure}</b>
+                <em>{item.figureLabel}</em>
+              </div>
+              <strong>{item.source}</strong>
+              <small>{item.reference}</small>
+            </a>
+          ))}
+        </div>
       </div>
     </section>
   );
