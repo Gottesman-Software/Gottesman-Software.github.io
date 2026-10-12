@@ -1,4 +1,5 @@
 import React from "react";
+import { benchmarkSummary } from "./benchmark-summary.js";
 import {
   hasAnalyticsMeasurementId,
   initializeAnalytics,
@@ -274,7 +275,7 @@ const pageItems = [
     eyebrow: "Software Stack",
     title: "Design circuits. Compare decoders. Route experiments.",
     copy:
-      "One open-source stack connects SchroSIM, LiDMaS+, and Photon-QDrivers—from circuit definition to replayable decoder runs and validated execution paths.",
+      "One open-source stack connects SchroSIM, LiDMaS+, and Photon-QDrivers, from circuit definition to replayable decoder runs and validated execution paths.",
     heroCode: softwareHeroCode,
     heroPosition: "right center",
   },
@@ -294,7 +295,7 @@ const pageItems = [
     eyebrow: "Prototype Lab",
     title: "Test control paths before optical hardware.",
     copy:
-      "The Lab program connects SchroSIM designs, LiDMaS+ replay, and Photon-QDrivers bench measurements. Equipment shown below is reference hardware for planned validation—not current inventory.",
+      "The Lab program connects SchroSIM designs, LiDMaS+ replay, and Photon-QDrivers bench measurements. Equipment shown below is reference hardware for planned validation, not current inventory.",
     heroImage: "/assets/headers/lab-voltera-vone.webp",
     heroVideo: "/assets/headers/VOneAnatomyDispenserOverview.mp4",
     heroPlaybackRate: 0.45,
@@ -306,7 +307,7 @@ const pageItems = [
     eyebrow: "Quantum Research",
     title: "Research that connects models, decoders, and hardware.",
     copy:
-      "Selected publications and active studies behind SchroSIM, LiDMaS+, and Photon-QDrivers—with the evidence path attached.",
+      "Selected publications and active studies behind SchroSIM, LiDMaS+, and Photon-QDrivers, with the evidence path attached.",
     heroImage: "/assets/headers/research-original-quantum.png",
     heroPosition: "center",
   },
@@ -316,7 +317,7 @@ const pageItems = [
     eyebrow: "Team",
     title: "A focused team for quantum software research.",
     copy:
-      "Leadership spans systems architecture, quantum artificial intelligence, and quantum machine learning—connected through reproducible software and research.",
+      "Leadership spans systems architecture, quantum artificial intelligence, and quantum machine learning, connected through reproducible software and research.",
   },
   {
     label: "Support",
@@ -1998,7 +1999,7 @@ function Hero({ onNavigate }) {
         <p className="eyebrow">Open-source photonic quantum research software</p>
         <h1>One photonic workflow. Every result traceable.</h1>
         <p className="hero-copy">
-          Gottesman Software develops SchroSIM, LiDMaS+, and Photon-QDrivers—a coordinated stack
+          Gottesman Software develops SchroSIM, LiDMaS+, and Photon-QDrivers, a coordinated stack
           for photonic circuit simulation, quantum error-correction studies, and lab-facing
           control validation.
         </p>
@@ -2027,7 +2028,7 @@ function HomeIntro() {
           <p className="eyebrow">Research group</p>
           <h2>A university-led software effort for fault-tolerant photonics.</h2>
           <p className="status-note">
-            We build inspectable research tools—not a black-box platform.
+            We build inspectable research tools, not a black-box platform.
           </p>
           <p>
             Circuit sources, numerical assumptions, decoder settings, seeds, backend policies, and
@@ -2045,38 +2046,33 @@ function HomeIntro() {
             alt="Illustrative university research team collaborating around a photonics optical bench"
             loading="lazy"
           />
-          <figcaption>
-            Illustrative research environment. Hardware access and institutional partnerships are
-            identified separately where applicable.
-          </figcaption>
         </figure>
       </div>
     </section>
   );
 }
 
-const benchmarkHighlights = [
-  { value: "03", label: "research streams" },
-  { value: "03", label: "literature anchors" },
-  { value: "04", label: "initial hardware tests" },
-  { value: "00", label: "verified lab results" },
+const benchmarkEvidence = [
+  { value: benchmarkSummary.initialHardwareTests, label: "defined hardware tests", tone: "planned" },
+  { value: benchmarkSummary.verifiedResults, label: "verified results", tone: "verified" },
+  { value: benchmarkSummary.researchStreams, label: "research streams", tone: "scope" },
 ];
 
-const benchmarkStreams = [
+const benchmarkLiterature = [
   {
-    code: "01 / CONTROL",
-    name: "Photon-QDrivers",
-    detail: "Pulse, loopback, and timing evidence",
+    field: "Hardware timing",
+    source: "Arabul et al.",
+    reference: "IEEE Photonics Journal, 2020",
   },
   {
-    code: "02 / QEC",
-    name: "LiDMaS+",
-    detail: "Matched decoder workloads and latency",
+    field: "QEC decoding",
+    source: "Higgott and Gidney",
+    reference: "Sparse Blossom, 2023",
   },
   {
-    code: "03 / SIMULATION",
-    name: "SchroSIM",
-    detail: "Numerical agreement, runtime, and memory",
+    field: "Photonic simulation",
+    source: "Killoran et al.",
+    reference: "Quantum 3, 129, 2019",
   },
 ];
 
@@ -2085,13 +2081,13 @@ function BenchmarkPulse() {
     <a className="home-benchmark-pulse" href="/benchmarks/" aria-label="Open the Benchmark Observatory">
       <span className="home-benchmark-pulse-label">Observatory snapshot</span>
       <span className="home-benchmark-pulse-metric is-primary">
-        <strong>04</strong> initial hardware tests
+        <strong>{benchmarkSummary.initialHardwareTests}</strong> defined hardware tests
       </span>
       <span className="home-benchmark-pulse-metric">
-        <strong>03</strong> literature anchors
+        <strong>{benchmarkSummary.literatureAnchors}</strong> literature anchors
       </span>
       <span className="home-benchmark-pulse-metric is-caution">
-        <strong>00</strong> verified lab results
+        <strong>{benchmarkSummary.verifiedResults}</strong> verified results
       </span>
       <span className="home-benchmark-pulse-action">View live register ↗</span>
     </a>
@@ -2115,23 +2111,33 @@ function BenchmarkHighlights() {
         </a>
       </div>
 
-      <div className="home-benchmark-stats" aria-label="Benchmark Observatory summary">
-        {benchmarkHighlights.map((item) => (
-          <div className="home-benchmark-stat" key={item.label}>
+      <div className="home-benchmark-evidence" aria-label="Current evidence status">
+        <div className="home-benchmark-evidence-heading">
+          <span>Current evidence</span>
+          <small>Updated from the public register at build time</small>
+        </div>
+        {benchmarkEvidence.map((item) => (
+          <div className={`home-benchmark-stat is-${item.tone}`} key={item.label}>
             <strong>{item.value}</strong>
             <span>{item.label}</span>
           </div>
         ))}
       </div>
 
-      <div className="home-benchmark-streams">
-        {benchmarkStreams.map((stream) => (
-          <a className="home-benchmark-stream" href="/benchmarks/#targets" key={stream.name}>
-            <span>{stream.code}</span>
-            <strong>{stream.name}</strong>
-            <small>{stream.detail}</small>
-          </a>
-        ))}
+      <div className="home-benchmark-literature">
+        <div className="home-benchmark-literature-heading">
+          <span>Literature foundation</span>
+          <strong>{benchmarkSummary.literatureAnchors} published anchors</strong>
+        </div>
+        <div className="home-benchmark-literature-list">
+          {benchmarkLiterature.map((item) => (
+            <a className="home-benchmark-reference" href="/benchmarks/#literature" key={item.field}>
+              <span>{item.field}</span>
+              <strong>{item.source}</strong>
+              <small>{item.reference}</small>
+            </a>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -2211,7 +2217,7 @@ function EvidenceStandards() {
     <section className="section evidence-section">
       <div className="evidence-head">
         <p className="eyebrow cyan">Evidence Standards</p>
-        <h2>Make claims easier to audit—and harder to overstate.</h2>
+        <h2>Make claims easier to audit and harder to overstate.</h2>
         <p>
           Public results should distinguish simulation, replay, prototype control, and partner-lab
           evidence without blurring the boundaries between them.
@@ -2916,7 +2922,7 @@ function LabProofBoundary() {
       <div className="lab-proof-grid">
         <div className="lab-proof-copy">
           <p className="eyebrow cyan">Proof Boundary</p>
-          <h2>What the bench can—and cannot—prove.</h2>
+          <h2>What the bench can and cannot prove.</h2>
           <p>
             Bench evidence covers control and measurement paths. Optical-hardware claims still
             depend on calibrated equipment and a collaborating lab.
@@ -3119,7 +3125,7 @@ function ResearchProgramOverview() {
         <p className="eyebrow">Research in three views</p>
         <h2>See the program before reading the papers.</h2>
         <p>
-          The work moves from photonic models, to decoder evidence, to controlled execution—with
+          The work moves from photonic models, to decoder evidence, to controlled execution, with
           the working interface or publication shown beside each theme.
         </p>
       </div>
@@ -3457,7 +3463,7 @@ function TeamPage() {
             <h2>Selected paths for focused contributions.</h2>
           </div>
           <p>
-            These paths are for people who can take ownership of a clearly bounded artifact—from
+            These paths are for people who can take ownership of a clearly bounded artifact, from
             software tests and documentation to hardware notes, reproducible examples, or joint
             technical review.
           </p>
@@ -3653,8 +3659,9 @@ function Footer({ route, onNavigate }) {
         <div className="footer-left">
           <div className="footer-brand-block">
             <div>
-              <p>&copy; 2026 Gottesman Software Research Group.</p>
-              <p className="footer-legal">Open-source research software and public documentation.</p>
+              <p className="footer-name">Gottesman Software Research Group</p>
+              <p className="footer-legal">Open research software for photonic quantum systems.</p>
+              <p className="footer-copyright">&copy; 2026 Gottesman Software.</p>
               <div className="footer-socials" aria-label="Social media links">
                 {socialLinks.map((item) => {
                   const isExternal = item.href.startsWith("http");

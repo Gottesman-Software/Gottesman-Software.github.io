@@ -138,8 +138,14 @@ export function AppShell({ children }: PropsWithChildren) {
     >
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <div className="logo-text">LiDMaS+</div>
-          <div className="logo-subtext">Decoder Intelligence Layer</div>
+          <div className="studio-brand">
+            <span className="studio-brand-mark" aria-hidden="true" />
+            <span className="studio-brand-wordmark">
+              <span>Gottesman</span>
+              <span>Software</span>
+            </span>
+          </div>
+          <div className="studio-product-name">LiDMaS+ Decoder Studio</div>
         </div>
 
         {navSections.map((section) => (

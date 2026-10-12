@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5174",
     "dev:lidmas-live": "VITE_ENABLE_LIDMAS_LIVE_ROUTE=1 VITE_LIDMAS_LIVE_ORIGIN=http://127.0.0.1:5173 vite --host 127.0.0.1 --port 5174",
+    "prebuild": "node scripts/benchmark-summary.mjs",
     "build": "npm --prefix studio/lidmas run build:studio && vite build && node scripts/copy-spa-routes.mjs",
     "build:public-api": "npm --prefix studio/lidmas run build:studio:public-api && vite build && node scripts/copy-spa-routes.mjs",
+    "test:summary": "node --test scripts/benchmark-summary.test.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 4174"
   },
   "dependencies": {

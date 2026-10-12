@@ -88,17 +88,47 @@ textarea {
   margin-bottom: 30px;
 }
 
-.logo-text {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--blue);
-  letter-spacing: 1px;
+.studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.logo-subtext {
+.studio-brand-mark {
+  display: block;
+  width: 64px;
+  height: 36px;
+  flex: 0 0 auto;
+  background: #000 url("/assets/gottesman-software-emblem-v3-black-background.png") center / 154% auto no-repeat;
+}
+
+.studio-brand-wordmark {
+  display: grid;
+  gap: 1px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.studio-brand-wordmark span {
+  display: block;
+}
+
+.studio-product-name {
+  margin-top: 8px;
+  color: var(--blue);
   font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.route-loading {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
   color: var(--text-muted);
-  margin-top: 3px;
+  font-size: 12px;
 }
 
 .nav-section-title {
@@ -6806,6 +6836,15 @@ tbody tr:hover {
   .sidebar-logo {
     margin-bottom: 12px;
     padding: 0;
+  }
+
+  .studio-brand-mark {
+    width: 54px;
+    height: 31px;
+  }
+
+  .studio-product-name {
+    margin-top: 5px;
   }
 
   .nav-section-spaced,
