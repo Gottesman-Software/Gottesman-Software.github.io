@@ -1,0 +1,85 @@
+/* Shared editorial hierarchy for every marketing route. Keep dashboards compact. */
+body h1,
+body .hero h1,
+body .page-hero h1,
+body .studio-platform-hero-copy h1 {
+  font-size: var(--type-display);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+body .section-heading h2,
+body .home-benchmark-head h2,
+body .cta-text h2 {
+  font-size: var(--type-section);
+}
+
+body h2 {
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+body h3 {
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+.hero .hero-copy,
+.page-hero .page-hero-copy {
+  font-size: var(--type-lead);
+  line-height: 1.65;
+  max-width: 65ch;
+}
+
+body .eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  letter-spacing: 0.12em;
+}
+
+main p {
+  text-wrap: pretty;
+}
+
+@media (max-width: 800px) {
+  .site-header {
+    min-height: 64px;
+    padding: 10px 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .site-header .brand {
+    font-size: 15px;
+    gap: 9px;
+  }
+
+  .site-header .brand-mark {
+    width: 64px;
+    height: 36px;
+  }
+
+  .site-header .nav-links {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 20px;
+    padding: 2px 0;
+    font-size: 12px;
+  }
+
+  .site-header .nav-links a {
+    flex: 0 0 auto;
+    min-height: 36px;
+  }
+
+  .hero .hero-inner {
+    padding: 52px 0;
+  }
+
+  .hero {
+    min-height: 0;
+  }
+}
