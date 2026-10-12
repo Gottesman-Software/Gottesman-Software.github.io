@@ -422,6 +422,7 @@ const footerLinkGroups = [
     links: [
       { label: "Gottesman Studio", path: "/studio" },
       { label: "Prototype Lab", path: "/lab" },
+      { label: "Benchmark Observatory", href: "/benchmarks/" },
       { label: "Publications", path: "/research" },
     ],
   },
@@ -2049,6 +2050,88 @@ function HomeIntro() {
             identified separately where applicable.
           </figcaption>
         </figure>
+      </div>
+    </section>
+  );
+}
+
+const benchmarkHighlights = [
+  { value: "03", label: "research streams" },
+  { value: "03", label: "literature anchors" },
+  { value: "04", label: "initial hardware tests" },
+  { value: "00", label: "verified lab results" },
+];
+
+const benchmarkStreams = [
+  {
+    code: "01 / CONTROL",
+    name: "Photon-QDrivers",
+    detail: "Pulse, loopback, and timing evidence",
+  },
+  {
+    code: "02 / QEC",
+    name: "LiDMaS+",
+    detail: "Matched decoder workloads and latency",
+  },
+  {
+    code: "03 / SIMULATION",
+    name: "SchroSIM",
+    detail: "Numerical agreement, runtime, and memory",
+  },
+];
+
+function BenchmarkPulse() {
+  return (
+    <a className="home-benchmark-pulse" href="/benchmarks/" aria-label="Open the Benchmark Observatory">
+      <span className="home-benchmark-pulse-label">Observatory snapshot</span>
+      <span className="home-benchmark-pulse-metric is-primary">
+        <strong>04</strong> initial hardware tests
+      </span>
+      <span className="home-benchmark-pulse-metric">
+        <strong>03</strong> literature anchors
+      </span>
+      <span className="home-benchmark-pulse-metric is-caution">
+        <strong>00</strong> verified lab results
+      </span>
+      <span className="home-benchmark-pulse-action">View live register ↗</span>
+    </a>
+  );
+}
+
+function BenchmarkHighlights() {
+  return (
+    <section className="home-benchmark-preview" aria-labelledby="home-benchmark-title">
+      <div className="home-benchmark-head">
+        <div>
+          <p className="eyebrow">Public evidence register</p>
+          <h2 id="home-benchmark-title">See the target before the claim.</h2>
+          <p>
+            Published references, proposed acceptance criteria, and measured evidence remain
+            visibly separate. The register currently contains no verified Gottesman lab result.
+          </p>
+        </div>
+        <a className="home-benchmark-action" href="/benchmarks/">
+          Explore the Benchmark Observatory <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+
+      <div className="home-benchmark-stats" aria-label="Benchmark Observatory summary">
+        {benchmarkHighlights.map((item) => (
+          <div className="home-benchmark-stat" key={item.label}>
+            <strong>{item.value}</strong>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="home-benchmark-streams">
+        {benchmarkStreams.map((stream) => (
+          <a className="home-benchmark-stream" href="/benchmarks/#targets" key={stream.name}>
+            <span>{stream.code}</span>
+            <strong>{stream.name}</strong>
+            <small>{stream.detail}</small>
+          </a>
+        ))}
       </div>
     </section>
   );
@@ -3911,7 +3994,9 @@ function ScrollEnhancements({ route }) {
 function HomePage({ route, onNavigate }) {
   return (
     <>
+      <BenchmarkPulse />
       <Hero onNavigate={onNavigate} />
+      <BenchmarkHighlights />
       <HomeIntro />
       <ResearchThesis onNavigate={onNavigate} />
       <IntegratedWorkflow onNavigate={onNavigate} />
