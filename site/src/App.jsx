@@ -1499,7 +1499,7 @@ const teamLeadership = [
     initials: "DW",
     status: "Founder",
     tone: "tone-cyan",
-    image: "/assets/team/dennis-wayo-personal.jpg",
+    image: "/assets/team/dennis-wayo-editorial.webp",
     imageAlt: "Dennis Wayo portrait",
     profiles: [
       { icon: "github", label: "Dennis Wayo on GitHub", href: "https://github.com/DennisWayo" },
@@ -2063,16 +2063,25 @@ const benchmarkLiterature = [
     field: "Hardware timing",
     source: "Arabul et al.",
     reference: "IEEE Photonics Journal, 2020",
+    figure: "8.9 ps",
+    figureLabel: "RMS timing resolution",
+    secondaryFigure: "320 MCPS aggregate",
   },
   {
     field: "QEC decoding",
     source: "Higgott and Gidney",
     reference: "Sparse Blossom, 2023",
+    figure: "< 1 µs",
+    figureLabel: "reported per round",
+    secondaryFigure: "d=17 at 0.1% noise",
   },
   {
     field: "Photonic simulation",
     source: "Killoran et al.",
     reference: "Quantum 3, 129, 2019",
+    figure: "CV",
+    figureLabel: "photonic simulation",
+    secondaryFigure: "specialized backends",
   },
 ];
 
@@ -2133,8 +2142,13 @@ function BenchmarkHighlights() {
           {benchmarkLiterature.map((item) => (
             <a className="home-benchmark-reference" href="/benchmarks/#literature" key={item.field}>
               <span>{item.field}</span>
+              <div className="home-benchmark-reference-figure">
+                <b>{item.figure}</b>
+                <em>{item.figureLabel}</em>
+              </div>
               <strong>{item.source}</strong>
               <small>{item.reference}</small>
+              <small className="home-benchmark-reference-context">{item.secondaryFigure}</small>
             </a>
           ))}
         </div>
@@ -2173,10 +2187,6 @@ function ResearchThesis({ onNavigate }) {
           </PageLink>
         ))}
       </div>
-      <p className="home-visual-disclaimer">
-        Homepage imagery is illustrative and does not represent a claim of owned photonic quantum
-        hardware.
-      </p>
     </section>
   );
 }
@@ -2577,7 +2587,11 @@ function StudioPage({ onNavigate, route }) {
     <div className="studio-platform">
       <header className="studio-rail" aria-label="Gottesman Studio navigation">
         <PageLink className="studio-rail-mark" to="/" onNavigate={onNavigate} aria-label="Back to Gottesman Software home">
-          <img src="/assets/gottesman-software-emblem-concept-v3.svg" alt="" />
+          <span className="studio-rail-emblem" aria-hidden="true" />
+          <span className="studio-rail-wordmark">
+            <span>Gottesman</span>
+            <span>Software</span>
+          </span>
         </PageLink>
         <nav className="studio-rail-nav">
           {studioRailItems.map((item) => (

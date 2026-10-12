@@ -1287,21 +1287,34 @@ h3 {
 }
 
 .studio-rail-mark {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   flex: 0 0 auto;
-  width: 148px;
-  height: 72px;
-  overflow: hidden;
-  background: var(--white);
-  color: #05070b;
+  min-width: 200px;
+  min-height: 58px;
+  color: var(--white);
 }
 
-.studio-rail-mark img {
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  object-fit: contain;
+.studio-rail-emblem {
+  display: block;
+  width: 92px;
+  height: 52px;
+  flex: 0 0 auto;
+  background: #000 url("/assets/gottesman-software-emblem-v3-black-background.png") center / 156% auto no-repeat;
+}
+
+.studio-rail-wordmark {
+  display: grid;
+  gap: 1px;
+  color: var(--white);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+.studio-rail-wordmark span {
+  display: block;
 }
 
 .studio-rail-nav {
@@ -1427,7 +1440,7 @@ h3 {
 
 .studio-platform-heading {
   width: min(var(--max), 100%);
-  margin: 0 0 44px;
+  margin: 0 auto 44px;
 }
 
 .studio-platform-heading h2 {
@@ -1447,7 +1460,8 @@ h3 {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(20px, 2.4vw, 34px);
-  width: 100%;
+  width: min(var(--max), 100%);
+  margin: 0 auto;
 }
 
 .studio-platform-card {
@@ -1581,6 +1595,7 @@ h3 {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   width: min(var(--max), 100%);
+  margin: 0 auto;
   background: rgba(255, 255, 255, 0.14);
 }
 
@@ -2116,10 +2131,41 @@ h3 {
   font-size: 15px;
 }
 
+.home-benchmark-reference-figure {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: end;
+  margin: 8px 0 7px;
+}
+
+.home-benchmark-reference-figure b {
+  color: #0a385b;
+  font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(21px, 2.2vw, 29px);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.home-benchmark-reference-figure em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.3;
+}
+
 .home-benchmark-reference small {
   color: var(--muted);
   font-size: 11px;
   line-height: 1.45;
+}
+
+.home-benchmark-reference .home-benchmark-reference-context {
+  color: #1471a9;
+  font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .home-intro-section,
@@ -5220,12 +5266,17 @@ h3 {
   }
 
   .studio-rail-mark {
-    width: 132px;
-    height: 62px;
+    min-width: 176px;
+    min-height: 50px;
   }
 
-  .studio-rail-mark img {
-    padding: 0;
+  .studio-rail-emblem {
+    width: 82px;
+    height: 46px;
+  }
+
+  .studio-rail-wordmark {
+    font-size: 15px;
   }
 
   .studio-rail-nav {
