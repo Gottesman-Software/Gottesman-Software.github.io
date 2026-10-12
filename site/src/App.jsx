@@ -2006,63 +2006,9 @@ function HomeIntro() {
 }
 
 const benchmarkEvidence = [
-  { value: benchmarkSummary.publishedResults, label: "published LiDMaS+ studies", tone: "published" },
-  { value: benchmarkSummary.initialHardwareTests, label: "defined hardware tests", tone: "planned" },
-  { value: benchmarkSummary.verifiedResults, label: "verified results", tone: "verified" },
-];
-
-const lidmasPublishedEvidence = [
-  {
-    tier: "Peer reviewed",
-    title: "Decoder dependence under hybrid CV-discrete noise",
-    metric: "p_c = 0.0531",
-    detail: "Pauli matching-style median crossing; bootstrap interval [0.0415, 0.0572].",
-    href: "https://doi.org/10.1002/prop.70124",
-    source: "Fortschritte der Physik 74(6), e70124",
-  },
-  {
-    tier: "Public preprint",
-    title: "Native GKP digitization and parallelized sampling",
-    metric: "1.34x / 1.94x",
-    detail: "Reported threaded speedups for Pauli and native-GKP workloads, respectively.",
-    href: "https://arxiv.org/abs/2603.25757",
-    source: "arXiv:2603.25757",
-  },
-  {
-    tier: "Public preprint",
-    title: "Hardware-to-decoder replay architecture",
-    metric: "4,108 / 4,108",
-    detail: "Fixture and public-slice request-response lines reported without parse errors.",
-    href: "https://arxiv.org/abs/2604.15389",
-    source: "arXiv:2604.15389",
-  },
-];
-
-const benchmarkLiterature = [
-  {
-    field: "Hardware timing",
-    source: "Arabul et al.",
-    reference: "IEEE Photonics Journal, 2020",
-    figure: "8.9 ps",
-    figureLabel: "RMS timing resolution",
-    secondaryFigure: "320 MCPS aggregate",
-  },
-  {
-    field: "QEC decoding",
-    source: "Higgott and Gidney",
-    reference: "Sparse Blossom, 2023",
-    figure: "< 1 µs",
-    figureLabel: "reported per round",
-    secondaryFigure: "d=17 at 0.1% noise",
-  },
-  {
-    field: "Photonic simulation",
-    source: "Killoran et al.",
-    reference: "Quantum 3, 129, 2019",
-    figure: "CV",
-    figureLabel: "photonic simulation",
-    secondaryFigure: "specialized backends",
-  },
+  { value: benchmarkSummary.publishedResults, label: "published studies", tone: "published" },
+  { value: benchmarkSummary.peerReviewedResults, label: "peer reviewed", tone: "reviewed" },
+  { value: benchmarkSummary.verifiedResults, label: "independently verified", tone: "verified" },
 ];
 
 function BenchmarkPulse() {
@@ -2070,10 +2016,10 @@ function BenchmarkPulse() {
     <a className="home-benchmark-pulse" href="/benchmarks/" aria-label="Open the Benchmark Observatory">
       <span className="home-benchmark-pulse-label">Observatory snapshot</span>
       <span className="home-benchmark-pulse-metric is-primary">
-        <strong>{benchmarkSummary.initialHardwareTests}</strong> defined hardware tests
+        <strong>{benchmarkSummary.publishedResults}</strong> published studies
       </span>
       <span className="home-benchmark-pulse-metric">
-        <strong>{benchmarkSummary.publishedResults}</strong> published LiDMaS+ studies
+        <strong>{benchmarkSummary.peerReviewedResults}</strong> peer reviewed
       </span>
       <span className="home-benchmark-pulse-metric is-caution">
         <strong>{benchmarkSummary.verifiedResults}</strong> verified results
@@ -2088,44 +2034,21 @@ function BenchmarkHighlights() {
     <section className="home-benchmark-preview" aria-labelledby="home-benchmark-title">
       <div className="home-benchmark-head">
         <div>
-          <p className="eyebrow">Public evidence register</p>
-          <h2 id="home-benchmark-title">See the target before the claim.</h2>
+          <p className="eyebrow">Benchmark Observatory</p>
+          <h2 id="home-benchmark-title">The evidence is stronger than the headline.</h2>
           <p>
-            Peer-reviewed results, public preprints, proposed acceptance criteria, and independently
-            verified evidence remain visibly separate. No Gottesman lab result is marked verified yet.
+            Published results, exact conditions, and verification boundaries are one click away.
           </p>
         </div>
         <a className="home-benchmark-action" href="/benchmarks/">
-          Explore the Benchmark Observatory <span aria-hidden="true">↗</span>
+          Enter the Observatory <span aria-hidden="true">↗</span>
         </a>
-      </div>
-
-      <div className="home-published-results" aria-label="Published LiDMaS+ evidence">
-        <div className="home-published-results-heading">
-          <p className="mono-label">LiDMaS+ evidence</p>
-          <h3>Published claims with their experimental scope attached.</h3>
-          <p>
-            These values are reported in peer-reviewed or public research. They are not counted as
-            independently verified results by this register.
-          </p>
-        </div>
-        <div className="home-published-results-list">
-          {lidmasPublishedEvidence.map((item) => (
-            <a href={item.href} target="_blank" rel="noreferrer" key={item.href}>
-              <span>{item.tier}</span>
-              <strong>{item.metric}</strong>
-              <h4>{item.title}</h4>
-              <p>{item.detail}</p>
-              <small>{item.source} ↗</small>
-            </a>
-          ))}
-        </div>
       </div>
 
       <div className="home-benchmark-evidence" aria-label="Current evidence status">
         <div className="home-benchmark-evidence-heading">
-          <span>Current evidence</span>
-          <small>Updated from the public register at build time</small>
+          <span>Current register</span>
+          <small>Build-time snapshot</small>
         </div>
         {benchmarkEvidence.map((item) => (
           <div className={`home-benchmark-stat is-${item.tone}`} key={item.label}>
@@ -2133,27 +2056,6 @@ function BenchmarkHighlights() {
             <span>{item.label}</span>
           </div>
         ))}
-      </div>
-
-      <div className="home-benchmark-literature">
-        <div className="home-benchmark-literature-heading">
-          <span>Literature foundation</span>
-          <strong>{benchmarkSummary.literatureAnchors} published anchors</strong>
-        </div>
-        <div className="home-benchmark-literature-list">
-          {benchmarkLiterature.map((item) => (
-            <a className="home-benchmark-reference" href="/benchmarks/#literature" key={item.field}>
-              <span>{item.field}</span>
-              <div className="home-benchmark-reference-figure">
-                <b>{item.figure}</b>
-                <em>{item.figureLabel}</em>
-              </div>
-              <strong>{item.source}</strong>
-              <small>{item.reference}</small>
-              <small className="home-benchmark-reference-context">{item.secondaryFigure}</small>
-            </a>
-          ))}
-        </div>
       </div>
     </section>
   );

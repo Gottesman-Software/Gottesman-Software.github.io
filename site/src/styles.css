@@ -2089,6 +2089,10 @@ h3 {
   background: #2563eb;
 }
 
+.home-benchmark-stat.is-reviewed::before {
+  background: #0ea5a5;
+}
+
 .home-benchmark-stat.is-verified::before {
   background: #50a889;
 }
