@@ -1,4 +1,6 @@
 import React from "react";
+import { benchmarkSummary } from "./benchmark-summary.js";
+import { routeMeta, siteOrigin } from "./route-meta.js";
 import {
   hasAnalyticsMeasurementId,
   initializeAnalytics,
@@ -274,7 +276,7 @@ const pageItems = [
     eyebrow: "Software Stack",
     title: "Design circuits. Compare decoders. Route experiments.",
     copy:
-      "One open-source stack connects SchroSIM, LiDMaS+, and Photon-QDrivers—from circuit definition to replayable decoder runs and validated execution paths.",
+      "One open-source stack connects SchroSIM, LiDMaS+, and Photon-QDrivers, from circuit definition to replayable decoder runs and validated execution paths.",
     heroCode: softwareHeroCode,
     heroPosition: "right center",
   },
@@ -294,7 +296,7 @@ const pageItems = [
     eyebrow: "Prototype Lab",
     title: "Test control paths before optical hardware.",
     copy:
-      "The Lab program connects SchroSIM designs, LiDMaS+ replay, and Photon-QDrivers bench measurements. Equipment shown below is reference hardware for planned validation—not current inventory.",
+      "The Lab program connects SchroSIM designs, LiDMaS+ replay, and Photon-QDrivers bench measurements. Equipment shown below is reference hardware for planned validation, not current inventory.",
     heroImage: "/assets/headers/lab-voltera-vone.webp",
     heroVideo: "/assets/headers/VOneAnatomyDispenserOverview.mp4",
     heroPlaybackRate: 0.45,
@@ -306,7 +308,7 @@ const pageItems = [
     eyebrow: "Quantum Research",
     title: "Research that connects models, decoders, and hardware.",
     copy:
-      "Selected publications and active studies behind SchroSIM, LiDMaS+, and Photon-QDrivers—with the evidence path attached.",
+      "Selected publications and active studies behind SchroSIM, LiDMaS+, and Photon-QDrivers, with the evidence path attached.",
     heroImage: "/assets/headers/research-original-quantum.png",
     heroPosition: "center",
   },
@@ -316,7 +318,7 @@ const pageItems = [
     eyebrow: "Team",
     title: "A focused team for quantum software research.",
     copy:
-      "Leadership spans systems architecture, quantum artificial intelligence, and quantum machine learning—connected through reproducible software and research.",
+      "Leadership spans systems architecture, quantum artificial intelligence, and quantum machine learning, connected through reproducible software and research.",
   },
   {
     label: "Support",
@@ -332,7 +334,6 @@ const pageItems = [
 
 const navItems = [{ label: "Home", path: "/" }, ...pageItems];
 
-const siteOrigin = "https://gottesman-software.github.io";
 const enableLidmasLiveRoute =
   import.meta.env.VITE_ENABLE_LIDMAS_LIVE_ROUTE === "1" ||
   import.meta.env.VITE_ENABLE_LIDMAS_LIVE_ROUTE === "true";
@@ -340,54 +341,6 @@ const lidmasLiveOrigin = import.meta.env.VITE_LIDMAS_LIVE_ORIGIN || "http://127.
 const lidmasLiveDefaultRoute =
   import.meta.env.VITE_LIDMAS_LIVE_DEFAULT_ROUTE ||
   "/decoder/scientific?provider=9f9a3630-d32f-4f5a-bf8d-b9f93fe3a002";
-
-const routeMeta = {
-  "/": {
-    title: "Gottesman Software | Open-source photonic quantum research software",
-    description:
-      "Gottesman Software builds open-source research software for designing, decoding, and driving fault-tolerant photonic quantum computing experiments.",
-  },
-  "/software": {
-    title: "Software | SchroSIM, LiDMaS+, Photon-QDrivers",
-    description:
-      "Explore the Gottesman Software stack for photonic circuit simulation, decoder validation, and lab-facing execution boundaries.",
-  },
-  "/studio": {
-    title: "Gottesman Studio | Online photonic circuit and decoder workbenches",
-    description:
-      "Gottesman Studio brings SchroSIM Designer, LiDMaS+ Decoder Workbench, and Photon-QDrivers Console into one public online hub.",
-  },
-  "/studio/lidmas": {
-    title: "LiDMaS+ Decoder Workbench | Gottesman Studio",
-    description:
-      "Run the public LiDMaS+ decoder workbench inside Gottesman Studio with Render-backed replay examples and benchmark evidence views.",
-  },
-  "/studio/lidmas-live": {
-    title: "LiDMaS+ Live API Workbench | Gottesman Studio",
-    description:
-      "Run the local authenticated LiDMaS+ workbench inside Gottesman Studio against a private backend API.",
-  },
-  "/lab": {
-    title: "Prototype Lab | Gottesman Software",
-    description:
-      "Prototype pathways for photonic circuit studies, lab-ready electronics, Red Pitaya validation, and partner-lab evidence packages.",
-  },
-  "/research": {
-    title: "Research | Gottesman Software",
-    description:
-      "Research foundations for photonic circuit simulation, quantum error correction, GKP studies, decoder evidence, and reproducible software.",
-  },
-  "/team": {
-    title: "Team | Gottesman Software Research Group",
-    description:
-      "Leadership, research roles, recruiting tracks, and collaboration standards for the Gottesman Software research group.",
-  },
-  "/support": {
-    title: "Support | Gottesman Software",
-    description:
-      "Funding, collaboration, proposal, and support pathways for reproducible photonic quantum research software.",
-  },
-};
 
 const socialLinks = [
   { label: "GitHub", icon: "github", href: "https://github.com/Gottesman-Software" },
@@ -1500,6 +1453,7 @@ const teamLeadership = [
     tone: "tone-cyan",
     image: "/assets/team/dennis-wayo-personal.jpg",
     imageAlt: "Dennis Wayo portrait",
+    portraitClass: "is-founder-portrait",
     profiles: [
       { icon: "github", label: "Dennis Wayo on GitHub", href: "https://github.com/DennisWayo" },
       { icon: "linkedin", label: "Dennis Wayo on LinkedIn", href: "https://www.linkedin.com/in/dennis-wayo-765a38b1/" },
@@ -1998,7 +1952,7 @@ function Hero({ onNavigate }) {
         <p className="eyebrow">Open-source photonic quantum research software</p>
         <h1>One photonic workflow. Every result traceable.</h1>
         <p className="hero-copy">
-          Gottesman Software develops SchroSIM, LiDMaS+, and Photon-QDrivers—a coordinated stack
+          Gottesman Software develops SchroSIM, LiDMaS+, and Photon-QDrivers, a coordinated stack
           for photonic circuit simulation, quantum error-correction studies, and lab-facing
           control validation.
         </p>
@@ -2027,7 +1981,7 @@ function HomeIntro() {
           <p className="eyebrow">Research group</p>
           <h2>A university-led software effort for fault-tolerant photonics.</h2>
           <p className="status-note">
-            We build inspectable research tools—not a black-box platform.
+            We build inspectable research tools, not a black-box platform.
           </p>
           <p>
             Circuit sources, numerical assumptions, decoder settings, seeds, backend policies, and
@@ -2045,38 +1999,33 @@ function HomeIntro() {
             alt="Illustrative university research team collaborating around a photonics optical bench"
             loading="lazy"
           />
-          <figcaption>
-            Illustrative research environment. Hardware access and institutional partnerships are
-            identified separately where applicable.
-          </figcaption>
         </figure>
       </div>
     </section>
   );
 }
 
-const benchmarkHighlights = [
-  { value: "03", label: "research streams" },
-  { value: "03", label: "literature anchors" },
-  { value: "04", label: "initial hardware tests" },
-  { value: "00", label: "verified lab results" },
-];
-
-const benchmarkStreams = [
+const benchmarkLiterature = [
   {
-    code: "01 / CONTROL",
-    name: "Photon-QDrivers",
-    detail: "Pulse, loopback, and timing evidence",
+    field: "Hardware timing",
+    source: "Arabul et al.",
+    reference: "IEEE Photonics Journal, 2020",
+    figure: "8.9 ps",
+    figureLabel: "RMS timing resolution",
   },
   {
-    code: "02 / QEC",
-    name: "LiDMaS+",
-    detail: "Matched decoder workloads and latency",
+    field: "QEC decoding",
+    source: "Higgott and Gidney",
+    reference: "Sparse Blossom, 2023",
+    figure: "< 1 µs",
+    figureLabel: "reported per round",
   },
   {
-    code: "03 / SIMULATION",
-    name: "SchroSIM",
-    detail: "Numerical agreement, runtime, and memory",
+    field: "Photonic simulation",
+    source: "Killoran et al.",
+    reference: "Quantum 3, 129, 2019",
+    figure: "CV",
+    figureLabel: "photonic simulation",
   },
 ];
 
@@ -2085,13 +2034,13 @@ function BenchmarkPulse() {
     <a className="home-benchmark-pulse" href="/benchmarks/" aria-label="Open the Benchmark Observatory">
       <span className="home-benchmark-pulse-label">Observatory snapshot</span>
       <span className="home-benchmark-pulse-metric is-primary">
-        <strong>04</strong> initial hardware tests
+        <strong>{benchmarkSummary.publishedResults}</strong> published studies
       </span>
       <span className="home-benchmark-pulse-metric">
-        <strong>03</strong> literature anchors
+        <strong>{benchmarkSummary.peerReviewedResults}</strong> peer reviewed
       </span>
       <span className="home-benchmark-pulse-metric is-caution">
-        <strong>00</strong> verified lab results
+        <strong>{benchmarkSummary.verifiedResults}</strong> verified results
       </span>
       <span className="home-benchmark-pulse-action">View live register ↗</span>
     </a>
@@ -2103,35 +2052,35 @@ function BenchmarkHighlights() {
     <section className="home-benchmark-preview" aria-labelledby="home-benchmark-title">
       <div className="home-benchmark-head">
         <div>
-          <p className="eyebrow">Public evidence register</p>
-          <h2 id="home-benchmark-title">See the target before the claim.</h2>
+          <p className="eyebrow">Benchmark Observatory</p>
+          <h2 id="home-benchmark-title">The evidence is stronger than the headline.</h2>
           <p>
-            Published references, proposed acceptance criteria, and measured evidence remain
-            visibly separate. The register currently contains no verified Gottesman lab result.
+            Published results, exact conditions, and verification boundaries are one click away.
           </p>
         </div>
         <a className="home-benchmark-action" href="/benchmarks/">
-          Explore the Benchmark Observatory <span aria-hidden="true">↗</span>
+          Enter the Observatory <span aria-hidden="true">↗</span>
         </a>
       </div>
 
-      <div className="home-benchmark-stats" aria-label="Benchmark Observatory summary">
-        {benchmarkHighlights.map((item) => (
-          <div className="home-benchmark-stat" key={item.label}>
-            <strong>{item.value}</strong>
-            <span>{item.label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="home-benchmark-streams">
-        {benchmarkStreams.map((stream) => (
-          <a className="home-benchmark-stream" href="/benchmarks/#targets" key={stream.name}>
-            <span>{stream.code}</span>
-            <strong>{stream.name}</strong>
-            <small>{stream.detail}</small>
-          </a>
-        ))}
+      <div className="home-benchmark-literature">
+        <div className="home-benchmark-literature-heading">
+          <span>Literature evidence</span>
+          <strong>{benchmarkSummary.literatureAnchors} published anchors</strong>
+        </div>
+        <div className="home-benchmark-literature-list">
+          {benchmarkLiterature.map((item) => (
+            <a className="home-benchmark-reference" href="/benchmarks/#literature" key={item.field}>
+              <span>{item.field}</span>
+              <div className="home-benchmark-reference-figure">
+                <b>{item.figure}</b>
+                <em>{item.figureLabel}</em>
+              </div>
+              <strong>{item.source}</strong>
+              <small>{item.reference}</small>
+            </a>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -2167,10 +2116,6 @@ function ResearchThesis({ onNavigate }) {
           </PageLink>
         ))}
       </div>
-      <p className="home-visual-disclaimer">
-        Homepage imagery is illustrative and does not represent a claim of owned photonic quantum
-        hardware.
-      </p>
     </section>
   );
 }
@@ -2211,7 +2156,7 @@ function EvidenceStandards() {
     <section className="section evidence-section">
       <div className="evidence-head">
         <p className="eyebrow cyan">Evidence Standards</p>
-        <h2>Make claims easier to audit—and harder to overstate.</h2>
+        <h2>Make claims easier to audit and harder to overstate.</h2>
         <p>
           Public results should distinguish simulation, replay, prototype control, and partner-lab
           evidence without blurring the boundaries between them.
@@ -2571,7 +2516,11 @@ function StudioPage({ onNavigate, route }) {
     <div className="studio-platform">
       <header className="studio-rail" aria-label="Gottesman Studio navigation">
         <PageLink className="studio-rail-mark" to="/" onNavigate={onNavigate} aria-label="Back to Gottesman Software home">
-          <img src="/assets/gottesman-software-emblem-concept-v3.svg" alt="" />
+          <span className="studio-rail-emblem" aria-hidden="true" />
+          <span className="studio-rail-wordmark">
+            <span>Gottesman</span>
+            <span>Software</span>
+          </span>
         </PageLink>
         <nav className="studio-rail-nav">
           {studioRailItems.map((item) => (
@@ -2916,7 +2865,7 @@ function LabProofBoundary() {
       <div className="lab-proof-grid">
         <div className="lab-proof-copy">
           <p className="eyebrow cyan">Proof Boundary</p>
-          <h2>What the bench can—and cannot—prove.</h2>
+          <h2>What the bench can and cannot prove.</h2>
           <p>
             Bench evidence covers control and measurement paths. Optical-hardware claims still
             depend on calibrated equipment and a collaborating lab.
@@ -3119,7 +3068,7 @@ function ResearchProgramOverview() {
         <p className="eyebrow">Research in three views</p>
         <h2>See the program before reading the papers.</h2>
         <p>
-          The work moves from photonic models, to decoder evidence, to controlled execution—with
+          The work moves from photonic models, to decoder evidence, to controlled execution, with
           the working interface or publication shown beside each theme.
         </p>
       </div>
@@ -3161,6 +3110,50 @@ function ClaimEvidencePipeline() {
             <p>{item.copy}</p>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function LidmasReferenceExperiment() {
+  const steps = [
+    ["01", "Freeze input", "Use versioned fixtures or sampled public records."],
+    ["02", "Normalize", "Convert each record to the documented decoder I/O contract."],
+    ["03", "Replay", "Run MWPM, UF, BP, and neural guidance with fixed settings."],
+    ["04", "Validate", "Check parsing, decoder identity, warning paths, and correction volume."],
+    ["05", "Package", "Regenerate summaries and compare the recorded artifact hashes."],
+  ];
+
+  return (
+    <section className="section research-reference-section">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Reference experiment</p>
+          <h2>A published LiDMaS+ replay path that can be inspected end to end.</h2>
+        </div>
+        <p>
+          This evidence path covers simulation fixtures and sampled public records. It does not
+          claim live photonic hardware execution or full SchroSIM-to-Photon-QDrivers validation.
+        </p>
+      </div>
+      <div className="research-reference-track">
+        {steps.map(([step, title, copy]) => (
+          <article key={step}>
+            <span>{step}</span>
+            <h3>{title}</h3>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </div>
+      <div className="research-release-band">
+        <div><span>Release</span><strong>LiDMaS+ v1.2.2</strong><small>15 July 2026</small></div>
+        <div><span>Runtime</span><strong>C++20 + Python</strong><small>Python 3.9+</small></div>
+        <div><span>License</span><strong>MIT</strong><small>Versioned public source</small></div>
+        <div className="research-release-links">
+          <a href="https://pypi.org/project/lidmas/" target="_blank" rel="noreferrer">PyPI ↗</a>
+          <a href="https://github.com/Gottesman-Software/lidmas_cpp/tree/v1.2.2" target="_blank" rel="noreferrer">Source tag ↗</a>
+          <a href="https://arxiv.org/abs/2604.15389" target="_blank" rel="noreferrer">Experiment paper ↗</a>
+        </div>
       </div>
     </section>
   );
@@ -3386,7 +3379,7 @@ function TeamPage() {
           ) : (
             <article className="team-person-card" key={member.name}>
               <div
-                className={`team-portrait ${member.tone}${member.image ? " has-image" : ""}`}
+                className={`team-portrait ${member.tone}${member.image ? " has-image" : ""}${member.portraitClass ? ` ${member.portraitClass}` : ""}`}
                 aria-hidden={member.image ? undefined : "true"}
               >
                 {member.image ? (
@@ -3457,7 +3450,7 @@ function TeamPage() {
             <h2>Selected paths for focused contributions.</h2>
           </div>
           <p>
-            These paths are for people who can take ownership of a clearly bounded artifact—from
+            These paths are for people who can take ownership of a clearly bounded artifact, from
             software tests and documentation to hardware notes, reproducible examples, or joint
             technical review.
           </p>
@@ -3653,8 +3646,9 @@ function Footer({ route, onNavigate }) {
         <div className="footer-left">
           <div className="footer-brand-block">
             <div>
-              <p>&copy; 2026 Gottesman Software Research Group.</p>
-              <p className="footer-legal">Open-source research software and public documentation.</p>
+              <p className="footer-name">Gottesman Software Research Group</p>
+              <p className="footer-legal">Open research software for photonic quantum systems.</p>
+              <p className="footer-copyright">&copy; 2026 Gottesman Software.</p>
               <div className="footer-socials" aria-label="Social media links">
                 {socialLinks.map((item) => {
                   const isExternal = item.href.startsWith("http");
@@ -4024,6 +4018,7 @@ function RoutedPage({ route, onNavigate }) {
       {route === "/research" && (
         <>
           <ResearchProgramOverview />
+          <LidmasReferenceExperiment />
           <ResearchArtifacts />
           <ClaimEvidencePipeline />
         </>
@@ -4052,6 +4047,31 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  React.useEffect(() => {
+    function handleTrackedLink(event) {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!link) return;
+
+      const url = new URL(link.href, window.location.href);
+      const isExternal = url.origin !== window.location.origin;
+      const isEvidence = /doi\.org|arxiv\.org|pypi\.org|github\.com/.test(url.hostname);
+      const isBenchmark = url.pathname.startsWith("/benchmarks");
+
+      if (!isExternal && !isEvidence && !isBenchmark) return;
+
+      trackEvent("research_resource_opened", {
+        resource_host: url.hostname || window.location.hostname,
+        resource_path: url.pathname,
+        resource_type: isBenchmark ? "benchmark" : isEvidence ? "evidence" : "external",
+        source_route: route,
+      });
+    }
+
+    document.addEventListener("click", handleTrackedLink);
+    return () => document.removeEventListener("click", handleTrackedLink);
+  }, [route]);
+
   const navigate = React.useCallback((to) => {
     const nextRoute = validRoutePaths.has(to) ? to : "/";
     trackEvent("site_navigation", {
@@ -4068,8 +4088,9 @@ export default function App() {
 
   return (
     <>
+      {!isStudioRoute && <a className="skip-link" href="#main-content">Skip to main content</a>}
       {!isStudioRoute && <Header route={route} onNavigate={navigate} />}
-      <main>
+      <main id="main-content" tabIndex="-1">
         <RoutedPage route={route} onNavigate={navigate} />
       </main>
       {!isStudioRoute && <Footer route={route} onNavigate={navigate} />}
