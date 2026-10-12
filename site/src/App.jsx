@@ -2912,6 +2912,21 @@ function LabMeasurementArtifacts() {
 function LabPage() {
   return (
     <>
+      <section className="lab-benchmark-callout" aria-labelledby="benchmark-observatory-title">
+        <div>
+          <p className="eyebrow">Research benchmarks &amp; validation</p>
+          <h2 id="benchmark-observatory-title">Compare every target with published evidence.</h2>
+          <p>
+            The Benchmark Observatory separates literature baselines, proposed acceptance criteria,
+            pending measurements, and reproducibly verified results across Photon-QDrivers,
+            LiDMaS+, and SchroSIM.
+          </p>
+        </div>
+        <a className="lab-benchmark-link" href="/benchmarks/">
+          Open Benchmark Observatory <span aria-hidden="true">↗</span>
+        </a>
+      </section>
+
       <section className="lab-workstream">
         <div className="lab-workstream-copy">
           <p className="eyebrow">Reference workflow · SchroSIM &rarr; Voltera V-One</p>
