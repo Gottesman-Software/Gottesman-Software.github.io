@@ -1,5 +1,6 @@
 import React from "react";
 import { benchmarkSummary } from "./benchmark-summary.js";
+import { routeMeta, siteOrigin } from "./route-meta.js";
 import {
   hasAnalyticsMeasurementId,
   initializeAnalytics,
@@ -333,7 +334,6 @@ const pageItems = [
 
 const navItems = [{ label: "Home", path: "/" }, ...pageItems];
 
-const siteOrigin = "https://gottesman-software.github.io";
 const enableLidmasLiveRoute =
   import.meta.env.VITE_ENABLE_LIDMAS_LIVE_ROUTE === "1" ||
   import.meta.env.VITE_ENABLE_LIDMAS_LIVE_ROUTE === "true";
@@ -341,54 +341,6 @@ const lidmasLiveOrigin = import.meta.env.VITE_LIDMAS_LIVE_ORIGIN || "http://127.
 const lidmasLiveDefaultRoute =
   import.meta.env.VITE_LIDMAS_LIVE_DEFAULT_ROUTE ||
   "/decoder/scientific?provider=9f9a3630-d32f-4f5a-bf8d-b9f93fe3a002";
-
-const routeMeta = {
-  "/": {
-    title: "Gottesman Software | Open-source photonic quantum research software",
-    description:
-      "Gottesman Software builds open-source research software for designing, decoding, and driving fault-tolerant photonic quantum computing experiments.",
-  },
-  "/software": {
-    title: "Software | SchroSIM, LiDMaS+, Photon-QDrivers",
-    description:
-      "Explore the Gottesman Software stack for photonic circuit simulation, decoder validation, and lab-facing execution boundaries.",
-  },
-  "/studio": {
-    title: "Gottesman Studio | Online photonic circuit and decoder workbenches",
-    description:
-      "Gottesman Studio brings SchroSIM Designer, LiDMaS+ Decoder Workbench, and Photon-QDrivers Console into one public online hub.",
-  },
-  "/studio/lidmas": {
-    title: "LiDMaS+ Decoder Workbench | Gottesman Studio",
-    description:
-      "Run the public LiDMaS+ decoder workbench inside Gottesman Studio with Render-backed replay examples and benchmark evidence views.",
-  },
-  "/studio/lidmas-live": {
-    title: "LiDMaS+ Live API Workbench | Gottesman Studio",
-    description:
-      "Run the local authenticated LiDMaS+ workbench inside Gottesman Studio against a private backend API.",
-  },
-  "/lab": {
-    title: "Prototype Lab | Gottesman Software",
-    description:
-      "Prototype pathways for photonic circuit studies, lab-ready electronics, Red Pitaya validation, and partner-lab evidence packages.",
-  },
-  "/research": {
-    title: "Research | Gottesman Software",
-    description:
-      "Research foundations for photonic circuit simulation, quantum error correction, GKP studies, decoder evidence, and reproducible software.",
-  },
-  "/team": {
-    title: "Team | Gottesman Software Research Group",
-    description:
-      "Leadership, research roles, recruiting tracks, and collaboration standards for the Gottesman Software research group.",
-  },
-  "/support": {
-    title: "Support | Gottesman Software",
-    description:
-      "Funding, collaboration, proposal, and support pathways for reproducible photonic quantum research software.",
-  },
-};
 
 const socialLinks = [
   { label: "GitHub", icon: "github", href: "https://github.com/Gottesman-Software" },
@@ -2054,9 +2006,36 @@ function HomeIntro() {
 }
 
 const benchmarkEvidence = [
+  { value: benchmarkSummary.publishedResults, label: "published LiDMaS+ studies", tone: "published" },
   { value: benchmarkSummary.initialHardwareTests, label: "defined hardware tests", tone: "planned" },
   { value: benchmarkSummary.verifiedResults, label: "verified results", tone: "verified" },
-  { value: benchmarkSummary.researchStreams, label: "research streams", tone: "scope" },
+];
+
+const lidmasPublishedEvidence = [
+  {
+    tier: "Peer reviewed",
+    title: "Decoder dependence under hybrid CV-discrete noise",
+    metric: "p_c = 0.0531",
+    detail: "Pauli matching-style median crossing; bootstrap interval [0.0415, 0.0572].",
+    href: "https://doi.org/10.1002/prop.70124",
+    source: "Fortschritte der Physik 74(6), e70124",
+  },
+  {
+    tier: "Public preprint",
+    title: "Native GKP digitization and parallelized sampling",
+    metric: "1.34x / 1.94x",
+    detail: "Reported threaded speedups for Pauli and native-GKP workloads, respectively.",
+    href: "https://arxiv.org/abs/2603.25757",
+    source: "arXiv:2603.25757",
+  },
+  {
+    tier: "Public preprint",
+    title: "Hardware-to-decoder replay architecture",
+    metric: "4,108 / 4,108",
+    detail: "Fixture and public-slice request-response lines reported without parse errors.",
+    href: "https://arxiv.org/abs/2604.15389",
+    source: "arXiv:2604.15389",
+  },
 ];
 
 const benchmarkLiterature = [
@@ -2094,7 +2073,7 @@ function BenchmarkPulse() {
         <strong>{benchmarkSummary.initialHardwareTests}</strong> defined hardware tests
       </span>
       <span className="home-benchmark-pulse-metric">
-        <strong>{benchmarkSummary.literatureAnchors}</strong> literature anchors
+        <strong>{benchmarkSummary.publishedResults}</strong> published LiDMaS+ studies
       </span>
       <span className="home-benchmark-pulse-metric is-caution">
         <strong>{benchmarkSummary.verifiedResults}</strong> verified results
@@ -2112,13 +2091,35 @@ function BenchmarkHighlights() {
           <p className="eyebrow">Public evidence register</p>
           <h2 id="home-benchmark-title">See the target before the claim.</h2>
           <p>
-            Published references, proposed acceptance criteria, and measured evidence remain
-            visibly separate. The register currently contains no verified Gottesman lab result.
+            Peer-reviewed results, public preprints, proposed acceptance criteria, and independently
+            verified evidence remain visibly separate. No Gottesman lab result is marked verified yet.
           </p>
         </div>
         <a className="home-benchmark-action" href="/benchmarks/">
           Explore the Benchmark Observatory <span aria-hidden="true">↗</span>
         </a>
+      </div>
+
+      <div className="home-published-results" aria-label="Published LiDMaS+ evidence">
+        <div className="home-published-results-heading">
+          <p className="mono-label">LiDMaS+ evidence</p>
+          <h3>Published claims with their experimental scope attached.</h3>
+          <p>
+            These values are reported in peer-reviewed or public research. They are not counted as
+            independently verified results by this register.
+          </p>
+        </div>
+        <div className="home-published-results-list">
+          {lidmasPublishedEvidence.map((item) => (
+            <a href={item.href} target="_blank" rel="noreferrer" key={item.href}>
+              <span>{item.tier}</span>
+              <strong>{item.metric}</strong>
+              <h4>{item.title}</h4>
+              <p>{item.detail}</p>
+              <small>{item.source} ↗</small>
+            </a>
+          ))}
+        </div>
       </div>
 
       <div className="home-benchmark-evidence" aria-label="Current evidence status">
@@ -3187,6 +3188,50 @@ function ClaimEvidencePipeline() {
   );
 }
 
+function LidmasReferenceExperiment() {
+  const steps = [
+    ["01", "Freeze input", "Use versioned fixtures or sampled public records."],
+    ["02", "Normalize", "Convert each record to the documented decoder I/O contract."],
+    ["03", "Replay", "Run MWPM, UF, BP, and neural guidance with fixed settings."],
+    ["04", "Validate", "Check parsing, decoder identity, warning paths, and correction volume."],
+    ["05", "Package", "Regenerate summaries and compare the recorded artifact hashes."],
+  ];
+
+  return (
+    <section className="section research-reference-section">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Reference experiment</p>
+          <h2>A published LiDMaS+ replay path that can be inspected end to end.</h2>
+        </div>
+        <p>
+          This evidence path covers simulation fixtures and sampled public records. It does not
+          claim live photonic hardware execution or full SchroSIM-to-Photon-QDrivers validation.
+        </p>
+      </div>
+      <div className="research-reference-track">
+        {steps.map(([step, title, copy]) => (
+          <article key={step}>
+            <span>{step}</span>
+            <h3>{title}</h3>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </div>
+      <div className="research-release-band">
+        <div><span>Release</span><strong>LiDMaS+ v1.2.2</strong><small>15 July 2026</small></div>
+        <div><span>Runtime</span><strong>C++20 + Python</strong><small>Python 3.9+</small></div>
+        <div><span>License</span><strong>MIT</strong><small>Versioned public source</small></div>
+        <div className="research-release-links">
+          <a href="https://pypi.org/project/lidmas/" target="_blank" rel="noreferrer">PyPI ↗</a>
+          <a href="https://github.com/Gottesman-Software/lidmas_cpp/tree/v1.2.2" target="_blank" rel="noreferrer">Source tag ↗</a>
+          <a href="https://arxiv.org/abs/2604.15389" target="_blank" rel="noreferrer">Experiment paper ↗</a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ActiveResearchTracks() {
   return (
     <section className="section research-tracks-section">
@@ -4046,6 +4091,7 @@ function RoutedPage({ route, onNavigate }) {
       {route === "/research" && (
         <>
           <ResearchProgramOverview />
+          <LidmasReferenceExperiment />
           <ResearchArtifacts />
           <ClaimEvidencePipeline />
         </>
@@ -4074,6 +4120,31 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  React.useEffect(() => {
+    function handleTrackedLink(event) {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest("a[href]");
+      if (!link) return;
+
+      const url = new URL(link.href, window.location.href);
+      const isExternal = url.origin !== window.location.origin;
+      const isEvidence = /doi\.org|arxiv\.org|pypi\.org|github\.com/.test(url.hostname);
+      const isBenchmark = url.pathname.startsWith("/benchmarks");
+
+      if (!isExternal && !isEvidence && !isBenchmark) return;
+
+      trackEvent("research_resource_opened", {
+        resource_host: url.hostname || window.location.hostname,
+        resource_path: url.pathname,
+        resource_type: isBenchmark ? "benchmark" : isEvidence ? "evidence" : "external",
+        source_route: route,
+      });
+    }
+
+    document.addEventListener("click", handleTrackedLink);
+    return () => document.removeEventListener("click", handleTrackedLink);
+  }, [route]);
+
   const navigate = React.useCallback((to) => {
     const nextRoute = validRoutePaths.has(to) ? to : "/";
     trackEvent("site_navigation", {
@@ -4090,8 +4161,9 @@ export default function App() {
 
   return (
     <>
+      {!isStudioRoute && <a className="skip-link" href="#main-content">Skip to main content</a>}
       {!isStudioRoute && <Header route={route} onNavigate={navigate} />}
-      <main>
+      <main id="main-content" tabIndex="-1">
         <RoutedPage route={route} onNavigate={navigate} />
       </main>
       {!isStudioRoute && <Footer route={route} onNavigate={navigate} />}

@@ -8,12 +8,15 @@ test("counts each registered evidence record", () => {
     <article data-benchmark-record="stream"></article>
     <article data-benchmark-record="stream"></article>
     <article data-benchmark-record="literature"></article>
+    <article data-benchmark-record="published-result" data-publication-tier="peer-reviewed"></article>
     <tr data-benchmark-record="hardware-test" data-status="planned"></tr>
   `;
 
   assert.deepEqual(summarizeBenchmarks(html), {
     researchStreams: 2,
     literatureAnchors: 1,
+    publishedResults: 1,
+    peerReviewedResults: 1,
     initialHardwareTests: 1,
     verifiedResults: 0,
   });

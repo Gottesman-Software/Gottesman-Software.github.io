@@ -2,6 +2,8 @@
 export const benchmarkSummary = {
   "researchStreams": "03",
   "literatureAnchors": "03",
+  "publishedResults": "03",
+  "peerReviewedResults": "01",
   "initialHardwareTests": "04",
   "verifiedResults": "00"
 };

@@ -25,6 +25,11 @@ export function summarizeBenchmarks(html) {
   return {
     researchStreams: count("stream"),
     literatureAnchors: count("literature"),
+    publishedResults: count("published-result"),
+    peerReviewedResults: records.filter((record) => (
+      record["data-benchmark-record"] === "published-result"
+      && record["data-publication-tier"] === "peer-reviewed"
+    )).length,
     initialHardwareTests: count("hardware-test"),
     verifiedResults,
   };

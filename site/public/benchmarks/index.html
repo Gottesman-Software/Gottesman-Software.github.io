@@ -4,9 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Gottesman Software research benchmark observatory: literature baselines, proposed validation criteria, and reproducible experimental evidence for photonic simulation, QEC, and hardware control.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://gottesman-software.github.io/benchmarks/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Gottesman Software">
+  <meta property="og:title" content="Research Benchmarks &amp; Validation | Gottesman Software">
+  <meta property="og:description" content="Published project evidence, literature baselines, validation targets, and independently verified results kept in separate evidence tiers.">
+  <meta property="og:url" content="https://gottesman-software.github.io/benchmarks/">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#092543">
   <title>Research Benchmarks & Validation | Gottesman Software</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./published.css">
   <link rel="stylesheet" href="./mobile-nav.css">
   <link rel="stylesheet" href="./typography.css">
   <script src="./benchmarks.js" defer></script>
@@ -55,15 +64,17 @@
 
     <section class="wrap overview" aria-label="Benchmark register summary">
       <div class="overview-card"><strong>03</strong><span>Research streams</span></div>
+      <div class="overview-card"><strong>03</strong><span>Published LiDMaS+ studies</span></div>
       <div class="overview-card"><strong>03</strong><span>Literature anchors</span></div>
       <div class="overview-card"><strong>04</strong><span>Initial hardware tests</span></div>
-      <div class="overview-card"><strong>00</strong><span>Verified lab results <span class="footnote">as of this release</span></span></div>
+      <div class="overview-card"><strong>00</strong><span>Independently verified results <span class="footnote">as of this release</span></span></div>
     </section>
 
     <section class="wrap section section-intro" id="targets">
       <div class="section-heading"><div><p class="kicker">01 / VALIDATION PROGRAMME</p><h2>Targets are not results.</h2></div><p>Every target is marked by evidence level and associated with the scope we intend to test. The register starts with the electrical ESP32-S3 loopback bench.</p></div>
       <div class="key" aria-label="Evidence status legend">
         <span><i class="key-dot reference" aria-hidden="true"></i> Literature: independently published</span>
+        <span><i class="key-dot published" aria-hidden="true"></i> Published: project paper or preprint</span>
         <span><i class="key-dot planned" aria-hidden="true"></i> Planned: proposed criterion</span>
         <span><i class="key-dot pending" aria-hidden="true"></i> Pending: no measured result</span>
         <span><i class="key-dot verified" aria-hidden="true"></i> Verified: requires evidence artifact</span>
@@ -94,11 +105,11 @@
         </article>
 
         <article class="stream-card" data-benchmark-record="stream" data-track="qec" data-search="LiDMaS decoder quantum error correction mwpm BP union-find logical error rate latency syndrome noise">
-          <div class="card-top"><span class="stream-id">STREAM 02 / QEC</span><span class="status status-definition">Baseline design</span></div>
+          <div class="card-top"><span class="stream-id">STREAM 02 / QEC</span><span class="status status-published">Published evidence</span></div>
           <h3>LiDMaS+ <small>Decoder validation</small></h3>
           <p class="card-description">Compare logical error rate and decoding latency with established decoder implementations on matched codes, noise, syndrome streams and host configurations.</p>
-          <div class="definition-list"><div><span>Primary measurements</span><strong>Logical error rate · latency distribution · throughput</strong></div><div><span>Reference class</span><strong>MWPM and matched decoder baselines</strong></div><div><span>Numerical acceptance threshold</span><strong>To be specified after workload selection</strong></div><div><span>Observed measurements</span><strong class="empty">Not yet reported in this register</strong></div></div>
-          <div class="card-foot"><span>Same code distance and noise model required</span><span>Evidence: pending</span></div>
+          <div class="definition-list"><div><span>Primary measurements</span><strong>Logical error rate · threshold crossings · decoder throughput</strong></div><div><span>Peer-reviewed result</span><strong>Median p<sub>c</sub> = 0.0531; bootstrap interval [0.0415, 0.0572]</strong></div><div><span>Public replay result</span><strong>4,108 / 4,108 fixture and public-slice lines reported without parse errors</strong></div><div><span>Independent verification</span><strong class="empty">Not yet completed by this register</strong></div></div>
+          <div class="card-foot"><span>Conditions and estimator choices remain attached to each source</span><span>Evidence: published, not independently verified</span></div>
         </article>
 
         <article class="stream-card" data-benchmark-record="stream" data-track="simulation" data-search="SchroSIM photonic gaussian non gaussian simulation strawberry fields accuracy runtime memory fidelity continuous variable">
@@ -112,8 +123,18 @@
       <p class="no-results" id="no-results" hidden>No matches in this register. Try another stream or search term.</p>
     </section>
 
+    <section class="published-block" id="published"><div class="wrap section">
+      <div class="section-heading"><div><p class="kicker">02 / LIDMAS+ RESULTS</p><h2>Published evidence from the project.</h2></div><p>These claims are reported in peer-reviewed or public research. Their publication status is shown separately from this register's stricter independent-verification status.</p></div>
+      <div class="published-grid">
+        <article class="published-card" data-benchmark-record="published-result" data-publication-tier="peer-reviewed"><div class="lit-head"><span>PEER REVIEWED / QEC THRESHOLDS</span><span>2026</span></div><h3>Decoder dependence under hybrid CV-discrete noise</h3><div class="published-metric"><strong>0.0531</strong><span>Pauli matching-style median crossing p<sub>c</sub><br>bootstrap interval [0.0415, 0.0572]</span></div><p>Dense hybrid sweeps used d=3, 5, and 7 with 3,000 trials per point. Decoder and estimator sensitivity remain part of the claim boundary.</p><a href="https://doi.org/10.1002/prop.70124" target="_blank" rel="noopener noreferrer">Fortschritte der Physik 74(6), e70124 · DOI ↗</a></article>
+        <article class="published-card" data-benchmark-record="published-result" data-publication-tier="preprint"><div class="lit-head"><span>PREPRINT / PARALLEL SAMPLING</span><span>2026</span></div><h3>Native GKP digitization and decoder comparison</h3><div class="published-metric"><strong>1.34× / 1.94×</strong><span>reported threaded speedups<br>Pauli / native GKP</span></div><p>The same study reports mean absolute logical-error-rate deltas of 6.07e-3 and 5.20e-3 between serial and threaded sampling.</p><a href="https://arxiv.org/abs/2603.25757" target="_blank" rel="noopener noreferrer">arXiv:2603.25757 ↗</a></article>
+        <article class="published-card" data-benchmark-record="published-result" data-publication-tier="preprint"><div class="lit-head"><span>PREPRINT / REPLAY ARCHITECTURE</span><span>2026</span></div><h3>Hardware-to-decoder evidence path</h3><div class="published-metric"><strong>4,108 / 4,108</strong><span>fixture and public-slice lines<br>reported without parse errors</span></div><p>The scope is fixture input and sampled public datasets, not live photonic hardware. Rerun artifacts were reported with matching SHA-256 hashes.</p><a href="https://arxiv.org/abs/2604.15389" target="_blank" rel="noopener noreferrer">arXiv:2604.15389 ↗</a></article>
+      </div>
+      <div class="release-strip"><div><span>Public release</span><strong>LiDMaS+ v1.2.2</strong></div><div><span>Runtime</span><strong>C++20 + Python 3.9+</strong></div><div><span>License</span><strong>MIT</strong></div><div class="release-links"><a href="https://pypi.org/project/lidmas/" target="_blank" rel="noopener noreferrer">PyPI ↗</a><a href="https://github.com/Gottesman-Software/lidmas_cpp/tree/v1.2.2" target="_blank" rel="noopener noreferrer">Source tag ↗</a></div></div>
+    </div></section>
+
     <section class="literature-block" id="literature"><div class="wrap section">
-      <div class="section-heading"><div><p class="kicker">02 / PUBLISHED CONTEXT</p><h2>Literature reference library.</h2></div><p>Each cited result belongs to its original instrument, software, workload and measurement conditions. Published performance is not a claim of Gottesman performance.</p></div>
+      <div class="section-heading"><div><p class="kicker">03 / PUBLISHED CONTEXT</p><h2>Literature reference library.</h2></div><p>Each cited result belongs to its original instrument, software, workload and measurement conditions. Published performance is not a claim of Gottesman performance.</p></div>
       <div class="literature-grid">
         <article class="literature-card" data-benchmark-record="literature"><div class="lit-head"><span>HARDWARE / FPGA TIMING</span><span>2020</span></div><h3>High-count-rate coincidence counting</h3><p class="authors">Arabul, Paesani, Tancock, Rarity &amp; Dahnoun · IEEE Photonics Journal</p>
           <div class="figures"><div><strong>8.9 <small>ps</small></strong><span>RMS timing resolution</span></div><div><strong>320 <small>MCPS</small></strong><span>Aggregate count rate</span></div><div><strong>8</strong><span>Operational channels</span></div></div>
@@ -131,7 +152,7 @@
     </div></section>
 
     <section class="wrap section protocol" id="methodology">
-      <div class="section-heading"><div><p class="kicker">03 / REPRODUCIBILITY</p><h2>What qualifies as verified?</h2></div><p>A result is promoted from “measured” to “verified” only when its inputs and provenance can be inspected. This policy prevents promotional percentages from being mistaken for scientific evidence.</p></div>
+      <div class="section-heading"><div><p class="kicker">04 / REPRODUCIBILITY</p><h2>What qualifies as verified?</h2></div><p>A result is promoted from “measured” to “verified” only when its inputs and provenance can be inspected. Publication alone does not replace this register's independent rerun requirement.</p></div>
       <div class="protocol-grid">
         <div class="protocol-card"><span>01</span><h3>Freeze the workload</h3><p>Record circuit, noise model, timing mode, sample count, device, firmware and software versions.</p></div>
         <div class="protocol-card"><span>02</span><h3>Capture raw evidence</h3><p>Archive traces, data files, logs, scripts, configuration and calibration details with a run identifier.</p></div>
@@ -142,6 +163,6 @@
 
     <section class="wrap contact-row"><div><p class="kicker">OPEN SCIENCE</p><h2>Inspect the work behind the claim.</h2><p>Reference literature, source repositories and subsequent validation artifacts will remain linked to their precise experimental scope.</p></div><a class="button button-dark" href="https://github.com/Gottesman-Software" target="_blank" rel="noopener noreferrer">Gottesman on GitHub ↗</a></section>
   </main>
-  <footer class="footer"><div class="wrap"><span>© Gottesman Software · Research benchmark register</span><span>Initial issue: 12 October 2026 · No verified bench data published</span><a href="/lab">Back to Lab ↑</a></div></footer>
+  <footer class="footer"><div class="wrap"><span>© Gottesman Software · Research benchmark register</span><span>Updated 12 October 2026 · Published software evidence, no independently verified bench result</span><a href="/lab">Back to Lab ↑</a></div></footer>
 </body>
 </html>
