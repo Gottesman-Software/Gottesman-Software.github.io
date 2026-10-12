@@ -5872,3 +5872,62 @@ h3 {
     height: auto;
   }
 }
+
+.lab-benchmark-callout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+  width: min(var(--max), calc(100% - 40px));
+  margin: clamp(52px, 7vw, 88px) auto 0;
+  border: 1px solid #d8dee8;
+  border-top: 4px solid var(--cyan);
+  padding: clamp(28px, 4vw, 52px);
+  background: linear-gradient(120deg, #f8fafc, #eefcff);
+}
+
+.lab-benchmark-callout h2 {
+  max-width: 760px;
+  font-size: clamp(30px, 4vw, 48px);
+}
+
+.lab-benchmark-callout p:not(.eyebrow) {
+  max-width: 760px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.lab-benchmark-link {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid #07111f;
+  padding: 0 20px;
+  background: #07111f;
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.lab-benchmark-link:hover,
+.lab-benchmark-link:focus-visible {
+  border-color: #0891b2;
+  background: #0891b2;
+}
+
+@media (max-width: 800px) {
+  .lab-benchmark-callout {
+    grid-template-columns: 1fr;
+  }
+
+  .lab-benchmark-link {
+    width: fit-content;
+    white-space: normal;
+  }
+}

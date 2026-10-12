@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Gottesman Software research benchmark observatory: literature baselines, proposed validation criteria, and reproducible experimental evidence for photonic simulation, QEC, and hardware control.">
+  <meta name="theme-color" content="#092543">
+  <title>Research Benchmarks & Validation | Gottesman Software</title>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./mobile-nav.css">
+  <script src="./benchmarks.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/" aria-label="Gottesman Software home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-wordmark"><span>Gottesman</span><span>Software</span></span>
+      </a>
+      <nav class="header-links" aria-label="Primary navigation">
+        <a href="/">Home</a><a href="/software">Software</a><a href="/studio">Studio</a><a href="/lab">Lab</a><a href="/research">Research</a><a href="/team">Team</a><a href="/support">Support</a>
+      </nav>
+      <details class="mobile-nav">
+        <summary><span>Menu</span><span class="mobile-nav-icon" aria-hidden="true"></span></summary>
+        <nav class="mobile-nav-panel" aria-label="Mobile navigation">
+          <a href="/">Home</a><a href="/software">Software</a><a href="/studio">Studio</a><a href="/lab">Lab</a><a href="/research">Research</a><a href="/team">Team</a><a href="/support">Support</a>
+        </nav>
+      </details>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow"><span class="small-orbit" aria-hidden="true"></span> RESEARCH INFRASTRUCTURE / EVIDENCE REGISTER</p>
+          <h1>Research benchmarks.<br><span>Evidence before claims.</span></h1>
+          <p class="hero-description">A transparent register of published reference results, defined experimental targets, and measurements that Gottesman Software has independently reproduced or verified.</p>
+          <div class="hero-actions"><a href="#targets" class="button button-primary">Explore validation targets <span aria-hidden="true">↗</span></a><a href="#literature" class="button button-outline">Published references</a></div>
+        </div>
+        <div class="hero-schematic" aria-label="Evidence workflow from literature through target to experiment and verification">
+          <div class="schematic-header"><span>GSL / BENCHMARK PIPELINE</span><span class="schematic-dot">● OFFLINE REGISTER</span></div>
+          <div class="schematic-row"><span class="schematic-index">01</span><div><strong>Published literature</strong><small>Source DOI · conditions · reported metric</small></div><span aria-hidden="true">↗</span></div>
+          <div class="schematic-link"></div>
+          <div class="schematic-row"><span class="schematic-index">02</span><div><strong>Gottesman target</strong><small>Workload · acceptance criteria · protocol</small></div><span aria-hidden="true">↗</span></div>
+          <div class="schematic-link"></div>
+          <div class="schematic-row schematic-row-muted"><span class="schematic-index">03</span><div><strong>Measured result</strong><small>Pending laboratory experiment</small></div><span aria-hidden="true">○</span></div>
+          <div class="schematic-link"></div>
+          <div class="schematic-row schematic-row-muted"><span class="schematic-index">04</span><div><strong>Independent verification</strong><small>Evidence · environment · reproducible run</small></div><span aria-hidden="true">○</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap overview" aria-label="Benchmark register summary">
+      <div class="overview-card"><strong>03</strong><span>Research streams</span></div>
+      <div class="overview-card"><strong>03</strong><span>Literature anchors</span></div>
+      <div class="overview-card"><strong>04</strong><span>Initial hardware tests</span></div>
+      <div class="overview-card"><strong>00</strong><span>Verified lab results <span class="footnote">as of this release</span></span></div>
+    </section>
+
+    <section class="wrap section section-intro" id="targets">
+      <div class="section-heading"><div><p class="kicker">01 / VALIDATION PROGRAMME</p><h2>Targets are not results.</h2></div><p>Every target is marked by evidence level and associated with the scope we intend to test. The register starts with the electrical ESP32-S3 loopback bench.</p></div>
+      <div class="key" aria-label="Evidence status legend">
+        <span><i class="key-dot reference" aria-hidden="true"></i> Literature: independently published</span>
+        <span><i class="key-dot planned" aria-hidden="true"></i> Planned: proposed criterion</span>
+        <span><i class="key-dot pending" aria-hidden="true"></i> Pending: no measured result</span>
+        <span><i class="key-dot verified" aria-hidden="true"></i> Verified: requires evidence artifact</span>
+      </div>
+      <div class="filterbar" role="group" aria-label="Filter research streams">
+        <div class="filter-buttons">
+          <button class="filter-btn is-active" data-filter="all" aria-pressed="true">All streams</button>
+          <button class="filter-btn" data-filter="hardware" aria-pressed="false">Hardware control</button>
+          <button class="filter-btn" data-filter="qec" aria-pressed="false">Error correction</button>
+          <button class="filter-btn" data-filter="simulation" aria-pressed="false">Photonic simulation</button>
+        </div>
+        <label class="search-label"><span class="visually-hidden">Search benchmark cards</span><input id="search" type="search" autocomplete="off" placeholder="Search metrics or systems…"></label>
+      </div>
+      <p id="filter-count" class="filter-count" aria-live="polite"></p>
+
+      <div class="stream-grid" id="stream-grid">
+        <article class="stream-card" data-track="hardware" data-search="hardware photon-qdrivers esp32 pulse loopback gpio event OLED logic analyzer">
+          <div class="card-top"><span class="stream-id">STREAM 01 / HARDWARE</span><span class="status status-planned">Planned test</span></div>
+          <h3>Photon-QDrivers <small>ESP32-S3 N16R8</small></h3>
+          <p class="card-description">Digital pulse-generation and GPIO-loopback experiments using the proposed USB-powered bench. No photon detector or FPGA timing claims are made for this phase.</p>
+          <div class="target-table-wrap"><table class="target-table"><caption>Proposed Phase 1 validation criteria</caption><thead><tr><th scope="col">Metric</th><th scope="col">Proposed criterion</th><th scope="col">Observed</th></tr></thead><tbody>
+            <tr><th scope="row">Pulse frequency</th><td>1 kHz ± 1%, after analyzer verification</td><td class="empty">Pending</td></tr>
+            <tr><th scope="row">Loopback event agreement</th><td>10,000 / 10,000 at 1 kHz under defined input conditions</td><td class="empty">Pending</td></tr>
+            <tr><th scope="row">Host command integrity</th><td>100 / 100 acknowledgements under a fixed test sequence</td><td class="empty">Pending</td></tr>
+            <tr><th scope="row">Local display</th><td>OLED count and state agree with host response</td><td class="empty">Pending</td></tr>
+          </tbody></table></div>
+          <div class="card-foot"><span>Protocol: to be published before measurement</span><span>Evidence: none uploaded</span></div>
+        </article>
+
+        <article class="stream-card" data-track="qec" data-search="LiDMaS decoder quantum error correction mwpm BP union-find logical error rate latency syndrome noise">
+          <div class="card-top"><span class="stream-id">STREAM 02 / QEC</span><span class="status status-definition">Baseline design</span></div>
+          <h3>LiDMaS+ <small>Decoder validation</small></h3>
+          <p class="card-description">Compare logical error rate and decoding latency with established decoder implementations on matched codes, noise, syndrome streams and host configurations.</p>
+          <div class="definition-list"><div><span>Primary measurements</span><strong>Logical error rate · latency distribution · throughput</strong></div><div><span>Reference class</span><strong>MWPM and matched decoder baselines</strong></div><div><span>Numerical acceptance threshold</span><strong>To be specified after workload selection</strong></div><div><span>Observed measurements</span><strong class="empty">Not yet reported in this register</strong></div></div>
+          <div class="card-foot"><span>Same code distance and noise model required</span><span>Evidence: pending</span></div>
+        </article>
+
+        <article class="stream-card" data-track="simulation" data-search="SchroSIM photonic gaussian non gaussian simulation strawberry fields accuracy runtime memory fidelity continuous variable">
+          <div class="card-top"><span class="stream-id">STREAM 03 / SIMULATION</span><span class="status status-definition">Baseline design</span></div>
+          <h3>SchroSIM <small>Photonic numerical agreement</small></h3>
+          <p class="card-description">Define like-for-like Gaussian and selected non-Gaussian circuits; compare numerical observables, execution time and peak memory at matched precision and cutoff settings.</p>
+          <div class="definition-list"><div><span>Primary measurements</span><strong>Observable agreement · runtime · peak RAM</strong></div><div><span>Reference class</span><strong>Reproducible photonic simulator implementations</strong></div><div><span>Numerical acceptance threshold</span><strong>To be set per circuit family and tolerance</strong></div><div><span>Observed measurements</span><strong class="empty">Not yet reported in this register</strong></div></div>
+          <div class="card-foot"><span>Precision and truncation policy must match</span><span>Evidence: pending</span></div>
+        </article>
+      </div>
+      <p class="no-results" id="no-results" hidden>No matches in this register. Try another stream or search term.</p>
+    </section>
+
+    <section class="literature-block" id="literature"><div class="wrap section">
+      <div class="section-heading"><div><p class="kicker">02 / PUBLISHED CONTEXT</p><h2>Literature reference library.</h2></div><p>Each cited result belongs to its original instrument, software, workload and measurement conditions. Published performance is not a claim of Gottesman performance.</p></div>
+      <div class="literature-grid">
+        <article class="literature-card"><div class="lit-head"><span>HARDWARE / FPGA TIMING</span><span>2020</span></div><h3>High-count-rate coincidence counting</h3><p class="authors">Arabul, Paesani, Tancock, Rarity &amp; Dahnoun · IEEE Photonics Journal</p>
+          <div class="figures"><div><strong>8.9 <small>ps</small></strong><span>RMS timing resolution</span></div><div><strong>320 <small>MCPS</small></strong><span>Aggregate count rate</span></div><div><strong>8</strong><span>Operational channels</span></div></div>
+          <p class="caveat">Specialized FPGA-based coincidence system with a TDC. Not directly comparable with ESP32 GPIO sampling or a 24 MHz USB analyzer.</p><a href="https://doi.org/10.1109/JPHOT.2020.2968724" target="_blank" rel="noopener noreferrer">Read paper · DOI 10.1109/JPHOT.2020.2968724 ↗</a>
+        </article>
+        <article class="literature-card"><div class="lit-head"><span>QEC / MATCHING DECODER</span><span>2023</span></div><h3>Sparse blossom: fast MWPM decoding</h3><p class="authors">Higgott &amp; Gidney · arXiv:2303.15933</p>
+          <div class="figures single"><div><strong>&lt; 1 <small>µs / round</small></strong><span>Reported single-core time under specified d=17 surface-code and 0.1% circuit-level noise conditions</span></div></div>
+          <p class="caveat">Specific syndrome-decoding workload, not a general CPU or FPGA latency bound. A valid comparison requires matched noise, code distance and experimental protocol.</p><a href="https://arxiv.org/abs/2303.15933" target="_blank" rel="noopener noreferrer">Read paper · arXiv:2303.15933 ↗</a>
+        </article>
+        <article class="literature-card"><div class="lit-head"><span>PHOTONICS / SIMULATION</span><span>2019</span></div><h3>Strawberry Fields photonic platform</h3><p class="authors">Killoran et al. · Quantum 3, 129</p>
+          <div class="figures single"><div><strong>CV <small>simulation</small></strong><span>Photonic programming, compilation and specialized simulation backends</span></div></div>
+          <p class="caveat">Methodological reference, not a numeric speed target. Gottesman comparisons must first define equivalent circuits, cutoff dimensions and numerical precision.</p><a href="https://doi.org/10.22331/q-2019-03-11-129" target="_blank" rel="noopener noreferrer">Read paper · DOI 10.22331/q-2019-03-11-129 ↗</a>
+        </article>
+      </div>
+    </div></section>
+
+    <section class="wrap section protocol" id="methodology">
+      <div class="section-heading"><div><p class="kicker">03 / REPRODUCIBILITY</p><h2>What qualifies as verified?</h2></div><p>A result is promoted from “measured” to “verified” only when its inputs and provenance can be inspected. This policy prevents promotional percentages from being mistaken for scientific evidence.</p></div>
+      <div class="protocol-grid">
+        <div class="protocol-card"><span>01</span><h3>Freeze the workload</h3><p>Record circuit, noise model, timing mode, sample count, device, firmware and software versions.</p></div>
+        <div class="protocol-card"><span>02</span><h3>Capture raw evidence</h3><p>Archive traces, data files, logs, scripts, configuration and calibration details with a run identifier.</p></div>
+        <div class="protocol-card"><span>03</span><h3>Reproduce &amp; review</h3><p>Publish commands, the Git commit and uncertainty or failure modes; repeat the experiment independently.</p></div>
+      </div>
+      <div class="note"><strong>Comparison boundary</strong><p>For FPGA latency, separate hardware event-to-decision latency from host command-to-result latency. Do not compare picosecond TDC precision with a low-rate USB logic analyzer. All numbers displayed as Gottesman targets are proposals until measurement artifacts are available.</p></div>
+    </section>
+
+    <section class="wrap contact-row"><div><p class="kicker">OPEN SCIENCE</p><h2>Inspect the work behind the claim.</h2><p>Reference literature, source repositories and subsequent validation artifacts will remain linked to their precise experimental scope.</p></div><a class="button button-dark" href="https://github.com/Gottesman-Software" target="_blank" rel="noopener noreferrer">Gottesman on GitHub ↗</a></section>
+  </main>
+  <footer class="footer"><div class="wrap"><span>© Gottesman Software · Research benchmark register</span><span>Initial issue: 12 October 2026 · No verified bench data published</span><a href="/lab">Back to Lab ↑</a></div></footer>
+</body>
+</html>
